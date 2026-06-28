@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <modules>
+        <Cms>
+            <active>true</active>
+            <codePool>Cms</codePool>
+            <system>true</system>
+            <depends>
+            </depends>
+        </Cms>
+    </modules>
+</config>

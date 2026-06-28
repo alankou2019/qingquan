@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <base_path>/</base_path>
+    <!-- 开发环境 development|production -->
+    <application_env>development</application_env>
+    <database>
+        <adapter>Mysql</adapter>
+        <host>localhost</host>
+        <port>3306</port>
+        <username>root</username>
+        <password></password>
+        <dbname>dingding</dbname>
+        <charset>utf8</charset>
+        <prefix>scsx_</prefix>
+    </database>
+    <cache>file</cache>
+    <controller_group>
+        <adminhtml>
+            <namespace>Adminhtml</namespace>
+            <url>admin</url>
+        </adminhtml>
+        <frontend>
+            <namespace>Frontend</namespace>
+            <url></url>
+        </frontend>
+        <api>
+            <namespace>Api</namespace>
+            <url>api</url>
+        </api>
+    </controller_group>
+    <default_controller_namespace>Frontend</default_controller_namespace>
+    <session>
+        <adapter>Files</adapter>
+        <options>
+          <uniqueId>scsx</uniqueId>
+          <name>__scsxsid</name>
+        </options>
+    </session>
+    <cache>
+        <adapter>File</adapter>
+        <options>
+          <lifetime>3600</lifetime>
+        </options>
+    </cache>
+    <logger>
+        <enabled>true</enabled>
+        <path>/var/cache</path>
+        <format>[%date%][%type%] %message%</format>
+    </logger>
+</config>

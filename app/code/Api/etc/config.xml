@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<modules>
+		<Api>
+			<version>1.0.0.0</version>
+			<label>Api</label>
+			<description>Api</description>
+		</Api>
+	</modules>
+</config>

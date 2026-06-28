@@ -1,0 +1,194 @@
+@charset "UTF-8";
+/*设置单位为rem的字体大小函数*/
+/*********************************
+ * 标签初始化
+ * *****************************/
+/*全局字体缩放设置*/
+html {
+  font-size: 40px; }
+
+body {
+  font-family: "helvetica", "Microsoft Yahei", "SimHei", "SimSun", "HelveticaNeue";
+  -webkit-user-select: none;
+  -webkit-text-size-adjust: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow-y: auto;
+  background-color: #eeeff3;
+  color: #333; }
+
+body, div, dl, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, h6, pre, code, form, fieldset, legend, input, textarea, p,
+blockquote, th, td, header, hgroup, nav, section, article, aside, footer, figure, figcaption, menu, button {
+  margin: 0;
+  padding: 0; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: normal;
+  font-style: normal; }
+
+ul, li, ol {
+  list-style: none; }
+
+/* 表单相关样式 */
+input, textarea {
+  border: none;
+  background: none;
+  font-family: 'Microsoft Yahei', 'SimSun', 'HelveticaNeue'; }
+
+::-webkit-input-placeholder {
+  color: #AAA; }
+
+em, i {
+  font-style: normal; }
+
+a {
+  -webkit-touch-callout: none;
+  text-decoration: none;
+  outline: 0; }
+
+button:active {
+  background: none !important; }
+
+/* 具体内容区域  */
+.warp {
+  background: #F8F8F8;
+  width: 100%;
+  max-width: 750px;
+  display: none;
+  line-height: 1.4;
+  margin: 0 auto;
+  position: relative;
+  padding: 0px;
+  font-size: 0.6rem; }
+
+/*1px边框样式*/
+.fl {
+  float: left; }
+
+.fr {
+  float: right; }
+
+/*清除浮动*/
+.clear::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  clear: both; }
+
+/*两端对齐*/
+.text_justify {
+  text-align: justify;
+  text-align-last: justify;
+  display: inline-block;
+  white-space: initial; }
+
+.text_justify:after {
+  content: "";
+  display: inline-block;
+  width: 100%;
+  height: 0;
+  overflow: hidden; }
+
+.text_ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis; }
+
+.text_ellipsis2 {
+  text-overflow: -o-ellipsis-lastline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; }
+
+.text_ellipsis3 {
+  text-overflow: -o-ellipsis-lastline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical; }
+
+/***********************************
+ * 样式修正
+ * ********************************/
+input[type=text], input[type=password], input[type=number] {
+  padding: 0;
+  height: 2.25rem;
+  line-height: 2.25rem;
+  margin-bottom: 0;
+  font-size: 0.7rem; }
+
+.mui-icon {
+  font-size: 0.9rem;
+  color: #666; }
+
+.mui-content {
+  background-color: #eeeff3; }
+
+.mui-slider .mui-segmented-control {
+  border: none; }
+
+.mui-slider .mui-segmented-control ~ .mui-slider-group .mui-control-content {
+  border: none;
+  background-color: #efeff4; }
+
+.mui-slider .mui-segmented-control .mui-control-item {
+  background-color: #f7f7f7;
+  padding: 0.125rem 0;
+  border: none;
+  font-size: 0.8rem;
+  color: #666;
+  border-bottom: 2px solid #ccc;
+  height: 2rem;
+  vertical-align: middle;
+  position: relative; }
+
+.mui-slider .mui-segmented-control .mui-control-item.mui-active {
+  color: #38adff;
+  border-bottom: 2px solid #38adff; }
+
+.mui-slider .mui-slider-group {
+  white-space: initial;
+  font-size: inherit;
+  background-color: #fff; }
+
+.mui-picker {
+  background-color: #fff; }
+
+.mui-poppicker-header, .mui-dtpicker-header {
+  background-color: #fff; }
+  .mui-poppicker-header .mui-btn, .mui-dtpicker-header .mui-btn {
+    border: none;
+    background-color: transparent;
+    color: #38adff; }
+  .mui-poppicker-header .mui-poppicker-btn-ok, .mui-poppicker-header .mui-btn-red, .mui-dtpicker-header .mui-poppicker-btn-ok, .mui-dtpicker-header .mui-btn-red {
+    font-weight: 600; }
+
+.mui-dtpicker-body {
+  border-top: 1px solid #e4e4e4; }
+
+.mui-dtpicker-title {
+  display: none; }
+
+.footer_sub_btn {
+  background-color: #fff;
+  height: 2.9rem;
+  padding: 0.5rem;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0; }
+  .footer_sub_btn .sub_btn {
+    height: 1.9rem;
+    line-height: 1.9rem;
+    width: 100%;
+    background-color: #38adff;
+    font-size: 0.9rem;
+    color: #fff;
+    padding: 0;
+    border: none; }
+
+/*# sourceMappingURL=main.css.map */

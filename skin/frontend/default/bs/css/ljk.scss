@@ -1,0 +1,226 @@
+@charset "utf-8";
+@import"main";
+
+.has_top{
+    padding-top:setRem(110);
+}
+.has_footer{
+    padding-bottom: setRem(116);
+}
+.all_html{
+    height: 100%;
+    body{
+        height:100%;
+    }
+}
+//输入框盒子
+.input_box{
+    background-color: #fff;
+    padding:setRem(4) setRem(20);
+    input{
+        border:none;
+        height:setRem(80);
+        line-height: setRem(80);
+    }
+}
+/*********************************************************
+ * score.html     (评分)
+ **********************************************************/
+#score{
+    .slider_top{
+        position: fixed;
+        top:0;
+        left:0;
+        right:0;
+    }
+    .score_list_ul{
+        font-size: setRem(24);
+        
+        padding-left: setRem(20);
+        li{
+            @extend %border;
+            &:before{
+                border-bottom:1px solid #e4e4e4;
+            }
+            a{
+                display: block;
+                padding:setRem(15);
+                padding-left: 0;
+                color:#999;
+            }
+        }
+        .header_img{
+            width:setRem(64);
+            height:setRem(64);
+            margin-top: setRem(7);
+            margin-right: setRem(20);
+        }
+        .name{
+            font-size: setRem(32);
+            color:#222;
+        }
+        .time{
+            height: setRem(77);
+            line-height: setRem(77);
+        }
+    }
+}
+/***********************************************
+ * screen.html   (筛选)
+ * ********************************************/
+#screen{
+    height:100%;
+    .mui-content{
+        height:100%;
+        box-sizing: border-box;
+    }
+    form{
+        height: 100%;
+    }
+    .input_box{
+        margin-top: setRem(20);
+    }
+    .screen_ul{
+        margin-top: setRem(20);
+        background-color: #fff;
+        color:#333;
+        font-size: setRem(28);
+        li{
+            padding:setRem(20);
+            @extend %border;
+            &:before{
+                border-bottom: 1px solid #e4e4e4;
+            }
+            &:last-child:before{
+                border-bottom: none;
+            }
+        }
+        .mui-icon{
+            color:#999;
+        }
+    }
+}
+/*********************************************
+ * score_details.html          (评分详情)
+ * *******************************************/
+#score_details{
+    .score_details_list{
+        .title{
+            color:#666;
+            font-size: setRem(30);
+            padding:setRem(20);
+        }
+        .list_con{
+            @extend %border;
+            &:before{
+                border-bottom: 1px solid #e4e4e4;
+            }
+            &:nth-child(2n+1){
+                &:before{
+                    border-right: 1px solid #e4e4e4;
+                }
+            }
+        }
+        li{
+            width:50%;
+            padding:setRem(15) setRem(20);
+            .left_tit{
+                padding-left: setRem(15);
+                position: relative;
+                &:before{
+                    position: absolute;
+                    content: "";
+                    left:0;
+                    top:setRem(3);
+                    bottom:setRem(3);
+                    border-left:2px solid #f5b365;
+                }
+            }
+            &:nth-child(4n+3),&:nth-child(4n+4){
+                .left_tit{
+                    &:before{
+                        border-left:2px solid #52aae9;
+                    }
+                }
+            }
+            .header_img{
+                width:setRem(64);
+                height: setRem(64);
+                margin-right: setRem(20);
+                margin-top: setRem(6);
+            }
+            .txt_top{
+                color:#222;
+                font-size: setRem(30);
+            }
+            .txt_bottom{
+                color:#999;
+                font-size: setRem(24);    
+            }
+            .fen{
+                color:#999;
+            }
+        }
+    }
+    .score_details_list_ul{
+        background-color: #fff;
+    }
+}
+
+/* HarmonyOS / modern mobile WebView compatibility */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+button, input, textarea, select, a {
+    touch-action: manipulation;
+}
+#score .slider_top {
+    z-index: 10;
+}
+#score .mui-segmented-control {
+    display: -webkit-flex;
+    display: flex;
+    width: 100%;
+    table-layout: fixed;
+}
+#score .mui-segmented-control .mui-control-item,
+#score .mui-segmented-control .hellostyle {
+    display: block;
+    -webkit-flex: 1 1 0;
+    flex: 1 1 0;
+    width: auto !important;
+    min-width: 0;
+    height: 2rem;
+    line-height: 2rem;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.footer_sub_btn {
+    z-index: 20;
+    box-sizing: border-box;
+    height: calc(2.9rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+.has_footer {
+    padding-bottom: calc(2.9rem + env(safe-area-inset-bottom, 0px));
+}
+.layer_box {
+    height: 100vh;
+    height: 100dvh;
+}
+@media screen and (max-width: 480px) {
+    #score .mui-segmented-control .mui-control-item,
+    #score .mui-segmented-control .hellostyle {
+        font-size: 0.7rem;
+    }
+    input[type=text], input[type=password], input[type=number], textarea {
+        font-size: max(0.7rem, 16px);
+    }
+}

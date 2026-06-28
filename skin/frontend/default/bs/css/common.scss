@@ -1,0 +1,124 @@
+@charset "utf-8";
+$baseFontSize:40;
+/*设置单位为rem的字体大小函数*/
+@function setRem($px) {
+   @return $px / $baseFontSize * 1rem;
+}
+
+/*********************************
+ * 标签初始化
+ * *****************************/
+/*全局字体缩放设置*/
+html{
+    font-size:40px;
+}
+
+body {
+    font-family:'helvetica','Microsoft Yahei', 'SimHei','SimSun', 'HelveticaNeue' ;
+    -webkit-user-select:none;
+    -webkit-text-size-adjust:none;
+    -webkit-tap-highlight-color:transparent;
+    overflow-y:auto;
+    background-color: #eeeff3;
+    color:#333;
+}
+body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,
+blockquote,th,td,header,hgroup,nav,section,article,aside,footer,figure,figcaption,menu,button {
+    margin:0;
+    padding:0;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-weight: normal;
+    font-style: normal;
+}
+ul, li, ol {
+    list-style: none;
+}
+/* 表单相关样式 */
+input ,textarea{
+    border:none;
+    background: none;
+    font-family: 'Microsoft Yahei', 'SimSun', 'HelveticaNeue';
+}
+::-webkit-input-placeholder {
+    color:#AAA
+}
+em,i{
+    font-style: normal;
+}
+a {
+    -webkit-touch-callout:none;
+    text-decoration:none;
+    outline:0
+}
+button:active{background: none !important;}
+
+
+/* 具体内容区域  */
+.warp{
+    background:#F8F8F8;
+    width:100%;
+    max-width: 750px; 
+    display:none; 
+    line-height: 1.4;
+    margin:0 auto; 
+    position:relative;
+    padding:0px;
+    font-size: setRem(24);
+}
+/*1px边框样式*/
+%border{
+    /*去掉元素原有的边框 */
+    position: relative;
+    border: none !important;
+     &:before{
+         /*通过设置伪元素放大到2倍的宽高，设置1px边框，再缩小1倍，以达到0.5px边框的效果*/
+        content: '';
+        display: block;
+        width: 200%;
+        height: 200%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        box-sizing: border-box;
+        -webkit-transform-origin: left top;
+        transform-origin: left top;
+        -webkit-transform: scale(.5);
+        transform: scale(.5);
+        pointer-events: none;/*防止点击不到元素 */
+     }
+}
+
+.fl{
+    float:left;
+}
+.fr{
+    float:right;
+}
+/*清除浮动*/
+.clear::after{
+    content: '';
+    display:block;
+    width:0;
+    height:0;
+    visibility: hidden;
+    clear:both;
+}
+
+/*两端对齐*/
+.text_justify{
+    text-align: justify;
+    text-align-last:justify;
+    display: inline-block;
+    white-space: initial;
+}
+.text_justify:after{
+    content: "";
+    display: inline-block;
+    width:100%;
+    height:0;
+    overflow: hidden;
+}
+
+
+

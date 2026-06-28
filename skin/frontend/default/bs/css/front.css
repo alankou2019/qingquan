@@ -1,0 +1,77 @@
+
+.menu_box{
+    position:fixed;
+    right:0;
+    top:0;
+    padding: 0 .5rem;
+    z-index: 4;
+    padding-top:2rem;
+}
+.menu_img{
+     width:2rem;
+     height: 2rem;
+     position: absolute;
+     right: .5rem;
+     top:0;
+}
+.menu_ul{
+     background: rgba(255,255,255,.8);
+     border:1px solid #ccc;
+     border-radius: .5rem;
+     display:none;
+}
+.menu_ul li{
+     margin:.5rem 1rem;
+}
+.menu_ul a{
+     display: block;
+     color:#333;
+
+}
+.bspointspanwidth
+{
+	width:3rem;
+	display:inline-block;
+	text-align:right;
+	height:1.4rem;
+	line-height:1.4rem;
+}
+.bspointtextarea
+{
+	border:1px solid #ccc;
+}
+
+.addquota
+{
+	height: 1.4rem;
+    line-height: 1.4rem;
+    padding: 0 .2rem;
+    max-width: 4rem;
+    font-size: .7rem;
+    margin-top: 0.7rem;
+    margin-right: 0.2rem;
+}
+.addquotabutton
+{
+	height: 1.9rem;
+    line-height: 1.9rem;
+    background-color: #38adff;
+    font-size: 0.9rem;
+    color: #fff;
+    padding: 0;
+    width: 100%;
+    border: none;
+    border-radius: 0;
+}
+
+.red{
+    color: red;
+}
+
+.blue{
+    color: #4560e6;
+}
+.jifenjilu{
+	position: absolute;
+    margin-top: 0.3rem;
+}

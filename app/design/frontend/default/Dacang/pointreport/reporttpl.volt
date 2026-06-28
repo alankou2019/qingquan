@@ -1,0 +1,169 @@
+{% if full_page %}
+<!--滚动条-->
+<script src="/skin/adminhtml/default/libs/nicescroll/jquery.nicescroll.js"></script>
+<!--cookie-->
+<script src="/skin/adminhtml/default/libs/cookie/cookie.min.js"></script>
+<!--表格拖动-->
+<!--由于表单拖动需要migrate属性，而高版本已经没有了，所以要引入这个插件-->
+<script src="/skin/adminhtml/default/js/jquery-migrate-1.2.1.js"></script>
+<script src="/skin/adminhtml/default/libs/colResizable/colResizable-1.3.min.js" type="text/javascript" charset="utf-8"></script>
+<!--单选框复选框美化-->
+<script src="/skin/adminhtml/default/js/check.js" type="text/javascript" charset="utf-8"></script>
+<!--弹框-->
+<script src="/skin/adminhtml/default/libs/layer/layer.js" type="text/javascript" charset="utf-8"></script>
+<!--日历插件-->
+<script src="/skin/adminhtml/default/libs/laydate/laydate.js"></script>
+    <div class="full_box">
+    <!--头部TAB切换-->
+    
+    <!--搜索-->
+    <div class="search_box">
+    	<form action="searchForm" name="searchForm" style="display:inline">
+	        <!--搜索输入框-->
+	        <input type="text" name="name" value="" placeholder="请输入模版名称" class="search"/>
+	        <!--搜索输入框-->
+	        <!--搜索按钮-->
+	        <button class="search_btn btn1"  type="button" onclick="searchData();"><i class="iconfont icon-llhomesearch"></i>搜索</button>
+        </form>
+        
+        <!--右侧配置-->
+        <div class="search_right">
+            <span class="num">共<span id="recordCount"></span>条记录</span>
+            <a href="javascript:void(0)" onclick="window.location=window.location"><i class="iconfont icon-shuaxin"></i></a>    
+        </div>
+        <!--右侧配置-->
+    </div>
+    <!--搜索-->
+    
+    <!--表格-->
+    <div class="table_body" id="listTable">
+     <!--表格主体-->
+{% endif %}
+    <table class="table_box">
+        <!--head部分-->
+        <tr class="table_head">
+            <th class="check_box"><label class="radio_check ck_all"><input type="checkbox" name="radio_check"/></label></th>
+            <th class="operate"><span>操作</span></th>
+            <th><span>模版名称</span></th>
+<!--             <th><span>模版备注</span></th> -->
+        </tr>
+        <!--head部分-->
+        <!--列表部分-->
+        {% for item in dataList.items %}
+        	<tr>
+            	<td class="check_box"><label class="radio_check"><input type="checkbox" name="radio_check" class="item_checkbox" value="{{item['id']}}"/></label></td>
+                <td class="operate">
+                	<button class="btn" onclick="reporttpldetail({{item['id']}})"><i class="iconfont icon-caozuo"></i>详情</button>
+                    <button class="delete" onclick="listTable.remove({{item['id']}},'您确认要删除吗?');"><i class="iconfont icon-shanchu"></i>删除</button>
+                </td>
+                              
+                <td class="name">
+                    <span class="txt">{{item['name']}}</span>
+                </td>
+<!--                 <td class="name"> -->
+<!--                     <span class="txt"  title="{{item['remark']}}" >{{helper.substr(item['remark'],0,50)}}</span> -->
+<!--                 </td> -->
+            </tr>
+        {% endfor %}
+        <!--列表部分-->
+    </table>
+{% if full_page %}
+    <!--表格主体-->
+    </div>
+    <!--表格底部-->
+    <div class="table_foot">
+        <div class="all_check">
+            <label class="radio_check ck_all"><input type="checkbox" name="radio_check"/>全选</label>
+        </div>
+        <div class="all_delete">
+            <button onclick="removeMore();">批量删除</button>
+        </div>
+        <div class="page_box ">
+            <div class="page" id="listtable_page"></div>           
+        </div>
+    </div>
+    <!--表格底部-->
+    </div>
+    <!--表格-->   
+   	<!--模版详情--> 
+   	<div id="reportitem" style="display: none;">
+   	
+   	</div>
+    <!--当前页js star-->
+    <script type="text/javascript" src="/skin/adminhtml/default/js/switch.js" ></script>
+    <script type="text/javascript" src="/skin/adminhtml/default/js/zel.js" ></script>
+    <script src="/skin/adminhtml/default/js/jquery.pagination.js"></script>
+    <script src="/skin/adminhtml/default/js/listTable.js"></script>
+    <script src="/skin/adminhtml/default/js/afterload.js"></script>
+    <script>
+        //表格拖动JS
+		$(".table_box").colResizable();
+		$(".radio_check").CheckBox();
+		listTable.recordCount = {{dataList.count}};
+		listTable.pageCount = {{dataList.pageCount}};
+		listTable.currentPage = {{dataList.currentPage}};
+		listTable.pageSize = {{dataList.pageSize}};
+		listTable.init();
+		
+	 function searchData()
+	 {
+    	listTable.filter.name = Utils.trim(document.forms['searchForm'].elements['name'].value);
+		listTable.filter.page = 1;
+		listTable.loadList();
+	 }
+	 
+	 //模版详情
+	 function reporttpldetail(tplid)
+	 {
+		 if(!tplid){
+			 return false ;
+		 }
+		//根据所选择的模版  生成对应的table 表格
+		$.ajax({
+	   		 type: "POST",
+	   		 url: "{{helper.createUrl(['p':'pointreport/reporttplitem'])}}",
+	   		 data: {id:tplid},
+	   		 dataType: "json",
+	   		 success: function(res){
+			 	var res = eval(res);
+	   			 if(res.status == 'y'){
+			 		$('#reportitem').html(res.data.content);
+	   			 }else{
+	   				 layer.msg(res.error) ;
+	   				 return false ;
+	   			 }
+	   		 }
+  	 	});
+		
+		layer.open({
+			type: 1,
+		  	title: '详情模版',
+		  	area:['800px','420px'],
+		  	content:$('#reportitem'),
+		  	btn:['确定']
+	  	});
+	 }
+	 
+	 
+	 function removeMore()
+	 {
+		 var id = "";
+		 $(".item_checkbox").each(function(){
+			  if(this.checked){
+				  if(id!=""){
+					  id +=","+this.value;
+				  }else{
+					  id += this.value;
+				  }
+			  }
+		 });
+		 if(id ==""){
+			 Utils.alert("请选择要删除的数据!");
+		 }else{
+			 listTable.remove(id,"您确认要删除吗?");
+		 }
+	 }
+	 
+	 
+    </script>
+{% endif %}

@@ -1,0 +1,393 @@
+<?php
+/**
+ *
+ * @copyright Copyright (c) 2011 - 2025 scshux (http://www.scshux.com)
+ * @author kaiping.jiang <kaiping.jiang@scshux.com>
+ */
+
+namespace ScshuxCms\Frontend\Controller;
+
+use ScshuxCms\Core\Controller\FrontendBaseController;
+use ScshuxCms\Dacang\Model\DepartmentModel;
+use ScshuxCms\Core\Tree;
+use ScshuxCms\Core\Helper\Utils;
+use ScshuxCms\Dacang\Helper\DingdingOapi;
+use ScshuxCms\Dacang\Model\CompanyDepartModel;
+use ScshuxCms\Core\Helper;
+use ScshuxCms\Dacang\Model\CompanyUserModel;
+
+class DepartmentController extends FrontendBaseController
+{
+
+    protected static $_callbankarr = [];
+
+    /**
+     *
+     * @desc 用户列表
+     * @date 2017年4月1日
+     */
+    public function indexAction()
+    {
+        $act    = isset($_REQUEST['act']) ? $_REQUEST['act'] : '';
+        $isAjax = isset($_REQUEST['is_ajax']) ? $_REQUEST['is_ajax'] : false;
+        if ($act == 'remove') {
+            $this->_remove($_REQUEST['id']);
+        }
+
+        $dataList = $this->_getDataList();
+
+
+        $this->view->setVar('dataList', $dataList);
+        $this->view->setVar('full_page', 1);
+        if ($isAjax) {
+            $this->view->setMainView(false);
+            $this->view->start();
+            $this->view->setVar('full_page', 0);
+            $this->view->render('department', 'index');
+            $this->view->finish();
+            $dataList->content = $this->view->getContent();
+            $this->sendSuccessResult($dataList);
+        }
+
+    }
+
+    /**
+     * 同步数据
+     */
+    public function asyncAction()
+    {
+        $backUrl = $this->getHelper()->createUrl(['p' => 'firm/staff']);
+        $type    = !empty($_REQUEST['type']) ? $_REQUEST['type'] : 'department';
+        if ($type == 'department') {
+            $backUrl = $this->getHelper()->createUrl(['p' => 'department/async', 'type' => 'user']);
+            DingdingOapi::factory()->asyncDepartment($this->companyId);
+            Utils::showMsg('同步部门数据成功!', $backUrl);
+
+        } else if ($type == 'user') {
+            DingdingOapi::factory()->asyncSimplelist($this->companyId);
+        }
+        Utils::showMsg('同步数据成功!', $backUrl);
+    }
+
+    public function UploadExcelAction()
+    {
+        $gourl  = Helper::factory()->createUrl(['p' => 'department/index']);
+        $ispost = $this->request->isPost();
+        if ($ispost) {
+            //判断文件类型
+            if ($_FILES['exceltpl']['name']) {
+                $extname = array_pop(explode('.', $_FILES['exceltpl']['name']));
+                if (!in_array($extname, ['xls', 'xlsx'])) {
+                    Utils::showMsg('请上传excel文件', $gourl);
+                }
+            } else {
+                Utils::showMsg('请上传文件', $gourl);
+            }
+
+            $file = Utils::uploadFile('exceltpl', 'excel', 'xls');
+            if (!$file) {
+                Utils::showMsg('文件不存在，请从新上传', $gourl);
+            }
+
+            //构建字段 => 位置 数组
+            $array = [
+                'departname1' => 'A',
+                'departname2' => 'B',
+                'departname3' => 'C',
+                'departname4' => 'D',
+                'departname5' => 'E',
+                'username'    => 'F',
+                'mobile'      => 'G',
+            ];
+
+
+            //调用phpexcel类   读取excel 文件
+            $data = Utils::readExcel(WEBROOT . $file, $array);
+            if (!$data) {
+                Utils::showMsg('读取excel错误', $gourl);
+            }
+
+            //根据获取的data数据  添加到mysql
+            if ($this->createUser($data)) {
+                Utils::showMsg('保存成功', $gourl);
+            } else {
+                Utils::showMsg('保存失败', $gourl);
+            }
+        } else {
+            Utils::showMsg('error', $gourl);
+        }
+    }
+
+
+    public function exportExcelTplAction()
+    {
+        ob_clean();
+        $filename = WEBROOT . '/data/usertpl.xls';
+        $name     = '用户模版';
+        if (file_exists($filename)) {
+            $content = file_get_contents($filename);
+            header("Content-type:application/vnd.ms-excel");
+            header("Content-Disposition:filename=" . $name . '.xls');
+
+            echo $content;
+        }
+        exit();
+
+    }
+
+
+    /**
+     *
+     * @desc 获取用户列表
+     * @date 2017年4月1日
+     */
+    protected function _getDataList()
+    {
+        /*条件*/
+        $page     = isset($_REQUEST['page']) ? intval($_REQUEST['page']) : 1;
+        $page     = $page < 1 ? 1 : $page;
+        $pagesize = isset($_REQUEST['pagesize']) ? intval($_REQUEST['pagesize']) : 150;
+        $filter   = [];
+
+        $where = ' company_id = ' . $this->companyId;
+
+        $dataList = new \stdClass();
+
+        /*统计*/
+        $countInfo = DepartmentModel::query()
+            ->where($where)
+            ->columns('count(*) as num')
+            ->execute();
+
+        $dataList->count       = $countInfo[0]->num;
+        $dataList->currentPage = $page;
+        $dataList->pageSize    = $pagesize;
+        $dataList->pageCount   = ceil($dataList->count / $dataList->pageSize);
+        $dataList->filter      = $filter;
+        /*加载数据*/
+        $offset = ($page - 1) * $pagesize;
+        $items  = DepartmentModel::query()
+            ->where($where)
+            ->orderBy('id desc')
+            ->limit($pagesize, $offset)
+            ->execute()
+            ->toArray();
+
+
+        $treeObj         = new Tree($items, 'dingding_id', 'name', 'dingding_parent_id');
+        $items           = $treeObj->unlimitedForLevel('    ', 1);
+        $dataList->items = $items;
+        return $dataList;
+
+    }
+
+    /**
+     * 删除数据
+     * @param  $ids
+     */
+    protected function _remove($ids)
+    {
+        if ($ids) {
+            $items = UserModel::factory()->find('user_id in(' . $ids . ')');
+
+
+            foreach ($items as $item) {
+                if ($item->is_admin == 1) {
+                    continue;
+                } else {
+                    $item->delete();
+                }
+            }
+        }
+    }
+
+
+    protected function createUser($data)
+    {
+
+        $return             = false;
+        self::$_callbankarr = [];
+
+        if (!$data || !is_array($data)) {
+            return $return;
+        }
+
+
+        $departArr = $userArr = [];
+        foreach ($data as $value) {
+
+
+            //部门名称
+            $departname1 = $value['departname1'];
+            $departname2 = $value['departname2'];
+            $departname3 = $value['departname3'];
+            $departname4 = $value['departname4'];
+            $departname5 = $value['departname5'];
+
+            if (empty($value['departname1']) || empty($value['username']) || empty($value['mobile'])) {
+                continue;
+            }
+
+            if ($departname5) {
+                $departArr[$departname1][$departname2][$departname3][$departname4][$departname5]['user-list'][] = [
+                    'username' => $value['username'],
+                    'mobile'   => $value['mobile'],
+                ];
+                continue;
+            }
+
+            if ($departname4) {
+                $departArr[$departname1][$departname2][$departname3][$departname4]['user-list'][] = [
+                    'username' => $value['username'],
+                    'mobile'   => $value['mobile'],
+                ];
+                continue;
+            }
+
+            if ($departname3) {
+                $departArr[$departname1][$departname2][$departname3]['user-list'][] = [
+                    'username' => $value['username'],
+                    'mobile'   => $value['mobile'],
+                ];
+                continue;
+            }
+
+            if ($departname2) {
+                $departArr[$departname1][$departname2]['user-list'][] = [
+                    'username' => $value['username'],
+                    'mobile'   => $value['mobile'],
+                ];
+                continue;
+            }
+
+            if ($departname1) {
+                $departArr[$departname1]['user-list'][] = [
+                    'username' => $value['username'],
+                    'mobile'   => $value['mobile'],
+                ];
+            }
+        }
+
+        if (!empty($departArr)) {
+            (new CompanyDepartModel())->deleteBySql("company_id=" . $this->companyId);
+        }
+
+        //先添加部门  在添加用户
+        $data               = [
+            'name'        => $this->companyName,
+            'company_id'  => $this->companyId,
+            'dingding_id' => 1,
+        ];
+        $companyDepartModel = new  CompanyDepartModel();
+        $companyDepartModel->save($data);
+
+        $departId = 0;
+        foreach ($departArr as $departName1 => $depart1) {
+
+            if ($departName1 != 'user-list') {
+                $departId = $this->saveDepart('', $departName1);
+                if ($depart1['user-list']) {
+                    $this->saveUser($depart1['user-list'], $departId);
+                }
+
+                foreach ($depart1 as $departName2 => $depart2) {
+                    if ($departName2 != 'user-list') {
+                        $departId = $this->saveDepart($departName1, $departName2);
+                        if ($depart2['user-list']) {
+                            $this->saveUser($depart2['user-list'], $departId);
+                        }
+                        foreach ($depart2 as $departName3 => $depart3) {
+                            if ($departName3 != 'user-list') {
+                                $departId = $this->saveDepart($departName2, $departName3);
+                                if ($depart3['user-list']) {
+                                    $this->saveUser($depart3['user-list'], $departId);
+                                }
+                                foreach ($depart3 as $departName4 => $depart4) {
+                                    if ($departName4 != 'user-list') {
+                                        $departId = $this->saveDepart($departName3, $departName4);
+                                        if ($depart4['user-list']) {
+                                            $this->saveUser($depart4['user-list'], $departId);
+                                        }
+                                        foreach ($depart4 as $departName5 => $depart5) {
+                                            if ($departName5 != 'user-list') {
+                                                $departId = $this->saveDepart($departName4, $departName5);
+                                                if ($depart5['user-list']) {
+                                                    $this->saveUser($depart5['user-list'], $departId);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        return true;
+    }
+
+    private function saveUser($userArr, $departID)
+    {
+        if (empty($userArr) || empty($departID)) {
+            return;
+        }
+
+        foreach ($userArr as $user) {
+            $data = [
+                'company_id'    => $this->companyId,
+                'department_id' => $departID,
+                'name'          => $user['username'],
+                'jobnumber'     => $user['mobile'],
+                'created'       => Helper::factory()->getTime()->gmtime(),
+                'right'         => 1,
+                'is_admin'      => 0,
+                'is_boss'       => 0,
+                'active'        => 0,
+                'is_leader'     => 0,
+                'addreport'     => 0,
+                'passwd'        => md5(123456),
+            ];
+
+            //不存在则添加
+            $companyUserModel = new CompanyUserModel();
+            $isExists         = $companyUserModel->findFirst("company_id=" . $this->companyId . " and jobnumber='{$user['mobile']}'");
+            if (!$isExists) {
+                $companyUserModel->save($data);
+
+                $companyUserModel->save([
+                    'dingding_user_id' => $companyUserModel->id,
+                ]);
+            }
+        }
+    }
+
+    private function saveDepart($parentDepartName, $departName)
+    {
+
+        $departInfo = (new CompanyDepartModel())->findFirst("company_id=" . $this->companyId . " and name='{$departName}'");
+        if (empty($departInfo)) {
+            $data = [
+                'name'       => $departName,
+                'company_id' => $this->companyId,
+            ];
+
+            $companyDepartModel = new CompanyDepartModel();
+            $companyDepartModel->save($data);
+
+
+            $parentDepartInfo = (new CompanyDepartModel())->findFirst("company_id=" . $this->companyId . " and name='{$parentDepartName}'");
+            $companyDepartModel->save([
+                'dingding_id'        => $companyDepartModel->id,
+                'dingding_parent_id' => isset($parentDepartInfo->id) ? $parentDepartInfo->id : 1,
+            ]);
+            return $companyDepartModel->id;
+        } else {
+            return $departInfo->id;
+        }
+    }
+
+
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<modules>
+		<Advert>
+			<version>1.0.0.0</version>
+			<label>Advert</label>
+			<description>Advert</description>
+		</Advert>
+	</modules>
+</config>

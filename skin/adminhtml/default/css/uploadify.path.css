@@ -1,0 +1,27 @@
+/*图片上传进度条样式修正*/
+.uploadify-queue-item {
+    position: absolute;
+    width:178px;
+    right:0;
+    bottom:44px;
+}
+.uploadify-queue-item.completed {
+    background-color: red;
+}
+.uploadify-progress {
+    background-color: #fff;
+    margin-top: 10px;
+    width: 100%;
+    border: 1px solid #fd9800;
+    border-radius: 2px;
+    behavior: url(../assets/htc/PIE.htc);
+}
+.uploadify-progress-bar {
+    background-color: #fd9800;
+    height: 6px;
+    width: 1px;
+}
+/*上传按钮hover样式覆盖*/
+.uploadify:hover .uploadify-button{
+	background: #4560e6;
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <modules>
+        <Advert>
+            <active>true</active>
+            <codePool>Advert</codePool>
+            <system>true</system>
+            <depends>
+            </depends>
+        </Advert>
+    </modules>
+</config>

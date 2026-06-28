@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <modules>
+        <Core>
+            <version>1.0.0.0</version>
+            <label>Core</label>
+            <description>内核</description>
+        </Core>
+    </modules>
+</config>

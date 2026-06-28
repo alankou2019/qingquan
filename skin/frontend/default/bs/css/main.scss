@@ -1,0 +1,118 @@
+@charset "utf-8";
+@import"common";
+
+//最多显示一行
+.text_ellipsis{
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+//最多显示2行
+.text_ellipsis2{
+    text-overflow: -o-ellipsis-lastline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+//最多显示3行
+.text_ellipsis3{
+    text-overflow: -o-ellipsis-lastline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+
+/***********************************
+ * 样式修正
+ * ********************************/
+//输入框样式修正
+input[type=text],input[type=password],input[type=number]{
+    padding:0;
+    height:setRem(90);
+    line-height: setRem(90);
+    margin-bottom: 0;
+    font-size: setRem(28);
+}
+//字体图标样式修正
+.mui-icon{
+    font-size: setRem(36);
+    color:#666;
+}
+//mui样式重写
+.mui-content{
+    background-color: #eeeff3;
+}
+//mui-slider切换样式重写
+.mui-slider .mui-segmented-control{
+    border:none;
+}
+.mui-slider .mui-segmented-control~.mui-slider-group .mui-control-content{
+    border:none;
+    background-color: #efeff4;
+}
+.mui-slider .mui-segmented-control .mui-control-item{
+    background-color: #f7f7f7;
+    padding:setRem(5) 0;
+    border:none;
+    font-size: setRem(32);
+    color:#666;
+    border-bottom: 2px solid #ccc;
+    height:setRem(80);
+    vertical-align: middle;
+    position:relative; 
+}
+.mui-slider .mui-segmented-control .mui-control-item.mui-active{
+    color:#38adff;
+    border-bottom: 2px solid #38adff;
+}
+.mui-slider .mui-slider-group{
+    white-space:initial;
+    font-size: inherit;
+    background-color: #fff;
+}
+//picker插件样式修正
+.mui-picker{
+    background-color: #fff;
+}
+.mui-poppicker-header,.mui-dtpicker-header{
+    background-color: #fff;
+    .mui-btn{
+        border:none;
+        background-color: transparent;
+        color:#38adff;
+    }
+    .mui-poppicker-btn-ok,.mui-btn-red{
+        font-weight: 600;
+    }
+} 
+.mui-dtpicker-body{
+    border-top: 1px solid #e4e4e4;
+}
+.mui-dtpicker-title{
+    display: none;
+}
+//页脚
+.footer_sub_btn{
+    background-color: #fff;
+    height:setRem(116);
+    padding:setRem(20);
+    position: fixed;
+    bottom: 0;
+    left:0;
+    right:0;
+    .sub_btn{
+        height:setRem(76);
+        line-height: setRem(76);
+        width:100%;
+        background-color: #38adff;
+        font-size: setRem(36);
+        color: #fff;
+        padding:0;
+        border:none;
+    }
+}

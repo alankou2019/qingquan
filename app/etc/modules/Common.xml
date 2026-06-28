@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <modules>
+        <Common>
+            <active>true</active>
+            <codePool>Common</codePool>
+            <system>true</system>
+            <depends>
+            </depends>
+        </Common>
+    </modules>
+</config>

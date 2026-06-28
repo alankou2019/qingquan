@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <modules>
+        <Payment>
+            <active>true</active>
+            <codePool>Payment</codePool>
+            <system>true</system>
+            <depends>
+            </depends>
+        </Payment>
+    </modules>
+</config>
