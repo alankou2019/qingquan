@@ -22,4 +22,11 @@ class PayrollEmployeeRowModel extends BaseModel
 		}
 		return self::$_instance;
 	}
+
+	public function getRowsByPeriod($companyId, $periodId)
+	{
+		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
+			' and payroll_period_id=' . intval($periodId) . ' order by id asc';
+		return $this->getDB()->query($sql)->fetchAll();
+	}
 }

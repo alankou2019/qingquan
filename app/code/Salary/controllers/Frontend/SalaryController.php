@@ -11,6 +11,8 @@ use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Salary\Model\PayrollPeriodModel;
+use ScshuxCms\Salary\Model\PayrollSlipModel;
 use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 
 class SalaryController extends FrontendBaseController
@@ -23,12 +25,34 @@ class SalaryController extends FrontendBaseController
 
 	public function payrollAction()
 	{
-		$this->showFeature('payroll', '工资核算');
+		$this->checkFeature('payroll');
+		$this->view->setVar('periods', $this->formatPayrollPeriods());
+		$this->view->setVar('canSendPayslip', $this->isSalaryFeatureEnabled('payslip'));
 	}
 
 	public function payslipAction()
 	{
-		$this->showFeature('payslip', '工资条发放');
+		$this->checkFeature('payslip');
+		$this->view->setVar('periods', $this->formatPayrollPeriods());
+	}
+
+	public function sendpayslipAction()
+	{
+		$this->checkFeature('payslip');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$periodId = intval($this->request->get('id'));
+		if ($periodId <= 0) {
+			Utils::showMsg('请选择月工资表', $backUrl);
+		}
+
+		$result = PayrollSlipModel::factory()->publishByPeriod($this->companyId, $periodId, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
+		}
+		Utils::showMsg('工资条发放成功，共发放' . intval($result) . '人', $backUrl);
 	}
 
 	public function commissionAction()
@@ -179,8 +203,8 @@ class SalaryController extends FrontendBaseController
 	{
 		$authMap = $this->checkModule();
 		$items = array(
-			array('code' => 'payroll', 'name' => '工资核算', 'url' => 'salary/payroll', 'desc' => '预留员工工资核算、导入和复核入口。'),
-			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '预留工资条生成、发放和员工确认入口。'),
+			array('code' => 'payroll', 'name' => '工资核算', 'url' => 'salary/payroll', 'desc' => '月工资表核算、归档和Excel导入入口。'),
+			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '从已归档月工资表生成并发放员工工资条。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
@@ -188,6 +212,33 @@ class SalaryController extends FrontendBaseController
 			$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
 		}
 		return $items;
+	}
+
+	protected function formatPayrollPeriods()
+	{
+		$periods = PayrollPeriodModel::factory()->getCompanyPeriods($this->companyId);
+		foreach ($periods as $key => $period) {
+			$periods[$key]['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
+			$sourceType = isset($period['source_type']) ? $period['source_type'] : 'system';
+			$sourceName = isset($period['source_name']) ? $period['source_name'] : '';
+			$periods[$key]['source_label'] = PayrollPeriodModel::getSourceName($sourceType, $sourceName);
+			$periods[$key]['can_publish'] = PayrollPeriodModel::canPublishPayslip($period['status']) ? 1 : 0;
+			$periods[$key]['archived_time'] = empty($period['archived_at']) ? '-' : date('Y-m-d H:i', intval($period['archived_at']));
+			$periods[$key]['published_time'] = empty($period['published_at']) ? '-' : date('Y-m-d H:i', intval($period['published_at']));
+		}
+		return $periods;
+	}
+
+	protected function isSalaryFeatureEnabled($featureCode)
+	{
+		$authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
+		return CompanyModuleAuthModel::isEnabled($authMap, 'salary', $featureCode) ? 1 : 0;
+	}
+
+	protected function getOperatorId()
+	{
+		$user = Helper::factory()->getSession()->get('_user');
+		return empty($user->user_id) ? 0 : intval($user->user_id);
 	}
 
 	protected function getPlatformOptions()

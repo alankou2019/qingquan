@@ -5,6 +5,8 @@
 namespace ScshuxCms\Salary\Model;
 
 use ScshuxCms\Core\Model\BaseModel;
+use ScshuxCms\Salary\Model\PayrollEmployeeRowModel;
+use ScshuxCms\Salary\Model\PayrollPeriodModel;
 
 class PayrollSlipModel extends BaseModel
 {
@@ -21,6 +23,52 @@ class PayrollSlipModel extends BaseModel
 			self::$_instance = new PayrollSlipModel();
 		}
 		return self::$_instance;
+	}
+
+	public function publishByPeriod($companyId, $periodId, $operatorId)
+	{
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($companyId, $periodId);
+		if (!$period) {
+			$this->_lastError = '月工资表不存在';
+			return false;
+		}
+		if (!PayrollPeriodModel::canPublishPayslip($period['status'])) {
+			$this->_lastError = '只有已归档或已审批的月工资表可以发工资条';
+			return false;
+		}
+
+		$rows = PayrollEmployeeRowModel::factory()->getRowsByPeriod($companyId, $periodId);
+		if (empty($rows)) {
+			$this->_lastError = '月工资表没有员工工资数据';
+			return false;
+		}
+
+		$db = $this->getDB();
+		$slipTable = $this->getSource();
+		$now = time();
+		$publishedCount = 0;
+		foreach ($rows as $row) {
+			$employeeId = intval($row['employee_id']);
+			if ($employeeId <= 0) {
+				continue;
+			}
+			$sql = 'insert into `' . $slipTable . '` ' .
+				'(`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`version_no`,`status`,`published_at`,`created_at`,`updated_at`) values ' .
+				'(' . intval($companyId) . ',' . intval($periodId) . ',' . intval($row['id']) . ',' . $employeeId . ',1,"published",' . $now . ',' . $now . ',' . $now . ') ' .
+				'on duplicate key update payroll_employee_row_id=values(payroll_employee_row_id),status="published",' .
+				'published_at=if(published_at>0,published_at,values(published_at)),updated_at=values(updated_at)';
+			if ($db->execute($sql)) {
+				$publishedCount++;
+			}
+		}
+
+		if ($publishedCount <= 0) {
+			$this->_lastError = '没有可发放的员工工资条';
+			return false;
+		}
+
+		PayrollPeriodModel::factory()->markPublished($companyId, $periodId, $operatorId);
+		return $publishedCount;
 	}
 
 	public static function getEmployeePublishedSlips($companyId, $employeeId, $year = '', $month = '', $limit = 24)
