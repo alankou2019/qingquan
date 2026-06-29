@@ -34,6 +34,7 @@ use ScshuxCms\Dacang\Model\CheckGroupUserModel;
 use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Dacang\Model\CheckGroupModel;
 use ScshuxCms\Dacang\Model\PointStoresReportItemModel;
+use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 
 class  BsPointController  extends FrontendBaseController
 {
@@ -93,6 +94,7 @@ class  BsPointController  extends FrontendBaseController
 		$this->view->setVar('pointingnum', $pointingnum) ;
 		$this->view->setVar('userinfo', $userinfo) ;
 		$this->view->setVar('controller_name', $this->getDI()->get('router')->getControllerName());
+		$this->view->setVar('hasSalaryMobile', $this->hasSalaryMobile());
 	}
 
 	/**
@@ -520,6 +522,12 @@ class  BsPointController  extends FrontendBaseController
 
 			$this->redirect('dding/login') ;
 		}
+	}
+
+	protected function hasSalaryMobile()
+	{
+		$authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
+		return CompanyModuleAuthModel::isEnabled($authMap, 'salary') && CompanyModuleAuthModel::isEnabled($authMap, 'salary', 'payslip');
 	}
 
 

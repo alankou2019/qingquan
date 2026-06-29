@@ -1,4 +1,14 @@
 <div class="warp" id="evaluation">
+	<style>
+		.mobile_module_panel{margin:0.5rem 0.6rem 0.65rem;background:#fff;border-radius:0.35rem;box-shadow:0 0.08rem 0.24rem rgba(15,23,42,0.08);overflow:hidden;}
+		.mobile_module_panel .panel_title{height:1.75rem;line-height:1.75rem;padding:0 0.7rem;border-bottom:1px solid #edf0f5;color:#111827;font-size:0.68rem;font-weight:bold;}
+		.mobile_module_panel .module_tile{display:flex;align-items:center;padding:0.78rem 0.7rem;}
+		.mobile_module_panel .module_icon{width:1.85rem;height:1.85rem;border-radius:50%;line-height:1.85rem;text-align:center;color:#fff;font-size:0.72rem;font-weight:bold;background:#19b59b;margin-right:0.62rem;flex:0 0 1.85rem;}
+		.mobile_module_panel .module_copy{flex:1;min-width:0;}
+		.mobile_module_panel .module_copy .title{font-size:0.72rem;color:#111827;line-height:1.05rem;}
+		.mobile_module_panel .module_copy .txt{font-size:0.55rem;color:#8a94a6;line-height:0.82rem;margin-top:0.08rem;}
+		.mobile_module_panel .module_arrow{font-size:0.78rem;color:#b7bfcc;padding-left:0.25rem;}
+	</style>
     <div class="menu_box">
         <img src="/skin/frontend/default/bs/images/menu_list.png" alt="" class="menu_img" />
         <ul class="menu_ul">
@@ -43,6 +53,19 @@
 				</div>
 			</li>
 		</ul>
+		{% if hasSalaryMobile %}
+		<div class="mobile_module_panel">
+			<div class="panel_title">员工服务</div>
+			<div class="module_tile" onclick="window.location.href = '{{helper.createUrl(['p':'bs/salary'])}}'">
+				<div class="module_icon">薪</div>
+				<div class="module_copy">
+					<div class="title">薪酬查询</div>
+					<div class="txt">当月工资条、当年薪酬、往年薪酬</div>
+				</div>
+				<div class="module_arrow">&gt;</div>
+			</div>
+		</div>
+		{% endif %}
 		<div class="evaluation_con">
 			<ul class="evaluation_ul clear"> 
 				<li class="clear fl">
