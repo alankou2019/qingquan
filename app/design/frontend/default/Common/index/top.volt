@@ -39,6 +39,19 @@
             <a href="{{helper.createUrl(['p':'index/index','bigClass':'2'])}}" onFocus="this.blur()" target="_top"
             {% if bigClass==2 %} id="menuon" {% endif %} >积分考核</a>
         {% endif %}
+
+        {% if hasSalaryModule %}
+            <a href="{{helper.createUrl(['p':'index/index','bigClass':'4'])}}" onFocus="this.blur()" target="_top"
+            {% if bigClass==4 %} id="menuon" {% endif %} >薪酬管理</a>
+        {% endif %}
+        {% if hasTrainingModule %}
+            <a href="{{helper.createUrl(['p':'index/index','bigClass':'5'])}}" onFocus="this.blur()" target="_top"
+            {% if bigClass==5 %} id="menuon" {% endif %} >培训管理</a>
+        {% endif %}
+        {% if hasPromotionModule %}
+            <a href="{{helper.createUrl(['p':'index/index','bigClass':'6'])}}" onFocus="this.blur()" target="_top"
+            {% if bigClass==6 %} id="menuon" {% endif %} >晋升管理</a>
+        {% endif %}
         
         
 <!--         <a href="{{helper.createUrl(['p':'index/index','bigClass':'3'])}}" onFocus="this.blur()" target="_top" -->
