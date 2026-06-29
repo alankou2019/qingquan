@@ -8,12 +8,12 @@ namespace ScshuxCms\Adminhtml\Controller;
 use ScshuxCms\Core\Controller\AdminBaseController;
 use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Common\Model\AdminUserModel;
-use ScshuxCms\Common\Model\AdminLogModel;
 use ScshuxCms\Core\Helper\Utils;
 use ScshuxCms\User\Model\UserModel;
 use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
-use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Dacang\Model\PlatformIntegrationModel;
+use ScshuxCms\Dacang\Helper\WecomCredential;
 class  CompanyController extends AdminBaseController
 {
     /**
@@ -67,8 +67,12 @@ class  CompanyController extends AdminBaseController
 	public function editAction()
 	{
 	    $itemId  = isset($_REQUEST['id'])?intval($_REQUEST['id']):'';
+	    $platform = isset($_REQUEST['platform'])?trim($_REQUEST['platform']):'dingding';
+	    if(!in_array($platform, array('dingding', 'wecom'))){
+	        $platform = 'dingding';
+	    }
+	    $this->view->setVar('platform', $platform);
 	    $backUrl = $this->getHelper()->createUrl(array('p'=>'company/index'));
-	    $moduleAuth = array();
 	    if($itemId>0){
 	        $item = CompanyModel::factory()->findFirst('id='.$itemId);
 	        
@@ -79,10 +83,7 @@ class  CompanyController extends AdminBaseController
 	        $item->expire_time = $item->expire_time!=-1?$this->getHelper()->getTime()->localDate('Y-m-d H:i:s',$item->expire_time):'';
 
 	        $this->view->setVar('item', $item);
-	        $moduleAuth = CompanyModuleAuthModel::getCompanyAuthMap($itemId);
 	    }
-	    $this->view->setVar('moduleAuth', $moduleAuth);
-	    $this->view->setVar('moduleViewList', CompanyModuleAuthModel::buildModuleViewList($moduleAuth));
 	    
 	}
 	/**
@@ -97,9 +98,18 @@ class  CompanyController extends AdminBaseController
 	    if($this->request->isPost())
 	    {
 	        $postData = $_POST;
+	        $platform = isset($postData['platform'])?trim($postData['platform']):'dingding';
+	        if(!in_array($platform, array('dingding', 'wecom'))){
+	            $platform = 'dingding';
+	        }
 	        if(empty($postData['name']))
 	        {
 	            Utils::showMsg('请填写公司名称!',$backUrl);
+	        }
+	        if($platform == 'wecom'){
+	            if(empty($postData['wecom_corp_id']) || empty($postData['wecom_agent_id']) || empty($postData['wecom_secret'])){
+	                Utils::showMsg('请完整填写企业微信CorpID、AgentID和Secret!',$backUrl);
+	            }
 	        }
 	        
 	        $postData['expire_time'] = $postData['expire_time']?$this->getHelper()->getTime()->localStrtotime($postData['expire_time']):-1;
@@ -114,11 +124,6 @@ class  CompanyController extends AdminBaseController
 	            Utils::showMsg('公司已存在，请重新填写!',$backUrl);
 	        }
 	        
-	        $appPlatform = empty($postData['app_platform']) ? 'dingding' : $postData['app_platform'];
-	        if(!in_array($appPlatform, array('dingding', 'wecom', 'feishu', 'manual'))){
-	            $appPlatform = 'dingding';
-	        }
-	        
 	        $data = array(
 	            'name'    => $postData['name'],
 	            'contact' => $postData['contact'],
@@ -128,7 +133,6 @@ class  CompanyController extends AdminBaseController
 	            'status'  => intval($postData['status']),
 	            'expire_time'=>  $postData['expire_time'],
 	        	'industry' => $postData['industry'],
-	        	'app_platform' => $appPlatform,
 	        	'user_id' => $postData['user_id'],
 	        	'corpsecret' => trim($postData['corpsecret']),
 	        	'corpid' => $postData['corpid'],
@@ -140,7 +144,6 @@ class  CompanyController extends AdminBaseController
 	        	'pointstatus'=>intval($postData['pointstatus'])	
 	        );
 
-	        $savedCompanyId = 0;
 	        if(empty($postData['id'])){
 	        	$nowtime = $this->getHelper()->getTime()->gmtime() ;
 	        	
@@ -160,9 +163,28 @@ class  CompanyController extends AdminBaseController
 	            $result = $companyModel->save($data);
 	            if($result)
 	            {
-	            	$savedCompanyId = $companyModel->id ;
 	            	$data['company_id'] = $companyModel->id ;
 	            	UserModel::createUser($data) ;
+	            	if($platform == 'wecom'){
+	            	    $integration = new PlatformIntegrationModel();
+	            	    $integration->company_id = $companyModel->id;
+	            	    $integration->platform = 'wecom';
+	            	    $integration->corp_id = trim($postData['wecom_corp_id']);
+	            	    $integration->agent_id = trim($postData['wecom_agent_id']);
+	            	    $integration->secret_enc = WecomCredential::encrypt(trim($postData['wecom_secret']));
+	            	    $integration->callback_token = trim($postData['wecom_callback_token']);
+	            	    $integration->encoding_aes_key = trim($postData['wecom_encoding_aes_key']);
+	            	    $integration->enabled = 1;
+	            	    $integration->created_at = $nowtime;
+	            	    $integration->updated_at = $nowtime;
+	            	    if(!$integration->save()){
+	            	        Utils::showMsg('公司已创建，但企业微信参数保存失败，请在公司列表中重新配置!',$backUrl);
+	            	    }
+	            	    $backUrl = $this->getHelper()->createUrl(array(
+	            	        'p'=>'wecom/index',
+	            	        'company_id'=>$companyModel->id
+	            	    ));
+	            	}
 	            }
 	        }else{
 	        	
@@ -174,17 +196,6 @@ class  CompanyController extends AdminBaseController
 	                Utils::showMsg('修改的记录不存在!',$backUrl);
 	            }
 	            $result =$item->save($data);
-	            if($result)
-	            {
-	                $savedCompanyId = $data['id'];
-	            }
-	        }
-	        if($result && $savedCompanyId){
-	            $adminUser = AdminUserModel::getLoginUser();
-	            $operatorId = empty($adminUser) ? 0 : intval($adminUser->user_id);
-	            $moduleAuth = isset($postData['module_auth']) ? $postData['module_auth'] : array();
-	            CompanyModuleAuthModel::saveCompanyAuth($savedCompanyId, $moduleAuth, $operatorId);
-	            AdminLogModel::factory()->addLog('更新企业模块授权，公司ID：' . $savedCompanyId, $operatorId);
 	        }
 	        if($result){
 	            Utils::showMsg('操作成功!',$backUrl);
@@ -239,7 +250,7 @@ class  CompanyController extends AdminBaseController
 	    /*加载数据*/
 	    $offset = ($page-1)*$pagesize;    
 	    
-	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.app_platform,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum';
+	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum';
 	    $items = $this->modelsManager->createBuilder()
 									    ->columns($columns)
 									    ->addFrom('ScshuxCms\Dacang\Model\CompanyModel','c')
@@ -254,28 +265,14 @@ class  CompanyController extends AdminBaseController
 	    
 	    
 	    if($items){
-	        $companyIds = array();
-	        foreach($items as $item){
-	            $companyIds[] = intval($item['id']);
-	        }
-	        $salaryEnabledCompanies = CompanyModuleAuthModel::getEnabledCompanies($companyIds, 'salary');
 	        $statusarr = array(
 	            '0' => '未激活',
 	            '1' => '试用期',
 	            '2' => '正常'
 	        );
-	        $platformLabels = array(
-	            'dingding' => '钉钉',
-	            'wecom' => '企业微信',
-	            'feishu' => '飞书',
-	            'manual' => '手工/Excel'
-	        );
 	        foreach($items as $key=>$item){
-	            $platform = empty($item['app_platform']) ? 'dingding' : $item['app_platform'];
 	            $item['expire_time'] = $item['expire_time'] > -1 ? $this->getHelper()->formatDateTime($item['expire_time']) : '永不过期';
 	            $item['status']      = $statusarr[$item['status']];
-	            $item['salary_status'] = isset($salaryEnabledCompanies[intval($item['id'])]) ? '已开通' : '未开通';
-	            $item['app_platform_label'] = isset($platformLabels[$platform]) ? $platformLabels[$platform] : $platform;
 	            $items[$key] = $item;
 
 	        }

@@ -8,7 +8,7 @@
 
 		<span style="float: right; cursor: pointer;"
 			onclick="window.location=window.location;"><i
-			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑{% else %}新增{% endif %}公司</span> <a
+			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% else %}新增钉钉公司{% endif %}</span> <a
 			class="go_back" onclick="window.location='{{helper.createUrl(['p':'company/index'])}}';"> <i
 			class="iconfont icon-fanhui"></i> <span>返回公司列表</span>
 		</a>
@@ -19,6 +19,7 @@
 		<!--表单-->
 		<form action="{{helper.createUrl(['p':'company/save'])}}" method="post" class="form_full" id="dataForm" name="dataForm" enctype="multipart/form-data">
 		     <input type="hidden" name="id" value="">
+		     <input type="hidden" name="platform" value="{{platform}}">
 			<div class="sub_title">公司信息</div>
 			<ul class="list_form_full">
 
@@ -76,24 +77,19 @@
                                 <input type="text" name="industry"  maxlength="16" autocomplete="off"/>
                             </div>
                         </div>
-	                    </li>
-	                    
-	                 <li class="posi_lm">
-					<div class="left posi_l ">通讯平台:</div>
-					<div class="right posi_m">
-						<div class="input_clear">
-							<select name="app_platform" class="screen">
-								<option value="dingding">钉钉</option>
-								<option value="wecom">企业微信</option>
-								<option value="feishu">飞书</option>
-								<option value="manual">手工/Excel</option>
-							</select>
-                            <small style="" class="help-block prompt_box"><i class="fa fa-times-circle-o"></i>用于企业后台员工同步、员工手机端登录方式和后续消息通知。</small>
-						</div>
-					</div>
-				</li>
-	                    
-	                 <li class="posi_lm">
+                    </li>
+
+				{% if platform == 'wecom' and not item %}
+				<li class="posi_lm"><div class="left posi_l"></div><div class="right posi_m"><strong style="font-size:18px;">企业微信自建应用参数</strong></div></li>
+				<li class="posi_lm"><div class="left posi_l must">CorpID:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_corp_id" datatype="*" maxlength="128" autocomplete="off"/><small class="help-block prompt_box">企业微信管理后台 → 我的企业 → 企业ID</small></div></div></li>
+				<li class="posi_lm"><div class="left posi_l must">AgentID:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_agent_id" datatype="*" maxlength="64" autocomplete="off"/><small class="help-block prompt_box">企业微信自建应用详情页中的AgentId</small></div></div></li>
+				<li class="posi_lm"><div class="left posi_l must">Secret:</div><div class="right posi_m"><div class="input_clear"><input type="password" name="wecom_secret" datatype="*" maxlength="255" autocomplete="new-password"/><small class="help-block prompt_box">企业微信自建应用的Secret，将加密保存</small></div></div></li>
+				<li class="posi_lm"><div class="left posi_l">回调Token:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_callback_token" maxlength="255" autocomplete="off"/></div></div></li>
+				<li class="posi_lm"><div class="left posi_l">EncodingAESKey:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_encoding_aes_key" maxlength="255" autocomplete="off"/></div></div></li>
+				{% endif %}
+                    
+				{% if platform != 'wecom' or item %}
+                 <li class="posi_lm">
 					<div class="left posi_l ">appKey:</div>
 					<div class="right posi_m">
 						<div class="input_clear">
@@ -102,7 +98,6 @@
 						</div>
 					</div>
 				</li>
-                
                  <li class="posi_lm">
 					<div class="left posi_l ">appSecret:</div>
 					<div class="right posi_m">
@@ -121,7 +116,6 @@
 						</div>
 					</div>
 				</li>
-				
 				<li class="posi_lm">
 					<div class="left posi_l ">agentid:</div>
 					<div class="right posi_m">
@@ -131,6 +125,12 @@
 						</div>
 					</div>
 				</li>
+				{% else %}
+				<input type="hidden" name="corpid" value="">
+				<input type="hidden" name="corpsecret" value="">
+				<input type="hidden" name="ssosecret" value="">
+				<input type="hidden" name="agentid" value="0">
+				{% endif %}
 				
 				<li class="posi_lm">
 					<div class="left posi_l ">联系人:</div>
@@ -226,48 +226,6 @@
 				</li>
                 
 			</ul>
-
-			<div class="sub_title">模块授权</div>
-			<style>
-				.module_auth_wrap{padding:10px 18px 0 18px;}
-				.module_auth_grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-				.module_auth_card{border:1px solid #d9e2ef;background:#fbfdff;padding:12px;}
-				.module_auth_card.open{border-color:#b9d8f6;background:#f8fbff;}
-				.module_auth_head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-				.module_auth_name{font-size:14px;font-weight:bold;color:#233142;}
-				.module_auth_code{font-size:12px;color:#7b8794;margin-left:6px;font-weight:normal;}
-				.module_auth_note{color:#64748b;line-height:22px;margin-bottom:8px;}
-				.module_auth_features{border-top:1px dashed #d6dee9;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
-				.module_auth_features label,.module_auth_head label{color:#334155;line-height:24px;}
-				.module_auth_tips{margin:12px 0 0;color:#64748b;line-height:22px;}
-			</style>
-			<div class="module_auth_wrap">
-				<div class="module_auth_grid">
-					{% for module in moduleViewList %}
-					<div class="module_auth_card {% if module['enabled'] %}open{% endif %}">
-						<div class="module_auth_head">
-							<div class="module_auth_name">{{module['name']}}<span class="module_auth_code">{{module['code']}}</span></div>
-							<label>
-								<input type="checkbox" name="module_auth[{{module['code']}}][_module]" value="1" {% if module['enabled'] %}checked="checked"{% endif %} {% if module['readonly'] %}disabled="disabled"{% endif %}/>
-								{% if module['readonly'] %}原有模块{% else %}启用{% endif %}
-							</label>
-						</div>
-						<div class="module_auth_note">{{module['note']}}</div>
-						<div class="module_auth_features">
-							{% for feature in module['features'] %}
-							<label>
-								<input type="checkbox" name="module_auth[{{module['code']}}][{{feature['code']}}]" value="1" {% if feature['enabled'] %}checked="checked"{% endif %} {% if module['readonly'] %}disabled="disabled"{% endif %}/>
-								{{feature['name']}}
-							</label>
-							{% endfor %}
-						</div>
-					</div>
-					{% endfor %}
-				</div>
-				<div class="module_auth_tips">
-					说明：未开通模块时，企业管理后台不显示对应入口；关闭模块只隐藏入口，不删除历史业务数据。绩效考核为原有在用模块，本次只展示保留状态，不提供关闭操作。
-				</div>
-			</div>
 
 			<div class="online_btn_box">
 				<button type="reset" class="f_btn">重置</button>

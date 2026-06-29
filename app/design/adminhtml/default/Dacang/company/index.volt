@@ -1,4 +1,12 @@
 {% if full_page %}
+<style>
+.company-platform-button {
+    width: auto !important;
+    min-width: 205px;
+    padding: 0 20px !important;
+    white-space: nowrap;
+}
+</style>
 <!--滚动条-->
 <script src="/skin/adminhtml/default/libs/nicescroll/jquery.nicescroll.js"></script>
 <!--cookie-->
@@ -40,7 +48,9 @@
         </form>
         
         <!--搜索按钮-->
-        <button class="operate" onclick="window.location='{{helper.createUrl(['p':'company/new'])}}';"><i class="iconfont icon-tianjia"></i>添加公司</button>
+        <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'dingding'])}}';"><i class="iconfont icon-tianjia"></i>添加钉钉公司</button>
+        <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'wecom'])}}';"><i class="iconfont icon-tianjia"></i>添加企业微信公司</button>
+        <button class="operate company-platform-button" type="button" onclick="layer.msg('飞书接入暂未开放');"><i class="iconfont icon-tianjia"></i>添加飞书公司</button>
         <!--右侧配置-->
         <div class="search_right">
             <span class="num">共<span id="recordCount"></span>条记录</span>
@@ -75,6 +85,7 @@
                 <td class="check_box"><label class="radio_check"><input type="checkbox" name="radio_check" class="item_checkbox" value="{{item.id}}"/>{{item.id}}</label></td>
                 <td class="operate">
                     <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
+                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'wecom/index','company_id':item.id])}}';">企业微信</button>
                     <button class="delete" onclick="listTable.remove({{item.id}},'您确认要删除吗?');"><i class="iconfont icon-shanchu"></i>删除</button>
                 </td>
                 <td class="name">
@@ -90,9 +101,7 @@
                     <span class="txt">{{helper.createUrl(['p':'bs/index','id':item.hash_key,'m':'front','_f':'1'])}}</span>
                 </td> 
                 <td class="name">
-                    <span class="txt">{{item.status}}</span><br />
-                    <span class="txt">平台：{{item.app_platform_label}}</span><br />
-                    <span class="txt">薪酬：{{item.salary_status}}</span>
+                    <span class="txt">{{item.status}}</span>
                 </td>
                 <td class="name">
                     <span class="txt">{{item.loginnum}}</span>

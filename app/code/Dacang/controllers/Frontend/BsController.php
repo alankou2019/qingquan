@@ -29,9 +29,6 @@ use ScshuxCms\Dacang\Model\PointReportModel;
 use ScshuxCms\Dacang\Model\QuotaApplyModel;
 use ScshuxCms\Dacang\Model\PointReportItemDetailModel;
 use ScshuxCms\User\Model\UserModel;
-use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
-use ScshuxCms\Salary\Model\PayrollSlipModel;
-use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 use Phalcon\Di\FactoryDefault;
 
 class  BsController extends FrontendBaseController
@@ -89,73 +86,6 @@ class  BsController extends FrontendBaseController
         $this->view->setVar('pointmofule', UserModel::checkPointModule());
         $this->view->setVar('controller_name', $this->getDI()->get('router')->getControllerName());
         $this->view->setVar('bro', $this->checkBrowser());
-        $this->view->setVar('hasSalaryMobile', $this->hasSalaryMobile());
-    }
-
-    public function salaryAction()
-    {
-        $this->checkSalaryMobile();
-        $currentMonth = date('Y-m');
-        $currentYear = date('Y');
-        $monthSlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, '', $currentMonth, 1);
-        $yearSlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, $currentYear, '', 24);
-        $historySlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, '', '', 60);
-
-        $historyCount = 0;
-        foreach ($historySlips as $slip) {
-            if (substr($slip['payroll_month'], 0, 4) != $currentYear) {
-                $historyCount++;
-            }
-        }
-
-        $this->view->setVar('currentMonth', $currentMonth);
-        $this->view->setVar('monthSlip', empty($monthSlips) ? false : $monthSlips[0]);
-        $this->view->setVar('yearSlips', $yearSlips);
-        $this->view->setVar('yearSlipCount', count($yearSlips));
-        $this->view->setVar('historyCount', $historyCount);
-        $this->view->setVar('canViewSubordinateSalary', $this->canViewSubordinateSalary());
-    }
-
-    public function salaryyearAction()
-    {
-        $this->checkSalaryMobile();
-        $year = $this->request->get('year') ? intval($this->request->get('year')) : intval(date('Y'));
-        $slips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, strval($year), '', 24);
-        $this->view->setVar('year', $year);
-        $this->view->setVar('slips', $slips);
-    }
-
-    public function salaryhistoryAction()
-    {
-        $this->checkSalaryMobile();
-        $currentYear = date('Y');
-        $allSlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, '', '', 72);
-        $slips = array();
-        foreach ($allSlips as $slip) {
-            if (substr($slip['payroll_month'], 0, 4) != $currentYear) {
-                $slips[] = $slip;
-            }
-        }
-        $this->view->setVar('slips', $slips);
-    }
-
-    public function salarydetailAction()
-    {
-        $this->checkSalaryMobile();
-        $id = $this->request->get('id') ? intval($this->request->get('id')) : 0;
-        $slip = PayrollSlipModel::getEmployeePublishedSlipDetail($this->companyId, $this->userId, $id);
-        if (!$slip) {
-            Utils::showFrontMsg('薪酬不存在或尚未发放', $this->getHelper()->createUrl(array('p' => 'bs/salary')));
-        }
-        $this->view->setVar('slip', $slip);
-    }
-
-    public function salarysubordinateAction()
-    {
-        $this->checkSalaryMobile();
-        if (!$this->canViewSubordinateSalary()) {
-            Utils::showFrontMsg('下属薪酬权限未开通', $this->getHelper()->createUrl(array('p' => 'bs/salary')));
-        }
     }
 
     /**
@@ -745,33 +675,6 @@ class  BsController extends FrontendBaseController
         }
 
 
-    }
-
-    protected function hasSalaryMobile()
-    {
-        $authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
-        return CompanyModuleAuthModel::isEnabled($authMap, 'salary') && CompanyModuleAuthModel::isEnabled($authMap, 'salary', 'payslip');
-    }
-
-    protected function checkSalaryMobile()
-    {
-        if (!$this->hasSalaryMobile()) {
-            Utils::showFrontMsg('薪酬查询暂未开通', $this->getHelper()->createUrl(array('p' => 'bs/newindex')));
-        }
-        return true;
-    }
-
-    protected function canViewSubordinateSalary()
-    {
-        $user = CompanyUserModel::findFirst('id=' . intval($this->userId) . ' and company_id=' . intval($this->companyId));
-        if (!$user) {
-            return false;
-        }
-        if (intval($user->is_admin) == 1 || intval($user->is_leader) == 1) {
-            return true;
-        }
-        $scope = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $this->userId);
-        return !empty($scope);
     }
 
 
