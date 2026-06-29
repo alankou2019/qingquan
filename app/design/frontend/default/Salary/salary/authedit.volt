@@ -12,7 +12,7 @@
 <div class="full_box">
 	<div class="head_tab clear">
 		<ul>
-			<li class="on"><a href="#">薪酬查看授权</a></li>
+			<li class="on"><a href="#">薪酬查询授权</a></li>
 		</ul>
 	</div>
 	<div class="salary_auth_edit">

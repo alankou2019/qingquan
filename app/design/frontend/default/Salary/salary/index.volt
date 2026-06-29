@@ -16,7 +16,7 @@
 		</ul>
 	</div>
 	<div class="module_home">
-		<div class="summary">薪酬管理模块已开通。当前页面提供功能入口和授权控制，工资核算、工资条、提成、绩效工资的具体流程后续分步上线。</div>
+		<div class="summary">薪酬管理模块已开通。工资表核算中完成提交审核、发工资条和归档；薪酬管理授权中设置审核人和查询权限。</div>
 		<div class="module_grid">
 			{% for feature in features %}
 			<div class="module_card {% if !feature['enabled'] %}disabled{% endif %}">

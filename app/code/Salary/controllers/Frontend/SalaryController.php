@@ -13,6 +13,7 @@ use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\PayrollPeriodModel;
 use ScshuxCms\Salary\Model\PayrollSlipModel;
+use ScshuxCms\Salary\Model\SalaryPayrollAuditModel;
 use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 
 class SalaryController extends FrontendBaseController
@@ -32,12 +33,46 @@ class SalaryController extends FrontendBaseController
 
 	public function payslipAction()
 	{
-		$this->checkFeature('payslip');
-		$this->view->setVar('periods', $this->formatPayrollPeriods());
+		$this->payrollAction();
+		$this->view->pick('salary/payroll');
+	}
+
+	public function submitreviewAction()
+	{
+		$this->checkFeature('payroll');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$periodId = intval($this->request->get('id'));
+		$result = SalaryPayrollAuditModel::factory()->submitPeriod($this->companyId, $periodId, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg(SalaryPayrollAuditModel::factory()->getLastError(), $backUrl);
+		}
+		Utils::showMsg('已提交工资表审核', $backUrl);
+	}
+
+	public function reviewperiodAction()
+	{
+		$this->checkFeature('payroll');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$periodId = intval($this->request->get('id'));
+		$reviewerId = intval($this->request->get('reviewer_id'));
+		$status = $this->request->get('status');
+		$opinion = trim($this->request->get('opinion'));
+		$result = SalaryPayrollAuditModel::factory()->reviewPeriod($this->companyId, $periodId, $reviewerId, $status, $opinion);
+		if (!$result) {
+			Utils::showMsg(SalaryPayrollAuditModel::factory()->getLastError(), $backUrl);
+		}
+		Utils::showMsg('审核处理成功', $backUrl);
 	}
 
 	public function sendpayslipAction()
 	{
+		$this->checkFeature('payroll');
 		$this->checkFeature('payslip');
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
 		if (!$this->request->isPost()) {
@@ -45,14 +80,14 @@ class SalaryController extends FrontendBaseController
 		}
 		$periodId = intval($this->request->get('id'));
 		if ($periodId <= 0) {
-			Utils::showMsg('请选择月工资表', $backUrl);
+			Utils::showMsg('请选择工资表', $backUrl);
 		}
 
 		$result = PayrollSlipModel::factory()->publishByPeriod($this->companyId, $periodId, $this->getOperatorId());
 		if (!$result) {
 			Utils::showMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
 		}
-		Utils::showMsg('工资条发放成功，共发放' . intval($result) . '人', $backUrl);
+		Utils::showMsg('工资条发放并归档成功，共发放' . intval($result) . '人', $backUrl);
 	}
 
 	public function commissionAction()
@@ -112,11 +147,29 @@ class SalaryController extends FrontendBaseController
 	{
 		$this->checkModule();
 		$userItems = $this->getCompanyUsers();
+		$reviewerIds = SalaryPayrollAuditModel::factory()->getReviewerIds($this->companyId);
 		$roleCountMap = SalaryViewRoleModel::factory()->getRoleCountMap($this->companyId);
 		foreach ($userItems as $key => $item) {
 			$userItems[$key]['role_count'] = isset($roleCountMap[intval($item['id'])]) ? $roleCountMap[intval($item['id'])] : 0;
+			$userItems[$key]['is_audit_reviewer'] = in_array(intval($item['id']), $reviewerIds) ? 1 : 0;
 		}
 		$this->view->setVar('userItems', $userItems);
+		$this->view->setVar('reviewerCount', count($reviewerIds));
+	}
+
+	public function saveauditreviewersAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/auth'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$reviewerIds = $this->request->get('reviewer_ids');
+		if (empty($reviewerIds) || !is_array($reviewerIds)) {
+			$reviewerIds = array();
+		}
+		SalaryPayrollAuditModel::factory()->saveReviewers($this->companyId, $reviewerIds);
+		Utils::showMsg('归档前工资表审核人已保存', $backUrl);
 	}
 
 	public function autheditAction()
@@ -203,8 +256,7 @@ class SalaryController extends FrontendBaseController
 	{
 		$authMap = $this->checkModule();
 		$items = array(
-			array('code' => 'payroll', 'name' => '工资核算', 'url' => 'salary/payroll', 'desc' => '月工资表核算、归档和Excel导入入口。'),
-			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '从已归档月工资表生成并发放员工工资条。'),
+			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '导入或核算工资表，提交审核，审核通过后发工资条并归档。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
@@ -217,16 +269,33 @@ class SalaryController extends FrontendBaseController
 	protected function formatPayrollPeriods()
 	{
 		$periods = PayrollPeriodModel::factory()->getCompanyPeriods($this->companyId);
+		$periodIds = array();
+		foreach ($periods as $period) {
+			$periodIds[] = intval($period['id']);
+		}
+		$auditMap = SalaryPayrollAuditModel::factory()->getPeriodAuditMap($this->companyId, $periodIds);
 		foreach ($periods as $key => $period) {
+			$periodId = intval($period['id']);
 			$periods[$key]['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
 			$sourceType = isset($period['source_type']) ? $period['source_type'] : 'system';
 			$sourceName = isset($period['source_name']) ? $period['source_name'] : '';
 			$periods[$key]['source_label'] = PayrollPeriodModel::getSourceName($sourceType, $sourceName);
+			$periods[$key]['can_submit_audit'] = PayrollPeriodModel::canSubmitAudit($period['status']) ? 1 : 0;
 			$periods[$key]['can_publish'] = PayrollPeriodModel::canPublishPayslip($period['status']) ? 1 : 0;
 			$periods[$key]['archived_time'] = empty($period['archived_at']) ? '-' : date('Y-m-d H:i', intval($period['archived_at']));
 			$periods[$key]['published_time'] = empty($period['published_at']) ? '-' : date('Y-m-d H:i', intval($period['published_at']));
+			$periods[$key]['audit'] = isset($auditMap[$periodId]) ? $auditMap[$periodId] : array('items' => array(), 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'total' => 0);
+			$periods[$key]['audit_text'] = $this->formatAuditText($periods[$key]['audit']);
 		}
 		return $periods;
+	}
+
+	protected function formatAuditText($audit)
+	{
+		if (empty($audit['total'])) {
+			return '未提交审核';
+		}
+		return '同意 ' . intval($audit['approved']) . '/' . intval($audit['total']) . '，待审 ' . intval($audit['pending']);
 	}
 
 	protected function isSalaryFeatureEnabled($featureCode)

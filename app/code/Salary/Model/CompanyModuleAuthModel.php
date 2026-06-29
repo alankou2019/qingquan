@@ -47,7 +47,7 @@ class CompanyModuleAuthModel extends BaseModel
 				'readonly' => 0,
 				'note' => '开通后企业后台显示薪酬管理页面，子功能按授权显示。',
 				'features' => array(
-					'payroll' => '工资核算',
+					'payroll' => '工资表核算',
 					'payslip' => '工资条发放',
 					'commission' => '提成核算',
 					'performance_salary' => '绩效工资核算',

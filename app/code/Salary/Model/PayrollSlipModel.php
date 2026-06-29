@@ -33,7 +33,7 @@ class PayrollSlipModel extends BaseModel
 			return false;
 		}
 		if (!PayrollPeriodModel::canPublishPayslip($period['status'])) {
-			$this->_lastError = '只有已归档或已审批的月工资表可以发工资条';
+			$this->_lastError = '只有审核通过的工资表可以发工资条并归档';
 			return false;
 		}
 

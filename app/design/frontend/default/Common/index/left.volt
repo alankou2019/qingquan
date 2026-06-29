@@ -74,12 +74,9 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
               <span>薪酬管理</span>
               <a href="{{helper.createUrl(['p':'salary/index'])}}" target="mainFrame" onFocus="this.blur()">薪酬首页</a>
               <a href="{{helper.createUrl(['p':'salary/employeesync'])}}" target="mainFrame" onFocus="this.blur()">员工同步/导入</a>
-              <a href="{{helper.createUrl(['p':'salary/auth'])}}" target="mainFrame" onFocus="this.blur()">薪酬查看授权</a>
+              <a href="{{helper.createUrl(['p':'salary/auth'])}}" target="mainFrame" onFocus="this.blur()">薪酬管理授权</a>
               {% if salaryFeatures['payroll'] %}
-              <a href="{{helper.createUrl(['p':'salary/payroll'])}}" target="mainFrame" onFocus="this.blur()">工资核算</a>
-              {% endif %}
-              {% if salaryFeatures['payslip'] %}
-              <a href="{{helper.createUrl(['p':'salary/payslip'])}}" target="mainFrame" onFocus="this.blur()">工资条发放</a>
+              <a href="{{helper.createUrl(['p':'salary/payroll'])}}" target="mainFrame" onFocus="this.blur()">工资表核算</a>
               {% endif %}
               {% if salaryFeatures['commission'] %}
               <a href="{{helper.createUrl(['p':'salary/commission'])}}" target="mainFrame" onFocus="this.blur()">提成核算</a>

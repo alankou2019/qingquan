@@ -51,7 +51,34 @@ class PayrollPeriodModel extends BaseModel
 	{
 		$now = time();
 		$sql = 'update `' . $this->getSource() . '` set status="published",published_by=' . intval($operatorId) .
-			',published_at=' . $now . ',updated_at=' . $now .
+			',published_at=' . $now . ',archived_by=' . intval($operatorId) . ',archived_at=' . $now . ',updated_at=' . $now .
+			' where company_id=' . intval($companyId) . ' and id=' . intval($periodId);
+		return $this->getDB()->execute($sql);
+	}
+
+	public function markSubmitted($companyId, $periodId, $operatorId)
+	{
+		$now = time();
+		$sql = 'update `' . $this->getSource() . '` set status="submitted",submitted_by=' . intval($operatorId) .
+			',submitted_at=' . $now . ',rejected_by=NULL,rejected_at=NULL,rejected_reason="",updated_at=' . $now .
+			' where company_id=' . intval($companyId) . ' and id=' . intval($periodId);
+		return $this->getDB()->execute($sql);
+	}
+
+	public function markApproved($companyId, $periodId, $operatorId)
+	{
+		$now = time();
+		$sql = 'update `' . $this->getSource() . '` set status="approved",approved_by=' . intval($operatorId) .
+			',approved_at=' . $now . ',updated_at=' . $now .
+			' where company_id=' . intval($companyId) . ' and id=' . intval($periodId);
+		return $this->getDB()->execute($sql);
+	}
+
+	public function markRejected($companyId, $periodId, $operatorId, $reason = '')
+	{
+		$now = time();
+		$sql = 'update `' . $this->getSource() . '` set status="rejected",rejected_by=' . intval($operatorId) .
+			',rejected_at=' . $now . ',rejected_reason="' . addslashes($reason) . '",updated_at=' . $now .
 			' where company_id=' . intval($companyId) . ' and id=' . intval($periodId);
 		return $this->getDB()->execute($sql);
 	}
@@ -61,11 +88,11 @@ class PayrollPeriodModel extends BaseModel
 		$map = array(
 			'draft' => '草稿',
 			'calculated' => '已核算',
-			'submitted' => '已提交',
-			'approved' => '已审批',
+			'submitted' => '审核中',
+			'approved' => '审核通过',
 			'rejected' => '已驳回',
 			'archived' => '已归档',
-			'published' => '已发工资条',
+			'published' => '已发工资条/已归档',
 		);
 		return isset($map[$status]) ? $map[$status] : $status;
 	}
@@ -85,6 +112,11 @@ class PayrollPeriodModel extends BaseModel
 
 	public static function canPublishPayslip($status)
 	{
-		return in_array($status, array('archived', 'approved'));
+		return $status == 'approved';
+	}
+
+	public static function canSubmitAudit($status)
+	{
+		return in_array($status, array('draft', 'calculated', 'rejected'));
 	}
 }
