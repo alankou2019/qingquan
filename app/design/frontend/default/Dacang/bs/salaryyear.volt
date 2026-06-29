@@ -26,6 +26,6 @@
 		{% endfor %}
 	</div>
 	{% else %}
-	<div class="empty">暂无已发放工资条</div>
+	<div class="empty">暂无已发放薪酬</div>
 	{% endif %}
 </div>

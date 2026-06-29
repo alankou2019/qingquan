@@ -66,7 +66,7 @@
 				<div class="module_icon">薪</div>
 				<div class="module_copy">
 					<div class="title">薪酬查询</div>
-					<div class="txt">当月工资条、当年薪酬、往年薪酬</div>
+					<div class="txt">当月薪酬、当年薪酬、往年薪酬、下属薪酬</div>
 				</div>
 				<div class="module_arrow">&gt;</div>
 			</div>

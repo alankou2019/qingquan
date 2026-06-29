@@ -14,7 +14,7 @@
 		.salary_row .amount{color:#1f8fd8;font-weight:bold;}
 		.salary_tip{margin:0.6rem;color:#94a3b8;font-size:0.52rem;line-height:0.82rem;}
 	</style>
-	<div class="salary_header"><a href="{{helper.createUrl(['p':'bs/salary'])}}">返回</a>工资条详情</div>
+	<div class="salary_header"><a href="{{helper.createUrl(['p':'bs/salary'])}}">返回</a>薪酬详情</div>
 	<div class="salary_summary">
 		<div class="month">{{slip['payroll_month']}}</div>
 		<div class="money">￥{{slip['net_amount']}}</div>
@@ -30,10 +30,10 @@
 			{% endfor %}
 		{% else %}
 			<div class="salary_row">
-				<div class="name">暂无工资项目明细</div>
+				<div class="name">暂无薪酬项目明细</div>
 				<div class="amount"></div>
 			</div>
 		{% endif %}
 	</div>
-	<div class="salary_tip">工资条仅供本人查看。如对金额有疑问，请联系企业HR或薪酬管理员。</div>
+	<div class="salary_tip">薪酬信息仅供本人查看。如对金额有疑问，请联系企业HR或薪酬管理员。</div>
 </div>

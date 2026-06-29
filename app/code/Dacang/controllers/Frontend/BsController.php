@@ -112,6 +112,7 @@ class  BsController extends FrontendBaseController
         $this->view->setVar('yearSlips', $yearSlips);
         $this->view->setVar('yearSlipCount', count($yearSlips));
         $this->view->setVar('historyCount', $historyCount);
+        $this->view->setVar('canViewSubordinateSalary', $this->canViewSubordinateSalary());
     }
 
     public function salaryyearAction()
@@ -143,9 +144,17 @@ class  BsController extends FrontendBaseController
         $id = $this->request->get('id') ? intval($this->request->get('id')) : 0;
         $slip = PayrollSlipModel::getEmployeePublishedSlipDetail($this->companyId, $this->userId, $id);
         if (!$slip) {
-            Utils::showFrontMsg('工资条不存在或尚未发放', $this->getHelper()->createUrl(array('p' => 'bs/salary')));
+            Utils::showFrontMsg('薪酬不存在或尚未发放', $this->getHelper()->createUrl(array('p' => 'bs/salary')));
         }
         $this->view->setVar('slip', $slip);
+    }
+
+    public function salarysubordinateAction()
+    {
+        $this->checkSalaryMobile();
+        if (!$this->canViewSubordinateSalary()) {
+            Utils::showFrontMsg('下属薪酬权限未开通', $this->getHelper()->createUrl(array('p' => 'bs/salary')));
+        }
     }
 
     /**
@@ -749,6 +758,15 @@ class  BsController extends FrontendBaseController
             Utils::showFrontMsg('薪酬查询暂未开通', $this->getHelper()->createUrl(array('p' => 'bs/newindex')));
         }
         return true;
+    }
+
+    protected function canViewSubordinateSalary()
+    {
+        $user = CompanyUserModel::findFirst('id=' . intval($this->userId) . ' and company_id=' . intval($this->companyId));
+        if (!$user) {
+            return false;
+        }
+        return intval($user->is_admin) == 1 || intval($user->is_leader) == 1;
     }
 
 
