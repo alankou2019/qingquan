@@ -91,6 +91,7 @@
                 </td> 
                 <td class="name">
                     <span class="txt">{{item.status}}</span><br />
+                    <span class="txt">平台：{{item.app_platform_label}}</span><br />
                     <span class="txt">薪酬：{{item.salary_status}}</span>
                 </td>
                 <td class="name">

@@ -114,6 +114,11 @@ class  CompanyController extends AdminBaseController
 	            Utils::showMsg('公司已存在，请重新填写!',$backUrl);
 	        }
 	        
+	        $appPlatform = empty($postData['app_platform']) ? 'dingding' : $postData['app_platform'];
+	        if(!in_array($appPlatform, array('dingding', 'wecom', 'feishu', 'manual'))){
+	            $appPlatform = 'dingding';
+	        }
+	        
 	        $data = array(
 	            'name'    => $postData['name'],
 	            'contact' => $postData['contact'],
@@ -123,6 +128,7 @@ class  CompanyController extends AdminBaseController
 	            'status'  => intval($postData['status']),
 	            'expire_time'=>  $postData['expire_time'],
 	        	'industry' => $postData['industry'],
+	        	'app_platform' => $appPlatform,
 	        	'user_id' => $postData['user_id'],
 	        	'corpsecret' => trim($postData['corpsecret']),
 	        	'corpid' => $postData['corpid'],
@@ -233,7 +239,7 @@ class  CompanyController extends AdminBaseController
 	    /*加载数据*/
 	    $offset = ($page-1)*$pagesize;    
 	    
-	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum';
+	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.app_platform,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum';
 	    $items = $this->modelsManager->createBuilder()
 									    ->columns($columns)
 									    ->addFrom('ScshuxCms\Dacang\Model\CompanyModel','c')
@@ -258,10 +264,18 @@ class  CompanyController extends AdminBaseController
 	            '1' => '试用期',
 	            '2' => '正常'
 	        );
+	        $platformLabels = array(
+	            'dingding' => '钉钉',
+	            'wecom' => '企业微信',
+	            'feishu' => '飞书',
+	            'manual' => '手工/Excel'
+	        );
 	        foreach($items as $key=>$item){
+	            $platform = empty($item['app_platform']) ? 'dingding' : $item['app_platform'];
 	            $item['expire_time'] = $item['expire_time'] > -1 ? $this->getHelper()->formatDateTime($item['expire_time']) : '永不过期';
 	            $item['status']      = $statusarr[$item['status']];
 	            $item['salary_status'] = isset($salaryEnabledCompanies[intval($item['id'])]) ? '已开通' : '未开通';
+	            $item['app_platform_label'] = isset($platformLabels[$platform]) ? $platformLabels[$platform] : $platform;
 	            $items[$key] = $item;
 
 	        }

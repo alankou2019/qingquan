@@ -76,9 +76,24 @@
                                 <input type="text" name="industry"  maxlength="16" autocomplete="off"/>
                             </div>
                         </div>
-                    </li>
-                    
-                 <li class="posi_lm">
+	                    </li>
+	                    
+	                 <li class="posi_lm">
+					<div class="left posi_l ">通讯平台:</div>
+					<div class="right posi_m">
+						<div class="input_clear">
+							<select name="app_platform" class="screen">
+								<option value="dingding">钉钉</option>
+								<option value="wecom">企业微信</option>
+								<option value="feishu">飞书</option>
+								<option value="manual">手工/Excel</option>
+							</select>
+                            <small style="" class="help-block prompt_box"><i class="fa fa-times-circle-o"></i>用于企业后台员工同步、员工手机端登录方式和后续消息通知。</small>
+						</div>
+					</div>
+				</li>
+	                    
+	                 <li class="posi_lm">
 					<div class="left posi_l ">appKey:</div>
 					<div class="right posi_m">
 						<div class="input_clear">

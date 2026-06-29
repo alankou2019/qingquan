@@ -31,6 +31,7 @@ use ScshuxCms\Dacang\Model\PointReportItemDetailModel;
 use ScshuxCms\User\Model\UserModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\PayrollSlipModel;
+use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 use Phalcon\Di\FactoryDefault;
 
 class  BsController extends FrontendBaseController
@@ -766,7 +767,11 @@ class  BsController extends FrontendBaseController
         if (!$user) {
             return false;
         }
-        return intval($user->is_admin) == 1 || intval($user->is_leader) == 1;
+        if (intval($user->is_admin) == 1 || intval($user->is_leader) == 1) {
+            return true;
+        }
+        $scope = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $this->userId);
+        return !empty($scope);
     }
 
 
