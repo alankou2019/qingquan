@@ -90,7 +90,8 @@
                     <span class="txt">{{helper.createUrl(['p':'bs/index','id':item.hash_key,'m':'front','_f':'1'])}}</span>
                 </td> 
                 <td class="name">
-                    <span class="txt">{{item.status}}</span>
+                    <span class="txt">{{item.status}}</span><br />
+                    <span class="txt">薪酬：{{item.salary_status}}</span>
                 </td>
                 <td class="name">
                     <span class="txt">{{item.loginnum}}</span>

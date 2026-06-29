@@ -212,6 +212,48 @@
                 
 			</ul>
 
+			<div class="sub_title">模块授权</div>
+			<style>
+				.module_auth_wrap{padding:10px 18px 0 18px;}
+				.module_auth_grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+				.module_auth_card{border:1px solid #d9e2ef;background:#fbfdff;padding:12px;}
+				.module_auth_card.open{border-color:#b9d8f6;background:#f8fbff;}
+				.module_auth_head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+				.module_auth_name{font-size:14px;font-weight:bold;color:#233142;}
+				.module_auth_code{font-size:12px;color:#7b8794;margin-left:6px;font-weight:normal;}
+				.module_auth_note{color:#64748b;line-height:22px;margin-bottom:8px;}
+				.module_auth_features{border-top:1px dashed #d6dee9;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
+				.module_auth_features label,.module_auth_head label{color:#334155;line-height:24px;}
+				.module_auth_tips{margin:12px 0 0;color:#64748b;line-height:22px;}
+			</style>
+			<div class="module_auth_wrap">
+				<div class="module_auth_grid">
+					{% for module in moduleViewList %}
+					<div class="module_auth_card {% if module['enabled'] %}open{% endif %}">
+						<div class="module_auth_head">
+							<div class="module_auth_name">{{module['name']}}<span class="module_auth_code">{{module['code']}}</span></div>
+							<label>
+								<input type="checkbox" name="module_auth[{{module['code']}}][_module]" value="1" {% if module['enabled'] %}checked="checked"{% endif %} {% if module['readonly'] %}disabled="disabled"{% endif %}/>
+								{% if module['readonly'] %}原有模块{% else %}启用{% endif %}
+							</label>
+						</div>
+						<div class="module_auth_note">{{module['note']}}</div>
+						<div class="module_auth_features">
+							{% for feature in module['features'] %}
+							<label>
+								<input type="checkbox" name="module_auth[{{module['code']}}][{{feature['code']}}]" value="1" {% if feature['enabled'] %}checked="checked"{% endif %} {% if module['readonly'] %}disabled="disabled"{% endif %}/>
+								{{feature['name']}}
+							</label>
+							{% endfor %}
+						</div>
+					</div>
+					{% endfor %}
+				</div>
+				<div class="module_auth_tips">
+					说明：未开通模块时，企业管理后台不显示对应入口；关闭模块只隐藏入口，不删除历史业务数据。绩效考核为原有在用模块，本次只展示保留状态，不提供关闭操作。
+				</div>
+			</div>
+
 			<div class="online_btn_box">
 				<button type="reset" class="f_btn">重置</button>
 				<button type="button" class="f_btn active" id="btnSubmit">确认</button>

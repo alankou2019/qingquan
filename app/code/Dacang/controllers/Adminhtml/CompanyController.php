@@ -8,10 +8,12 @@ namespace ScshuxCms\Adminhtml\Controller;
 use ScshuxCms\Core\Controller\AdminBaseController;
 use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Common\Model\AdminUserModel;
+use ScshuxCms\Common\Model\AdminLogModel;
 use ScshuxCms\Core\Helper\Utils;
 use ScshuxCms\User\Model\UserModel;
 use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
+use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 class  CompanyController extends AdminBaseController
 {
     /**
@@ -66,6 +68,7 @@ class  CompanyController extends AdminBaseController
 	{
 	    $itemId  = isset($_REQUEST['id'])?intval($_REQUEST['id']):'';
 	    $backUrl = $this->getHelper()->createUrl(array('p'=>'company/index'));
+	    $moduleAuth = array();
 	    if($itemId>0){
 	        $item = CompanyModel::factory()->findFirst('id='.$itemId);
 	        
@@ -76,7 +79,10 @@ class  CompanyController extends AdminBaseController
 	        $item->expire_time = $item->expire_time!=-1?$this->getHelper()->getTime()->localDate('Y-m-d H:i:s',$item->expire_time):'';
 
 	        $this->view->setVar('item', $item);
+	        $moduleAuth = CompanyModuleAuthModel::getCompanyAuthMap($itemId);
 	    }
+	    $this->view->setVar('moduleAuth', $moduleAuth);
+	    $this->view->setVar('moduleViewList', CompanyModuleAuthModel::buildModuleViewList($moduleAuth));
 	    
 	}
 	/**
@@ -128,6 +134,7 @@ class  CompanyController extends AdminBaseController
 	        	'pointstatus'=>intval($postData['pointstatus'])	
 	        );
 
+	        $savedCompanyId = 0;
 	        if(empty($postData['id'])){
 	        	$nowtime = $this->getHelper()->getTime()->gmtime() ;
 	        	
@@ -147,6 +154,7 @@ class  CompanyController extends AdminBaseController
 	            $result = $companyModel->save($data);
 	            if($result)
 	            {
+	            	$savedCompanyId = $companyModel->id ;
 	            	$data['company_id'] = $companyModel->id ;
 	            	UserModel::createUser($data) ;
 	            }
@@ -160,6 +168,17 @@ class  CompanyController extends AdminBaseController
 	                Utils::showMsg('修改的记录不存在!',$backUrl);
 	            }
 	            $result =$item->save($data);
+	            if($result)
+	            {
+	                $savedCompanyId = $data['id'];
+	            }
+	        }
+	        if($result && $savedCompanyId){
+	            $adminUser = AdminUserModel::getLoginUser();
+	            $operatorId = empty($adminUser) ? 0 : intval($adminUser->user_id);
+	            $moduleAuth = isset($postData['module_auth']) ? $postData['module_auth'] : array();
+	            CompanyModuleAuthModel::saveCompanyAuth($savedCompanyId, $moduleAuth, $operatorId);
+	            AdminLogModel::factory()->addLog('更新企业模块授权，公司ID：' . $savedCompanyId, $operatorId);
 	        }
 	        if($result){
 	            Utils::showMsg('操作成功!',$backUrl);
@@ -229,6 +248,11 @@ class  CompanyController extends AdminBaseController
 	    
 	    
 	    if($items){
+	        $companyIds = array();
+	        foreach($items as $item){
+	            $companyIds[] = intval($item['id']);
+	        }
+	        $salaryEnabledCompanies = CompanyModuleAuthModel::getEnabledCompanies($companyIds, 'salary');
 	        $statusarr = array(
 	            '0' => '未激活',
 	            '1' => '试用期',
@@ -237,6 +261,7 @@ class  CompanyController extends AdminBaseController
 	        foreach($items as $key=>$item){
 	            $item['expire_time'] = $item['expire_time'] > -1 ? $this->getHelper()->formatDateTime($item['expire_time']) : '永不过期';
 	            $item['status']      = $statusarr[$item['status']];
+	            $item['salary_status'] = isset($salaryEnabledCompanies[intval($item['id'])]) ? '已开通' : '未开通';
 	            $items[$key] = $item;
 
 	        }
