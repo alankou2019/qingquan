@@ -7,6 +7,7 @@ namespace ScshuxCms\Salary\Model;
 use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Core\Model\BaseModel;
 use ScshuxCms\Core\Helper\Utils;
+use ScshuxCms\Salary\Model\EmployeeSalaryStructureModel;
 
 class SalaryPayrollImportModel extends BaseModel
 {
@@ -121,6 +122,92 @@ class SalaryPayrollImportModel extends BaseModel
 		}
 
 		return $this->savePayrollRows($companyId, $payrollMonth, $sourceName, $operatorId, $rows);
+	}
+
+	public function importInitialSalaryFromExcel($companyId, $filePath, $operatorId, $autoCreateProjects = false)
+	{
+		$this->_lastErrors = array();
+		$companyId = intval($companyId);
+		$parsed = $this->parseExcel($filePath);
+		if (!$parsed) {
+			return false;
+		}
+
+		$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
+		if (empty($projects)) {
+			if (!$autoCreateProjects) {
+				$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '企业还没有工资项目，请先确认按Excel表头自动生成工资项目');
+				return false;
+			}
+			if (!$this->createProjectsFromHeaders($companyId, $parsed['project_headers'])) {
+				return false;
+			}
+			$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
+		}
+
+		$projectMap = array();
+		foreach ($projects as $project) {
+			if ($project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$projectMap[$this->normalizeHeader($project['name'])] = $project;
+			}
+		}
+
+		$importProjects = array();
+		foreach ($parsed['project_headers'] as $header) {
+			$key = $this->normalizeHeader($header['name']);
+			if (!isset($projectMap[$key])) {
+				$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => '工资项目“' . $header['name'] . '”未在工资项目设置中启用');
+			} else {
+				$importProjects[] = array('header' => $header, 'project' => $projectMap[$key]);
+			}
+		}
+		if (empty($importProjects)) {
+			$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => '没有可导入的工资项目列');
+		}
+		if (!empty($this->_lastErrors)) {
+			return false;
+		}
+
+		$employees = $this->getCompanyEmployees($companyId);
+		$amountPost = array('amount' => array());
+		$employeeRowMap = array();
+		foreach ($parsed['rows'] as $excelRow) {
+			$employee = $this->matchEmployee($excelRow, $employees);
+			if (!$employee) {
+				continue;
+			}
+			$employeeId = intval($employee['id']);
+			if (isset($employeeRowMap[$employeeId])) {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $excelRow['name'], 'mobile' => $excelRow['mobile'], 'reason' => 'Excel中同一员工重复出现');
+				continue;
+			}
+			$employeeRowMap[$employeeId] = 1;
+			$amountPost['amount'][$employeeId] = array();
+			foreach ($importProjects as $item) {
+				$header = $item['header'];
+				$project = $item['project'];
+				$valueInfo = isset($excelRow['values'][$header['key']]) ? $excelRow['values'][$header['key']] : array('raw' => '');
+				$amount = $this->parseAmount($valueInfo['raw']);
+				if ($amount === false) {
+					$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $excelRow['name'], 'mobile' => $excelRow['mobile'], 'reason' => '工资项目“' . $header['name'] . '”金额格式不正确');
+					continue;
+				}
+				$amountPost['amount'][$employeeId][intval($project['id'])] = sprintf('%.2f', round($amount, 2));
+			}
+		}
+		if (!empty($this->_lastErrors)) {
+			return false;
+		}
+		if (empty($amountPost['amount'])) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '没有可导入的员工初始工资数据');
+			return false;
+		}
+		$result = EmployeeSalaryStructureModel::factory()->saveInitialSalaryTable($companyId, $amountPost, $operatorId);
+		if (!$result) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => EmployeeSalaryStructureModel::factory()->getLastError());
+			return false;
+		}
+		return array('employee_count' => count($amountPost['amount']));
 	}
 
 	public static function getDefaultTemplateHeaders($projects)

@@ -46,7 +46,8 @@ class SalaryProjectModel extends BaseModel
 	public static function getCalculationModeLabels()
 	{
 		return array(
-			'manual' => '手工录入',
+			'number' => '数字',
+			'manual' => '数字',
 			'fixed' => '固定金额',
 			'formula' => '公式计算',
 			'module' => '模块带入',
@@ -168,7 +169,7 @@ class SalaryProjectModel extends BaseModel
 		$statusLabels = self::getStatusLabels();
 		$direction = isset($postData['direction']) ? trim($postData['direction']) : 'earning';
 		$sourceType = isset($postData['source_type']) ? trim($postData['source_type']) : 'calculated';
-		$calculationMode = isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : 'manual';
+		$calculationMode = isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : 'number';
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
 		if (!isset($directions[$direction]) || !isset($sourceTypes[$sourceType]) || !isset($calculationModes[$calculationMode]) || !isset($statusLabels[$status])) {
 			$this->_lastError = '工资项目参数不正确';
@@ -242,6 +243,9 @@ class SalaryProjectModel extends BaseModel
 			$item['source_type_label'] = self::label($sourceTypes, $item['source_type']);
 			$item['direction_label'] = self::label($directions, $item['direction']);
 			$item['calculation_mode_label'] = self::label($calculationModes, $item['calculation_mode']);
+			if (!in_array($item['calculation_mode'], array('formula', 'module'))) {
+				$item['calculation_mode_label'] = '数字';
+			}
 			$item['status_label'] = self::label($statusLabels, $item['status']);
 			$item['project_kind'] = empty($item['template_id']) ? 'custom' : 'common';
 			$item['project_kind_label'] = empty($item['template_id']) ? '自定义项目' : '通用项目';

@@ -16,6 +16,10 @@
 .salary_badge{display:inline-block;padding:0 8px;height:22px;line-height:22px;background:#eef2ff;color:#3949ab;}
 .salary_empty{padding:18px;color:#94a3b8;text-align:center;}
 .inline_form{display:inline-block;margin:0;}
+.salary_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff;}
+.salary_sheet{min-width:980px;}
+.salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
+.salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
 </style>
 <div class="full_box">
 	<div class="head_tab clear">
@@ -152,6 +156,52 @@
 				<tr><td colspan="9" class="salary_empty">暂无工资项目</td></tr>
 				{% endfor %}
 			</table>
+		</div>
+		<div class="salary_block">
+			<h3>初始工资表</h3>
+			<div class="salary_tip">初始工资表用于维护员工基础工资数据。人数少的企业可以直接在表格中录入；也可以先下载模板、Excel导入后再修改。公式项目会按公式自动计算，金额统一保留2位小数。</div>
+			<div style="margin-bottom:10px;">
+				<a class="salary_btn salary_btn_gray" href="{{helper.createUrl(['p':'salary/initialtemplate'])}}" target="_blank" download="salary_initial_template.xls">初始工资表模板下载</a>
+				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/uploadinitialsalary'])}}" enctype="multipart/form-data" style="margin-left:8px;">
+					<input type="file" name="initial_file" accept=".xls,.xlsx" />
+					<button class="salary_btn" type="submit">Excel导入初始工资表</button>
+				</form>
+			</div>
+			<form method="post" action="{{helper.createUrl(['p':'salary/saveinitialsalary'])}}">
+				<div class="salary_scroll">
+					<table class="salary_table salary_sheet">
+						<tr>
+							<th width="120">员工</th>
+							<th width="120">手机号</th>
+							<th width="140">部门</th>
+							{% for project in initialProjects %}
+								{% if project['status']=='active' and project['deleted_at']==0 %}
+								<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
+								{% endif %}
+							{% endfor %}
+						</tr>
+						{% for employee in initialEmployees %}
+						<tr>
+							<td>{{employee['name']}}</td>
+							<td>{{employee['mobile']}}</td>
+							<td>{{employee['department_name']}}</td>
+							{% for project in initialProjects %}
+								{% if project['status']=='active' and project['deleted_at']==0 %}
+								<td>
+									<input type="text" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['id']] is defined %}{{employee['values'][project['id']]}}{% else %}0.00{% endif %}" {% if project['calculation_mode']=='formula' %}readonly="readonly"{% endif %} />
+								</td>
+								{% endif %}
+							{% endfor %}
+						</tr>
+						{% elsefor %}
+						<tr><td colspan="20" class="salary_empty">暂无员工数据</td></tr>
+						{% endfor %}
+					</table>
+				</div>
+				<div style="margin-top:10px;">
+					<button class="salary_btn" type="submit">保存初始工资表</button>
+				</div>
+			</form>
 		</div>
 	</div>
 </div>
