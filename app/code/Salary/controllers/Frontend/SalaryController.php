@@ -13,6 +13,7 @@ use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\PayrollPeriodModel;
 use ScshuxCms\Salary\Model\PayrollSlipModel;
+use ScshuxCms\Salary\Model\SalaryPayrollImportModel;
 use ScshuxCms\Salary\Model\SalaryPayrollAuditModel;
 use ScshuxCms\Salary\Model\SalaryProjectModel;
 use ScshuxCms\Salary\Model\SalaryProjectTemplateModel;
@@ -100,12 +101,96 @@ class SalaryController extends FrontendBaseController
 		$this->checkFeature('payroll');
 		$this->view->setVar('periods', $this->formatPayrollPeriods());
 		$this->view->setVar('canSendPayslip', $this->isSalaryFeatureEnabled('payslip'));
+		$this->view->setVar('defaultPayrollMonth', date('Y-m'));
 	}
 
 	public function payslipAction()
 	{
 		$this->payrollAction();
 		$this->view->pick('salary/payroll');
+	}
+
+	public function payrolltemplateAction()
+	{
+		$this->checkFeature('payroll');
+		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
+		$headers = SalaryPayrollImportModel::getDefaultTemplateHeaders($projects);
+		ob_clean();
+		header("Content-type:application/vnd.ms-excel; charset=utf-8");
+		header("Content-Disposition:attachment;filename=salary_payroll_template.xls");
+		echo implode("\t", $headers) . "\n";
+		echo "张三\t13800000000";
+		for ($i = 2; $i < count($headers); $i++) {
+			echo "\t0";
+		}
+		echo "\n";
+		exit();
+	}
+
+	public function uploadpayrollAction()
+	{
+		$this->checkFeature('payroll');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+
+		$payrollMonth = trim($this->request->get('payroll_month'));
+		if (!preg_match('/^\d{4}\-\d{2}$/', $payrollMonth)) {
+			Utils::showMsg('请填写正确的工资月份，例如2026-06', $backUrl);
+		}
+		if (empty($_FILES['payroll_file']['name'])) {
+			Utils::showMsg('请先选择工资表Excel文件', $backUrl);
+		}
+		$extname = strtolower(pathinfo($_FILES['payroll_file']['name'], PATHINFO_EXTENSION));
+		if (!in_array($extname, array('xls', 'xlsx'))) {
+			Utils::showMsg('请上传xls或xlsx格式的Excel文件', $backUrl);
+		}
+
+		$file = $this->savePayrollUpload('payroll_file', $extname);
+		if (!$file) {
+			Utils::showMsg('文件上传失败，请重新上传', $backUrl);
+		}
+		$fullPath = WEBROOT . $file;
+		$sourceName = $_FILES['payroll_file']['name'];
+		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
+
+		if (empty($projects)) {
+			$previewOk = SalaryPayrollImportModel::factory()->previewFirstImport($this->companyId, $fullPath);
+			$this->view->setVar('payrollMonth', $payrollMonth);
+			$this->view->setVar('uploadedFile', $file);
+			$this->view->setVar('sourceName', $sourceName);
+			$this->view->setVar('previewProjects', SalaryPayrollImportModel::factory()->getPreviewProjects());
+			$this->view->setVar('errors', SalaryPayrollImportModel::factory()->getLastErrors());
+			$this->view->setVar('previewOk', $previewOk ? 1 : 0);
+			$this->view->pick('salary/importconfirm');
+			return;
+		}
+
+		$result = SalaryPayrollImportModel::factory()->importFromExcel($this->companyId, $payrollMonth, $fullPath, $sourceName, $this->getOperatorId(), false);
+		$this->view->setVar('result', $result);
+		$this->view->setVar('errors', SalaryPayrollImportModel::factory()->getLastErrors());
+		$this->view->pick('salary/importresult');
+	}
+
+	public function confirmpayrollimportAction()
+	{
+		$this->checkFeature('payroll');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$payrollMonth = trim($this->request->get('payroll_month'));
+		$file = trim($this->request->get('uploaded_file'));
+		$sourceName = trim($this->request->get('source_name'));
+		$fullPath = $this->resolveUploadedPayrollFile($file);
+		if (!$fullPath) {
+			Utils::showMsg('上传文件已失效，请重新上传', $backUrl);
+		}
+		$result = SalaryPayrollImportModel::factory()->importFromExcel($this->companyId, $payrollMonth, $fullPath, $sourceName, $this->getOperatorId(), true);
+		$this->view->setVar('result', $result);
+		$this->view->setVar('errors', SalaryPayrollImportModel::factory()->getLastErrors());
+		$this->view->pick('salary/importresult');
 	}
 
 	public function submitreviewAction()
@@ -375,6 +460,35 @@ class SalaryController extends FrontendBaseController
 	{
 		$authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
 		return CompanyModuleAuthModel::isEnabled($authMap, 'salary', $featureCode) ? 1 : 0;
+	}
+
+	protected function resolveUploadedPayrollFile($file)
+	{
+		$file = trim($file);
+		if ($file == '' || strpos($file, '/media/excel/') !== 0 || strpos($file, '..') !== false) {
+			return false;
+		}
+		$fullPath = WEBROOT . $file;
+		return file_exists($fullPath) ? $fullPath : false;
+	}
+
+	protected function savePayrollUpload($fileName, $extname)
+	{
+		if (!isset($_FILES[$fileName]) || empty($_FILES[$fileName]['tmp_name'])) {
+			return '';
+		}
+		if (!in_array($extname, array('xls', 'xlsx'))) {
+			return '';
+		}
+		$dir = WEBROOT . '/media/excel/' . date('Y-m-d') . '/';
+		if (!file_exists($dir)) {
+			mkdir($dir, 0777, true);
+		}
+		$newFile = $dir . md5(microtime(true) . rand(1000, 9999)) . '.' . $extname;
+		if (move_uploaded_file($_FILES[$fileName]['tmp_name'], $newFile)) {
+			return str_replace(WEBROOT, '', $newFile);
+		}
+		return '';
 	}
 
 	protected function getOperatorId()

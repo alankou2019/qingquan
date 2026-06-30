@@ -1,8 +1,12 @@
 <style>
 .salary_page{padding:18px;}
 .salary_toolbar{margin-bottom:12px;}
-.salary_toolbar .btn{display:inline-block;background:#4560e6;color:#fff;padding:0 14px;line-height:30px;height:30px;text-decoration:none;margin-right:8px;}
+.salary_toolbar .btn{display:inline-block;background:#4560e6;color:#fff;padding:0 14px;line-height:30px;height:30px;text-decoration:none;margin-right:8px;border:0;cursor:pointer;}
 .salary_toolbar .btn_gray{background:#64748b;}
+.salary_import_box{border:1px solid #d9e2ef;background:#fbfdff;padding:12px 14px;margin-bottom:12px;color:#475569;}
+.salary_import_box label{display:inline-block;margin-right:10px;}
+.salary_import_box input[type=text]{height:28px;line-height:28px;border:1px solid #cbd5e1;padding:0 8px;width:90px;}
+.salary_import_box input[type=file]{height:30px;line-height:30px;}
 .salary_table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d9e2ef;}
 .salary_table th{background:#f8fafc;color:#334155;font-weight:normal;text-align:left;padding:10px;border-bottom:1px solid #d9e2ef;}
 .salary_table td{padding:10px;border-bottom:1px solid #edf2f7;color:#475569;vertical-align:top;}
@@ -27,10 +31,15 @@
 	</div>
 	<div class="salary_page">
 		<div class="salary_toolbar">
-			<a class="btn" href="javascript:void(0);">Excel导入</a>
+			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/payrolltemplate'])}}">下载Excel模板</a>
 			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a>
 		</div>
-		<div class="salary_tip">工资表由HR核算后提交审核；薪酬管理授权中设置的审核人全部同意后，HR才能发工资条并归档。归档后直接进入归档记录，不再单独审核。</div>
+		<form class="salary_import_box" method="post" action="{{helper.createUrl(['p':'salary/uploadpayroll'])}}" enctype="multipart/form-data" onsubmit="return confirm('确定上传并校验这份工资表吗？');">
+			<label>工资月份 <input type="text" name="payroll_month" value="{{defaultPayrollMonth}}" placeholder="2026-06" /></label>
+			<label>工资表Excel <input type="file" name="payroll_file" accept=".xls,.xlsx" /></label>
+			<button class="btn" type="submit">Excel导入</button>
+		</form>
+		<div class="salary_tip">工资表由HR核算后提交审核；薪酬管理授权中设置的审核人全部同意后，HR才能发工资条并归档。首次导入时，如企业还没有工资项目，系统会按Excel表头生成工资项目并请HR确认。</div>
 		{% if periods is empty %}
 		<div class="salary_empty">暂无工资表记录。</div>
 		{% else %}
