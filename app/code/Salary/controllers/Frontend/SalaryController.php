@@ -14,6 +14,8 @@ use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\PayrollPeriodModel;
 use ScshuxCms\Salary\Model\PayrollSlipModel;
 use ScshuxCms\Salary\Model\SalaryPayrollAuditModel;
+use ScshuxCms\Salary\Model\SalaryProjectModel;
+use ScshuxCms\Salary\Model\SalaryProjectTemplateModel;
 use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 
 class SalaryController extends FrontendBaseController
@@ -22,6 +24,75 @@ class SalaryController extends FrontendBaseController
 	{
 		$this->checkModule();
 		$this->view->setVar('features', $this->getSalaryFeatures());
+	}
+
+	public function projectAction()
+	{
+		$this->checkModule();
+		$templates = SalaryProjectTemplateModel::factory()->getActiveTemplates();
+		$templateProjectMap = SalaryProjectModel::factory()->getCompanyTemplateProjectMap($this->companyId);
+		$directions = SalaryProjectModel::getDirectionLabels();
+		$sourceTypes = SalaryProjectModel::getSourceTypeLabels();
+		foreach ($templates as $key => $template) {
+			$templates[$key]['is_selected'] = isset($templateProjectMap[intval($template['id'])]) ? 1 : 0;
+			$templates[$key]['direction_label'] = SalaryProjectModel::label($directions, $template['direction']);
+			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypes, $template['source_type']);
+		}
+
+		$editId = intval($this->request->get('id'));
+		$editItem = false;
+		if ($editId > 0) {
+			$editItem = SalaryProjectModel::factory()->findFirst('id=' . $editId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		}
+
+		$this->view->setVar('templates', $templates);
+		$this->view->setVar('projects', SalaryProjectModel::factory()->getCompanyProjects($this->companyId));
+		$this->view->setVar('editItem', $editItem);
+		$this->view->setVar('sourceTypes', $sourceTypes);
+		$this->view->setVar('directions', $directions);
+		$this->view->setVar('calculationModes', SalaryProjectModel::getCalculationModeLabels());
+		$this->view->setVar('statusLabels', SalaryProjectModel::getStatusLabels());
+	}
+
+	public function projectsavetemplatesAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$templateIds = isset($_POST['template_ids']) ? $_POST['template_ids'] : $this->request->get('template_ids');
+		SalaryProjectModel::factory()->saveTemplateSelection($this->companyId, $templateIds);
+		Utils::showMsg('通用工资项目已保存', $backUrl);
+	}
+
+	public function projectsaveAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$result = SalaryProjectModel::factory()->saveCustomProject($this->companyId, $_POST);
+		if (!$result) {
+			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+		}
+		Utils::showMsg('自定义工资项目已保存', $backUrl);
+	}
+
+	public function projectdeleteAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$projectId = intval($this->request->get('id'));
+		$result = SalaryProjectModel::factory()->deleteCompanyProject($this->companyId, $projectId);
+		if (!$result) {
+			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+		}
+		Utils::showMsg('工资项目已停用', $backUrl);
 	}
 
 	public function payrollAction()
@@ -82,7 +153,6 @@ class SalaryController extends FrontendBaseController
 		if ($periodId <= 0) {
 			Utils::showMsg('请选择工资表', $backUrl);
 		}
-
 		$result = PayrollSlipModel::factory()->publishByPeriod($this->companyId, $periodId, $this->getOperatorId());
 		if (!$result) {
 			Utils::showMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
@@ -169,7 +239,7 @@ class SalaryController extends FrontendBaseController
 			$reviewerIds = array();
 		}
 		SalaryPayrollAuditModel::factory()->saveReviewers($this->companyId, $reviewerIds);
-		Utils::showMsg('归档前工资表审核人已保存', $backUrl);
+		Utils::showMsg('工资表审核人已保存', $backUrl);
 	}
 
 	public function autheditAction()
@@ -181,7 +251,6 @@ class SalaryController extends FrontendBaseController
 		if (!$userInfo || intval($userInfo->company_id) != intval($this->companyId)) {
 			Utils::showMsg('员工不存在', $backUrl);
 		}
-
 		$departmentRoles = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $userId, 'department');
 		$employeeRoles = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $userId, 'employee');
 		$departList = DepartmentModel::TreeDepartList($this->companyId);
@@ -212,7 +281,6 @@ class SalaryController extends FrontendBaseController
 		if (!$userInfo || intval($userInfo->company_id) != intval($this->companyId)) {
 			Utils::showMsg('员工不存在', $backUrl);
 		}
-
 		$departmentRoles = $this->request->get('role_department');
 		$employeeRoles = $this->request->get('role_employee');
 		if (empty($departmentRoles) || !is_array($departmentRoles)) {
@@ -256,12 +324,17 @@ class SalaryController extends FrontendBaseController
 	{
 		$authMap = $this->checkModule();
 		$items = array(
+			array('code' => 'project', 'name' => '工资项目设置', 'url' => 'salary/project', 'desc' => '选择平台通用工资项目，维护企业自定义工资项目。'),
 			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '导入或核算工资表，提交审核，审核通过后发工资条并归档。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {
-			$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
+			if ($item['code'] == 'project') {
+				$items[$key]['enabled'] = 1;
+			} else {
+				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
+			}
 		}
 		return $items;
 	}

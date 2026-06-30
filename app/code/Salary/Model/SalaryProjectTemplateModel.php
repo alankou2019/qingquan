@@ -25,4 +25,10 @@ class SalaryProjectTemplateModel extends BaseModel
 		}
 		return self::$_instance;
 	}
+
+	public function getActiveTemplates()
+	{
+		$sql = 'select * from `' . $this->getSource() . '` where status="active" order by sort_order asc,id asc';
+		return $this->getDB()->query($sql)->fetchAll();
+	}
 }
