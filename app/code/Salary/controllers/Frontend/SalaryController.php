@@ -140,8 +140,11 @@ class SalaryController extends FrontendBaseController
 		$sheet->freezePane('A2');
 
 		ob_clean();
+		header("Content-Description: File Transfer");
 		header("Content-type:application/vnd.ms-excel; charset=utf-8");
 		header("Content-Disposition:attachment;filename=salary_payroll_template.xls");
+		header("Content-Transfer-Encoding: binary");
+		header("Pragma: public");
 		header("Cache-Control:max-age=0");
 		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
 		$writer->save('php://output');

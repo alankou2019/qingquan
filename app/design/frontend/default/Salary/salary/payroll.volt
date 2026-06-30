@@ -37,7 +37,7 @@
 			<label>工资月份 <input type="text" name="payroll_month" value="{{defaultPayrollMonth}}" placeholder="2026-06" /></label>
 			<label>工资表Excel <input type="file" name="payroll_file" accept=".xls,.xlsx" /></label>
 			<button class="btn" type="submit">Excel导入</button>
-			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/payrolltemplate'])}}">工资表模板下载</a>
+			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/payrolltemplate'])}}" target="_blank" download="salary_payroll_template.xls">工资表模板下载</a>
 		</form>
 		<div class="salary_tip">工资表由HR核算后提交审核；薪酬管理授权中设置的审核人全部同意后，HR才能发工资条并归档。首次导入时，如企业还没有工资项目，系统会按Excel表头生成工资项目并请HR确认。</div>
 		{% if periods is empty %}
