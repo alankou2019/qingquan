@@ -18,6 +18,7 @@ use ScshuxCms\Salary\Model\PayrollPeriodModel;
 use ScshuxCms\Salary\Model\PayrollSlipModel;
 use ScshuxCms\Salary\Model\SalaryPayrollImportModel;
 use ScshuxCms\Salary\Model\SalaryPayrollAuditModel;
+use ScshuxCms\Salary\Model\SalaryOperationLogModel;
 use ScshuxCms\Salary\Model\SalaryProjectModel;
 use ScshuxCms\Salary\Model\SalaryProjectTemplateModel;
 use ScshuxCms\Salary\Model\SalaryViewRoleModel;
@@ -28,6 +29,30 @@ class SalaryController extends FrontendBaseController
 	{
 		$this->checkModule();
 		$this->view->setVar('features', $this->getSalaryFeatures());
+	}
+
+	public function logAction()
+	{
+		$this->checkModule();
+		$filter = array(
+			'action_code' => trim($this->request->get('action_code')),
+			'payroll_month' => trim($this->request->get('payroll_month')),
+		);
+		$page = intval($this->request->get('page'));
+		if ($page <= 0) {
+			$page = 1;
+		}
+		$pageSize = 30;
+		$model = SalaryOperationLogModel::factory();
+		$total = $model->getCompanyLogCount($this->companyId, $filter);
+		$logs = $model->getCompanyLogs($this->companyId, $filter, $page, $pageSize);
+		$pageCount = max(1, ceil($total / $pageSize));
+		$this->view->setVar('logs', $logs);
+		$this->view->setVar('filter', $filter);
+		$this->view->setVar('actionLabels', SalaryOperationLogModel::getActionLabels());
+		$this->view->setVar('page', $page);
+		$this->view->setVar('pageCount', $pageCount);
+		$this->view->setVar('total', $total);
 	}
 
 	public function projectAction()
@@ -70,6 +95,7 @@ class SalaryController extends FrontendBaseController
 		}
 		$templateIds = isset($_POST['template_ids']) ? $_POST['template_ids'] : $this->request->get('template_ids');
 		SalaryProjectModel::factory()->saveTemplateSelection($this->companyId, $templateIds);
+		$this->addSalaryLog('project_template_save', 'salary_project', 0, '', '保存通用工资项目选择');
 		Utils::showMsg('通用工资项目已保存', $backUrl);
 	}
 
@@ -84,6 +110,7 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
 		}
+		$this->addSalaryLog('project_custom_save', 'salary_project', 0, '', '保存自定义工资项目');
 		Utils::showMsg('自定义工资项目已保存', $backUrl);
 	}
 
@@ -99,6 +126,7 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
 		}
+		$this->addSalaryLog('project_delete', 'salary_project', $projectId, '', '停用工资项目');
 		Utils::showMsg('工资项目已停用', $backUrl);
 	}
 
@@ -113,6 +141,7 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(EmployeeSalaryStructureModel::factory()->getLastError(), $backUrl);
 		}
+		$this->addSalaryLog('initial_salary_save', 'employee_salary_structure', 0, '', '保存初始工资表');
 		Utils::showMsg('初始工资表已保存', $backUrl);
 	}
 
@@ -150,6 +179,7 @@ class SalaryController extends FrontendBaseController
 			$this->view->pick('salary/importresult');
 			return;
 		}
+		$this->addSalaryLog('initial_salary_import', 'employee_salary_structure', 0, '', '导入初始工资表，人数' . intval($result['employee_count']));
 		Utils::showMsg('初始工资表导入成功，共导入' . intval($result['employee_count']) . '人', $backUrl);
 	}
 
@@ -243,6 +273,7 @@ class SalaryController extends FrontendBaseController
 		if ($filteredItems === false) {
 			Utils::showMsg('请选择导出范围', $backUrl);
 		}
+		$this->addSalaryLog('payslip_export', 'payroll_period', $periodId, $period['payroll_month'], '导出工资条确认结果，条数' . count($filteredItems));
 		$this->outputPayslipConfirmExport($period, $filteredItems);
 	}
 
@@ -258,6 +289,7 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(PayrollPeriodModel::factory()->getLastError(), $backUrl);
 		}
+		$this->addSalaryLog('payroll_generate', 'payroll_period', intval($result), $payrollMonth, '从初始工资表生成工资表');
 		Utils::showMsg('已从初始工资表生成本月工资表', $backUrl);
 	}
 
@@ -274,6 +306,7 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(PayrollPeriodModel::factory()->getLastError(), $backUrl);
 		}
+		$this->addSalaryLog('payroll_save', 'payroll_period', $periodId, $period ? $period['payroll_month'] : '', '保存工资表核算数据');
 		Utils::showMsg('工资表已保存', $backUrl);
 	}
 
@@ -360,6 +393,9 @@ class SalaryController extends FrontendBaseController
 		}
 
 		$result = SalaryPayrollImportModel::factory()->importFromExcel($this->companyId, $payrollMonth, $fullPath, $sourceName, $this->getOperatorId(), false);
+		if ($result) {
+			$this->addSalaryLog('payroll_import', 'payroll_period', intval($result['period_id']), $payrollMonth, '导入工资表，人数' . intval($result['employee_count']));
+		}
 		$this->view->setVar('result', $result);
 		$this->view->setVar('errors', SalaryPayrollImportModel::factory()->getLastErrors());
 		$this->view->pick('salary/importresult');
@@ -380,6 +416,9 @@ class SalaryController extends FrontendBaseController
 			Utils::showMsg('上传文件已失效，请重新上传', $backUrl);
 		}
 		$result = SalaryPayrollImportModel::factory()->importFromExcel($this->companyId, $payrollMonth, $fullPath, $sourceName, $this->getOperatorId(), true);
+		if ($result) {
+			$this->addSalaryLog('payroll_import', 'payroll_period', intval($result['period_id']), $payrollMonth, '首次导入工资表并生成工资项目，人数' . intval($result['employee_count']));
+		}
 		$this->view->setVar('result', $result);
 		$this->view->setVar('errors', SalaryPayrollImportModel::factory()->getLastErrors());
 		$this->view->pick('salary/importresult');
@@ -397,6 +436,8 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(SalaryPayrollAuditModel::factory()->getLastError(), $backUrl);
 		}
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$this->addSalaryLog('payroll_submit_review', 'payroll_period', $periodId, $period ? $period['payroll_month'] : '', '提交工资表审核');
 		Utils::showMsg('已提交工资表审核', $backUrl);
 	}
 
@@ -411,10 +452,13 @@ class SalaryController extends FrontendBaseController
 		$reviewerId = intval($this->request->get('reviewer_id'));
 		$status = $this->request->get('status');
 		$opinion = trim($this->request->get('opinion'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
 		$result = SalaryPayrollAuditModel::factory()->reviewPeriod($this->companyId, $periodId, $reviewerId, $status, $opinion);
 		if (!$result) {
 			Utils::showMsg(SalaryPayrollAuditModel::factory()->getLastError(), $backUrl);
 		}
+		$statusLabel = $status == 'approved' ? '审核同意' : '审核驳回';
+		$this->addSalaryLog('payroll_review', 'payroll_period', $periodId, $period ? $period['payroll_month'] : '', $statusLabel);
 		Utils::showMsg('审核处理成功', $backUrl);
 	}
 
@@ -511,6 +555,7 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
 		}
+		$this->addSalaryLog('payslip_publish', 'payroll_period', $periodId, $period ? $period['payroll_month'] : '', '发放工资条，人数' . intval($result));
 		Utils::showMsg('工资条发放成功，共发放' . intval($result) . '人', $backUrl);
 	}
 
@@ -535,6 +580,7 @@ class SalaryController extends FrontendBaseController
 			Utils::showMsg(PayrollArchiveModel::factory()->getLastError(), $backUrl);
 		}
 		PayrollPeriodModel::factory()->markArchived($this->companyId, $periodId, $this->getOperatorId());
+		$this->addSalaryLog('payroll_archive', 'salary_payroll_archive', $archiveId, $period['payroll_month'], '归档工资表');
 		Utils::showMsg('工资表已归档', Helper::factory()->createUrl(array('p' => 'salary/archive')));
 	}
 
@@ -575,6 +621,7 @@ class SalaryController extends FrontendBaseController
 			Utils::showMsg('工资表不存在', $backUrl);
 		}
 		PayrollPeriodModel::factory()->markRejected($this->companyId, $periodId, $this->getOperatorId(), '从归档记录恢复到工资表核算');
+		$this->addSalaryLog('payroll_restore', 'salary_payroll_archive', $archiveId, $period['payroll_month'], '从归档记录恢复到工资表核算');
 		Utils::showMsg('已恢复到工资表核算，原归档记录仍保留', Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period['payroll_month'])));
 	}
 
@@ -647,6 +694,7 @@ class SalaryController extends FrontendBaseController
 			$reviewerIds = array();
 		}
 		SalaryPayrollAuditModel::factory()->saveReviewers($this->companyId, $reviewerIds);
+		$this->addSalaryLog('salary_auth_audit_reviewer_save', 'salary_payroll_audit_role', 0, '', '保存工资表审核人，人数' . count($reviewerIds));
 		Utils::showMsg('工资表审核人已保存', $backUrl);
 	}
 
@@ -699,7 +747,13 @@ class SalaryController extends FrontendBaseController
 		}
 		$canExport = intval($this->request->get('can_export'));
 		SalaryViewRoleModel::factory()->saveUserScopes($this->companyId, $userId, $departmentRoles, $employeeRoles, $canExport);
+		$this->addSalaryLog('salary_auth_scope_save', 'salary_view_role', $userId, '', '保存薪酬查询授权');
 		Utils::showMsg('操作成功', $backUrl);
+	}
+
+	protected function addSalaryLog($actionCode, $objectType = '', $objectId = 0, $payrollMonth = '', $summary = '')
+	{
+		SalaryOperationLogModel::factory()->addLog($this->companyId, $this->getOperatorId(), $actionCode, $objectType, $objectId, $payrollMonth, $summary);
 	}
 
 	protected function showFeature($featureCode, $featureName)
@@ -975,11 +1029,12 @@ class SalaryController extends FrontendBaseController
 			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '导入或核算工资表，提交审核，审核通过后发工资条并归档。'),
 			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '查看工资条发放记录、员工查看确认进度和未确认记录。'),
 			array('code' => 'archive', 'name' => '工资表归档记录', 'url' => 'salary/archive', 'desc' => '查看已归档工资表，可按归档数据发工资条或恢复重新核算。'),
+			array('code' => 'log', 'name' => '薪酬操作日志', 'url' => 'salary/log', 'desc' => '记录工资项目、核算、审核、发放、归档、恢复和授权等关键操作。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {
-			if ($item['code'] == 'project' || $item['code'] == 'archive') {
+			if ($item['code'] == 'project' || $item['code'] == 'archive' || $item['code'] == 'log') {
 				$items[$key]['enabled'] = 1;
 			} else {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
