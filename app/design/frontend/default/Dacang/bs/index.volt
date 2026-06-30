@@ -24,11 +24,22 @@
 #score .score_list_ul .score_total {
     position: absolute;
     left: 66%;
-    top: 50%;
+    top: 40%;
     transform: translate(-50%, -50%);
     font-size: 0.68rem;
     line-height: 1;
     color: #f39800;
+    white-space: nowrap;
+    text-align: center;
+}
+#score .score_list_ul .score_submit_stat {
+    position: absolute;
+    left: 66%;
+    top: 64%;
+    transform: translate(-50%, -50%);
+    font-size: 0.42rem;
+    line-height: 1;
+    color: #999;
     white-space: nowrap;
     text-align: center;
 }
@@ -86,6 +97,7 @@
                                      </div>
                                  </div>
                                  <div class="score_total">总分 {{helper.del0(hasitem.totalpoint)}}</div>
+                                 <div class="score_submit_stat">已提交分数{{hasitem.submitted_count}}人（共{{hasitem.total_count}}人）</div>
                                  <div class="fr time">
                                      {{helper.formatDateTime(hasitem.created,'Y.m.d')}}
                                  </div>

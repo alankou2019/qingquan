@@ -182,6 +182,9 @@ class  ReportItemModel extends BaseModel
 				$row->{$key} = $value;
 			}
 			$row->totalpoint = $this->getSubmittedTotalPoint($row->reportId);
+			$submitStat = $this->getSubmitStat($row->reportId);
+			$row->submitted_count = $submitStat['submitted_count'];
+			$row->total_count = $submitStat['total_count'];
 			$return[] = $row;
 		}
 		return $return ;
@@ -388,6 +391,35 @@ class  ReportItemModel extends BaseModel
 		return $return;
 	}	
 	
+	public function getSubmitStat($reportId)
+	{
+		$return = array(
+			'submitted_count' => 0,
+			'total_count' => 0,
+		);
+		if(!$reportId)
+		{
+			return $return ;
+		}
+		$reportId = intval($reportId) ;
+		$where = 'i.report_id = '.$reportId ;
+		$items = ReportItemModel::factory()->getModelsManager()->createBuilder()
+													->columns('count(distinct i.report_user_id) as total_count,count(distinct if(i.report_time > 0,i.report_user_id,null)) as submitted_count')
+													->addFrom('ScshuxCms\Dacang\Model\ReportItemModel','i')
+													->where($where)
+													->getQuery()
+													->execute() ;
+		if($items)
+		{
+			foreach ($items as $item)
+			{
+				$return['submitted_count'] = intval($item->submitted_count);
+				$return['total_count'] = intval($item->total_count);
+				break;
+			}
+		}
+		return $return;
+	}
 	/**
 	 * 
 	 * @desc	通过考核表id  获取参与此考核表打分的公司人员的钉钉id

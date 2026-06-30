@@ -71,6 +71,7 @@ class Render
 			<div>'.$val->dname.'</div>
 			</div>
 			<div class="score_total">总分 '.Helper::factory()->del0($val->totalpoint).'</div>
+			<div class="score_submit_stat">已提交分数'.intval($val->submitted_count).'人（共'.intval($val->total_count).'人）</div>
 			<div class="fr time">
 			'.Helper::factory()->formatDateTime($val->created,'Y.m.d').'
 			</div>
