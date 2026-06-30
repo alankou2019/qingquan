@@ -21,6 +21,9 @@
 		</ul>
 	</div>
 	<div class="salary_page">
+		<div style="margin-bottom:12px;">
+			<a class="salary_link" href="{{helper.createUrl(['p':'salary/archive'])}}">查看归档记录</a>
+		</div>
 		<div class="salary_tip">已发放的工资条会出现在员工手机端的当月薪酬、当年薪酬、往年薪酬页面。</div>
 		{% if periods is empty %}
 		<div class="salary_empty">暂无工资条发放记录。</div>
@@ -55,12 +58,10 @@
 					<td class="money">{{period['net_total']}}</td>
 					<td>{{period['published_time']}}</td>
 					<td class="operate">
-						{% if period['status']=='published' %}
-							<span class="salary_disabled">已发放</span>
-						{% elseif period['can_publish'] %}
+						<a class="salary_link" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['id']])}}">确认明细</a>
+						{% if period['can_publish'] %}
+							<br />
 							<a class="salary_link" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['id'],'from':'payroll'])}}">发工资条</a>
-						{% else %}
-							<span class="salary_disabled">待归档</span>
 						{% endif %}
 					</td>
 				</tr>

@@ -79,6 +79,9 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
               {% if salaryFeatures['payroll'] %}
               <a href="{{helper.createUrl(['p':'salary/payroll'])}}" target="mainFrame" onFocus="this.blur()">工资表核算</a>
               {% endif %}
+              {% if salaryFeatures['payslip'] %}
+              <a href="{{helper.createUrl(['p':'salary/payslip'])}}" target="mainFrame" onFocus="this.blur()">工资条发放</a>
+              {% endif %}
               {% if salaryFeatures['commission'] %}
               <a href="{{helper.createUrl(['p':'salary/commission'])}}" target="mainFrame" onFocus="this.blur()">提成核算</a>
               {% endif %}

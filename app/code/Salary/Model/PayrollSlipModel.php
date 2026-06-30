@@ -130,6 +130,42 @@ class PayrollSlipModel extends BaseModel
 		return $return;
 	}
 
+	public function getCompanyPublishedPeriods($companyId, $limit = 36)
+	{
+		$db = $this->getDB();
+		$periodTable = $this->getTableName('payroll_periods');
+		$slipTable = $this->getSource();
+		$sql = 'select p.*,count(s.id) as published_count,' .
+			'sum(case when s.viewed_at>0 then 1 else 0 end) as viewed_count,' .
+			'sum(case when s.confirmed_at>0 then 1 else 0 end) as confirmed_count ' .
+			'from `' . $periodTable . '` p inner join `' . $slipTable . '` s ' .
+			'on p.id=s.payroll_period_id and p.company_id=s.company_id and s.status="published" ' .
+			'where p.company_id=' . intval($companyId) .
+			' group by p.id order by p.payroll_month desc,p.id desc limit ' . intval($limit);
+		return $db->query($sql)->fetchAll();
+	}
+
+	public function getPeriodSlipDetails($companyId, $periodId, $statusFilter = 'all')
+	{
+		$companyId = intval($companyId);
+		$periodId = intval($periodId);
+		$where = 's.company_id=' . $companyId . ' and s.payroll_period_id=' . $periodId . ' and s.status="published"';
+		if ($statusFilter == 'unviewed') {
+			$where .= ' and ifnull(s.viewed_at,0)=0';
+		} elseif ($statusFilter == 'viewed_unconfirmed') {
+			$where .= ' and ifnull(s.viewed_at,0)>0 and ifnull(s.confirmed_at,0)=0';
+		} elseif ($statusFilter == 'confirmed') {
+			$where .= ' and ifnull(s.confirmed_at,0)>0';
+		}
+		$rowTable = $this->getTableName('payroll_employee_rows');
+		$sql = 'select s.id,s.employee_id,s.published_at,s.viewed_at,s.confirmed_at,' .
+			'r.employee_name,r.employee_no,r.department_name,r.earning_total,r.deduction_total,r.net_amount ' .
+			'from `' . $this->getSource() . '` s ' .
+			'left join `' . $rowTable . '` r on s.payroll_employee_row_id=r.id and s.company_id=r.company_id ' .
+			'where ' . $where . ' order by r.department_name asc,r.employee_name asc,s.id asc';
+		return $this->getDB()->query($sql)->fetchAll();
+	}
+
 	public function confirmEmployeeSlip($companyId, $employeeId, $slipId)
 	{
 		$companyId = intval($companyId);

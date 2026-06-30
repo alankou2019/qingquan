@@ -181,8 +181,50 @@ class SalaryController extends FrontendBaseController
 
 	public function payslipAction()
 	{
-		$this->payrollAction();
-		$this->view->pick('salary/payroll');
+		$this->checkFeature('payroll');
+		$this->checkFeature('payslip');
+		$periods = PayrollSlipModel::factory()->getCompanyPublishedPeriods($this->companyId);
+		$this->view->setVar('periods', $this->formatPayslipPeriods($periods));
+	}
+
+	public function payslipdetailAction()
+	{
+		$this->checkFeature('payroll');
+		$this->checkFeature('payslip');
+		$periodId = intval($this->request->get('id'));
+		$status = trim($this->request->get('status'));
+		$from = trim($this->request->get('from'));
+		if (!in_array($status, array('all', 'unviewed', 'viewed_unconfirmed', 'confirmed'))) {
+			$status = 'all';
+		}
+		$backUrl = $from == 'archive' ? Helper::factory()->createUrl(array('p' => 'salary/archive')) : Helper::factory()->createUrl(array('p' => 'salary/payslip'));
+		if ($periodId <= 0) {
+			Utils::showMsg('请选择工资表', $backUrl);
+		}
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		if (!$period) {
+			Utils::showMsg('工资表不存在', $backUrl);
+		}
+		$items = PayrollSlipModel::factory()->getPeriodSlipDetails($this->companyId, $periodId, $status);
+		foreach ($items as $key => $item) {
+			$items[$key]['published_time'] = empty($item['published_at']) ? '-' : date('Y-m-d H:i', intval($item['published_at']));
+			$items[$key]['viewed_time'] = empty($item['viewed_at']) ? '-' : date('Y-m-d H:i', intval($item['viewed_at']));
+			$items[$key]['confirmed_time'] = empty($item['confirmed_at']) ? '-' : date('Y-m-d H:i', intval($item['confirmed_at']));
+			if (intval($item['confirmed_at']) > 0) {
+				$items[$key]['confirm_status'] = '已确认';
+			} elseif (intval($item['viewed_at']) > 0) {
+				$items[$key]['confirm_status'] = '已查看未确认';
+			} else {
+				$items[$key]['confirm_status'] = '未查看';
+			}
+		}
+		$periodItems = $this->appendPayslipConfirmStats(array($period));
+		$period = $this->formatPayslipPeriods($periodItems);
+		$this->view->setVar('period', empty($period) ? false : $period[0]);
+		$this->view->setVar('items', $items);
+		$this->view->setVar('status', $status);
+		$this->view->setVar('sourcePage', $from == 'archive' ? 'archive' : 'payslip');
+		$this->view->setVar('backUrl', $backUrl);
 	}
 
 	public function generatepayrollAction()
@@ -729,6 +771,24 @@ class SalaryController extends FrontendBaseController
 		return $periods;
 	}
 
+	protected function formatPayslipPeriods($periods)
+	{
+		foreach ($periods as $key => $period) {
+			$periods[$key]['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
+			$sourceType = isset($period['source_type']) ? $period['source_type'] : 'system';
+			$sourceName = isset($period['source_name']) ? $period['source_name'] : '';
+			$periods[$key]['source_label'] = PayrollPeriodModel::getSourceName($sourceType, $sourceName);
+			$periods[$key]['published_time'] = empty($period['published_at']) ? '-' : date('Y-m-d H:i', intval($period['published_at']));
+			$periods[$key]['published_count'] = isset($period['published_count']) ? intval($period['published_count']) : 0;
+			$periods[$key]['viewed_count'] = isset($period['viewed_count']) ? intval($period['viewed_count']) : 0;
+			$periods[$key]['confirmed_count'] = isset($period['confirmed_count']) ? intval($period['confirmed_count']) : 0;
+			$periods[$key]['unconfirmed_count'] = max(0, intval($periods[$key]['published_count']) - intval($periods[$key]['confirmed_count']));
+			$periods[$key]['row_count'] = isset($period['row_count']) ? intval($period['row_count']) : intval($period['employee_count']);
+			$periods[$key]['can_publish'] = PayrollPeriodModel::canPublishPayslip($period['status']) ? 1 : 0;
+		}
+		return $periods;
+	}
+
 	protected function checkModule()
 	{
 		$authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
@@ -753,6 +813,7 @@ class SalaryController extends FrontendBaseController
 		$items = array(
 			array('code' => 'project', 'name' => '工资项目设置', 'url' => 'salary/project', 'desc' => '选择平台通用工资项目，维护企业自定义工资项目。'),
 			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '导入或核算工资表，提交审核，审核通过后发工资条并归档。'),
+			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '查看工资条发放记录、员工查看确认进度和未确认明细。'),
 			array('code' => 'archive', 'name' => '工资表归档记录', 'url' => 'salary/archive', 'desc' => '查看已归档工资表，可按归档数据发工资条或恢复重新核算。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
