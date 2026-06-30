@@ -21,6 +21,7 @@ use ScshuxCms\Salary\Model\SalaryPayrollAuditModel;
 use ScshuxCms\Salary\Model\SalaryOperationLogModel;
 use ScshuxCms\Salary\Model\SalaryProjectModel;
 use ScshuxCms\Salary\Model\SalaryProjectTemplateModel;
+use ScshuxCms\Salary\Model\SalaryReportModel;
 use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 
 class SalaryController extends FrontendBaseController
@@ -53,6 +54,44 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('page', $page);
 		$this->view->setVar('pageCount', $pageCount);
 		$this->view->setVar('total', $total);
+	}
+
+	public function reportAction()
+	{
+		$this->checkFeature('payroll');
+		$reportModel = SalaryReportModel::factory();
+		$filter = $this->buildSalaryReportFilter($reportModel);
+		$scope = $this->getSalaryReportScope();
+		$page = intval($this->request->get('page'));
+		if ($page <= 0) {
+			$page = 1;
+		}
+		$pageSize = 50;
+		$summary = $reportModel->getSummary($this->companyId, $filter, $scope);
+		$rows = $reportModel->getRows($this->companyId, $filter, $scope, $page, $pageSize);
+		$pageCount = max(1, ceil(intval($summary['row_count']) / $pageSize));
+		$this->view->setVar('filter', $filter);
+		$this->view->setVar('summary', $summary);
+		$this->view->setVar('rows', $rows);
+		$this->view->setVar('months', $reportModel->getPayrollMonths($this->companyId));
+		$this->view->setVar('departments', $reportModel->getDepartments($this->companyId, $scope));
+		$this->view->setVar('scope', $scope);
+		$this->view->setVar('page', $page);
+		$this->view->setVar('pageCount', $pageCount);
+	}
+
+	public function reportexportAction()
+	{
+		$this->checkFeature('payroll');
+		$reportModel = SalaryReportModel::factory();
+		$filter = $this->buildSalaryReportFilter($reportModel);
+		$scope = $this->getSalaryReportScope();
+		if (empty($scope['can_export'])) {
+			Utils::showMsg('当前账号没有薪酬报表导出权限', Helper::factory()->createUrl(array('p' => 'salary/report')));
+		}
+		$rows = $reportModel->getAllRows($this->companyId, $filter, $scope);
+		$this->addSalaryLog('salary_report_export', 'salary_report', 0, $filter['payroll_month'], '导出薪酬报表，条数' . count($rows));
+		$this->outputSalaryReportExport($filter, $rows);
 	}
 
 	public function projectAction()
@@ -756,6 +795,144 @@ class SalaryController extends FrontendBaseController
 		SalaryOperationLogModel::factory()->addLog($this->companyId, $this->getOperatorId(), $actionCode, $objectType, $objectId, $payrollMonth, $summary);
 	}
 
+	protected function buildSalaryReportFilter($reportModel)
+	{
+		$payrollMonth = trim($this->request->get('payroll_month'));
+		if ($payrollMonth == '') {
+			$payrollMonth = $reportModel->getLatestPayrollMonth($this->companyId);
+		}
+		if ($payrollMonth != '' && !preg_match('/^\d{4}\-\d{2}$/', $payrollMonth)) {
+			$payrollMonth = '';
+		}
+		return array(
+			'payroll_month' => $payrollMonth,
+			'department_name' => trim($this->request->get('department_name')),
+			'keyword' => trim($this->request->get('keyword')),
+		);
+	}
+
+	protected function getSalaryReportScope()
+	{
+		$user = Helper::factory()->getSession()->get('_user');
+		if (!empty($user->is_admin)) {
+			return array('all' => 1, 'can_export' => 1, 'employee_ids' => array(), 'department_names' => array());
+		}
+		$roleUserId = $this->getSalaryRoleUserId();
+		if ($roleUserId <= 0) {
+			return array('all' => 0, 'can_export' => 0, 'employee_ids' => array(), 'department_names' => array());
+		}
+		$departmentIds = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $roleUserId, 'department');
+		$employeeIds = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $roleUserId, 'employee');
+		return array(
+			'all' => 0,
+			'can_export' => SalaryViewRoleModel::factory()->getUserCanExport($this->companyId, $roleUserId),
+			'employee_ids' => $employeeIds,
+			'department_names' => $this->getSalaryDepartmentNames($departmentIds),
+		);
+	}
+
+	protected function getSalaryRoleUserId()
+	{
+		$operatorId = $this->getOperatorId();
+		$user = Helper::factory()->getSession()->get('_user');
+		if ($operatorId > 0) {
+			$item = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and id=' . $operatorId);
+			if ($item) {
+				return $operatorId;
+			}
+		}
+		$phone = empty($user->phone) ? '' : trim($user->phone);
+		if ($phone == '') {
+			return 0;
+		}
+		$userTable = CompanyUserModel::factory()->getSource();
+		foreach (array('phone', 'mobile', 'jobnumber') as $column) {
+			if ($this->tableHasColumn($userTable, $column)) {
+				$item = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and `' . $column . '`="' . addslashes($phone) . '"');
+				if ($item) {
+					return intval($item->id);
+				}
+			}
+		}
+		return 0;
+	}
+
+	protected function getSalaryDepartmentNames($departmentIds)
+	{
+		$names = array();
+		if (empty($departmentIds)) {
+			return $names;
+		}
+		$ids = array();
+		foreach ($departmentIds as $departmentId) {
+			$departmentId = intval($departmentId);
+			if ($departmentId > 0) {
+				$ids[] = $departmentId;
+			}
+		}
+		if (empty($ids)) {
+			return $names;
+		}
+		$items = DepartmentModel::find('company_id=' . intval($this->companyId) . ' and id in (' . implode(',', array_unique($ids)) . ')');
+		foreach ($items as $item) {
+			$names[] = $item->name;
+		}
+		return array_unique($names);
+	}
+
+	protected function tableHasColumn($tableName, $columnName)
+	{
+		$sql = 'SHOW COLUMNS FROM `' . $tableName . '` LIKE "' . addslashes($columnName) . '"';
+		$columns = $this->getDI()->get('db')->query($sql)->fetchAll();
+		return empty($columns) ? false : true;
+	}
+
+	protected function outputSalaryReportExport($filter, $rows)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('薪酬报表');
+		$headers = array('工资月份', '员工姓名', '手机号', '部门', '状态', '来源', '应发合计', '扣款合计', '实发合计');
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueByColumnAndRow($index, 1, $header);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index >= 6 ? 14 : 16);
+		}
+		$rowNumber = 2;
+		foreach ($rows as $row) {
+			$sheet->setCellValueByColumnAndRow(0, $rowNumber, $row['payroll_month']);
+			$sheet->setCellValueByColumnAndRow(1, $rowNumber, $row['employee_name']);
+			$sheet->setCellValueByColumnAndRow(2, $rowNumber, $row['employee_no']);
+			$sheet->setCellValueByColumnAndRow(3, $rowNumber, $row['department_name']);
+			$sheet->setCellValueByColumnAndRow(4, $rowNumber, $row['status_name']);
+			$sheet->setCellValueByColumnAndRow(5, $rowNumber, $row['source_label']);
+			$sheet->setCellValueByColumnAndRow(6, $rowNumber, $row['earning_total']);
+			$sheet->setCellValueByColumnAndRow(7, $rowNumber, $row['deduction_total']);
+			$sheet->setCellValueByColumnAndRow(8, $rowNumber, $row['net_amount']);
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('A2');
+
+		$fileMonth = empty($filter['payroll_month']) ? date('Ym') : str_replace('-', '', $filter['payroll_month']);
+		ob_clean();
+		header("Content-Description: File Transfer");
+		header("Content-type:application/vnd.ms-excel; charset=utf-8");
+		header("Content-Disposition:attachment;filename=salary_report_" . $fileMonth . ".xls");
+		header("Content-Transfer-Encoding: binary");
+		header("Pragma: public");
+		header("Cache-Control:max-age=0");
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
+	}
+
 	protected function showFeature($featureCode, $featureName)
 	{
 		$this->checkFeature($featureCode);
@@ -1029,12 +1206,13 @@ class SalaryController extends FrontendBaseController
 			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '导入或核算工资表，提交审核，审核通过后发工资条并归档。'),
 			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '查看工资条发放记录、员工查看确认进度和未确认记录。'),
 			array('code' => 'archive', 'name' => '工资表归档记录', 'url' => 'salary/archive', 'desc' => '查看已归档工资表，可按归档数据发工资条或恢复重新核算。'),
+			array('code' => 'report', 'name' => '薪酬统计报表', 'url' => 'salary/report', 'desc' => '按月份、部门、员工查询薪酬汇总和明细，按授权范围控制查看和导出。'),
 			array('code' => 'log', 'name' => '薪酬操作日志', 'url' => 'salary/log', 'desc' => '记录工资项目、核算、审核、发放、归档、恢复和授权等关键操作。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {
-			if ($item['code'] == 'project' || $item['code'] == 'archive' || $item['code'] == 'log') {
+			if ($item['code'] == 'project' || $item['code'] == 'archive' || $item['code'] == 'report' || $item['code'] == 'log') {
 				$items[$key]['enabled'] = 1;
 			} else {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
