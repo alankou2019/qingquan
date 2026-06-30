@@ -135,6 +135,7 @@ class SalaryOperationLogModel extends BaseModel
 			'payslip_publish' => '发放工资条',
 			'payslip_export' => '导出工资条确认结果',
 			'salary_report_export' => '导出薪酬报表',
+			'mobile_subordinate_salary_view' => '手机端查看下属薪酬',
 			'payroll_archive' => '归档工资表',
 			'payroll_restore' => '恢复归档工资表',
 			'salary_auth_audit_reviewer_save' => '保存工资表审核人',

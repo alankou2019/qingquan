@@ -276,4 +276,104 @@ class PayrollSlipModel extends BaseModel
 		$item['values'] = $db->query($valueSql)->fetchAll();
 		return $item;
 	}
+
+	public static function getAuthorizedPublishedSlips($companyId, $scope, $viewerId = 0, $year = '', $month = '', $limit = 120)
+	{
+		$model = self::factory();
+		$db = $model->getDB();
+		$slipTable = $model->getSource();
+		$periodTable = $model->getTableName('payroll_periods');
+		$rowTable = $model->getTableName('payroll_employee_rows');
+		$where = 's.company_id=' . intval($companyId) . ' and s.status="published" and s.published_at>0';
+		if ($month !== '') {
+			$where .= ' and p.payroll_month="' . addslashes($month) . '"';
+		} elseif ($year !== '') {
+			$where .= ' and p.payroll_month like "' . addslashes($year) . '-%"';
+		}
+		$scopeWhere = self::buildAuthorizedScopeWhere($scope, 'r');
+		if ($scopeWhere != '') {
+			$where .= ' and ' . $scopeWhere;
+		}
+		if (intval($viewerId) > 0) {
+			$where .= ' and s.employee_id<>' . intval($viewerId);
+		}
+		$sql = 'select s.id,s.employee_id,s.status,s.published_at,s.viewed_at,s.confirmed_at,' .
+			'p.payroll_month,r.employee_name,r.employee_no,r.department_name,r.earning_total,r.deduction_total,r.net_amount ' .
+			'from `' . $slipTable . '` s ' .
+			'left join `' . $periodTable . '` p on s.payroll_period_id=p.id ' .
+			'left join `' . $rowTable . '` r on s.payroll_employee_row_id=r.id ' .
+			'where ' . $where . ' order by p.payroll_month desc,r.department_name asc,r.employee_name asc limit ' . intval($limit);
+		return $db->query($sql)->fetchAll();
+	}
+
+	public static function getAuthorizedPublishedSlipDetail($companyId, $scope, $slipId, $viewerId = 0)
+	{
+		$model = self::factory();
+		$db = $model->getDB();
+		$slipTable = $model->getSource();
+		$periodTable = $model->getTableName('payroll_periods');
+		$rowTable = $model->getTableName('payroll_employee_rows');
+		$where = 's.id=' . intval($slipId) . ' and s.company_id=' . intval($companyId) .
+			' and s.status="published" and s.published_at>0';
+		$scopeWhere = self::buildAuthorizedScopeWhere($scope, 'r');
+		if ($scopeWhere != '') {
+			$where .= ' and ' . $scopeWhere;
+		}
+		if (intval($viewerId) > 0) {
+			$where .= ' and s.employee_id<>' . intval($viewerId);
+		}
+		$sql = 'select s.id,s.employee_id,s.status,s.published_at,s.viewed_at,s.confirmed_at,' .
+			'p.payroll_month,r.id as row_id,r.employee_name,r.employee_no,r.department_name,' .
+			'r.position_name,r.earning_total,r.deduction_total,r.net_amount,r.remark ' .
+			'from `' . $slipTable . '` s ' .
+			'left join `' . $periodTable . '` p on s.payroll_period_id=p.id ' .
+			'left join `' . $rowTable . '` r on s.payroll_employee_row_id=r.id ' .
+			'where ' . $where . ' limit 1';
+		$item = $db->query($sql)->fetch();
+		if (!$item) {
+			return false;
+		}
+		$valueTable = $model->getTableName('payroll_item_values');
+		$valueSql = 'select project_name,direction,final_amount,remark from `' . $valueTable . '` ' .
+			'where company_id=' . intval($companyId) .
+			' and employee_id=' . intval($item['employee_id']) .
+			' and payroll_employee_row_id=' . intval($item['row_id']) .
+			' order by id asc';
+		$item['values'] = $db->query($valueSql)->fetchAll();
+		return $item;
+	}
+
+	protected static function buildAuthorizedScopeWhere($scope, $alias = 'r')
+	{
+		if (!empty($scope['all'])) {
+			return '';
+		}
+		$prefix = $alias == '' ? '' : $alias . '.';
+		$parts = array();
+		if (!empty($scope['employee_ids'])) {
+			$ids = array();
+			foreach ($scope['employee_ids'] as $employeeId) {
+				$employeeId = intval($employeeId);
+				if ($employeeId > 0) {
+					$ids[] = $employeeId;
+				}
+			}
+			if (!empty($ids)) {
+				$parts[] = $prefix . 'employee_id in (' . implode(',', array_unique($ids)) . ')';
+			}
+		}
+		if (!empty($scope['department_names'])) {
+			$names = array();
+			foreach ($scope['department_names'] as $departmentName) {
+				$departmentName = trim($departmentName);
+				if ($departmentName != '') {
+					$names[] = '"' . addslashes($departmentName) . '"';
+				}
+			}
+			if (!empty($names)) {
+				$parts[] = $prefix . 'department_name in (' . implode(',', array_unique($names)) . ')';
+			}
+		}
+		return empty($parts) ? '1=0' : '(' . implode(' or ', $parts) . ')';
+	}
 }

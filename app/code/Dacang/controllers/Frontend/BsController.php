@@ -30,6 +30,7 @@ use ScshuxCms\Dacang\Model\QuotaApplyModel;
 use ScshuxCms\Dacang\Model\PointReportItemDetailModel;
 use ScshuxCms\User\Model\UserModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Salary\Model\SalaryOperationLogModel;
 use ScshuxCms\Salary\Model\PayrollSlipModel;
 use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 use Phalcon\Di\FactoryDefault;
@@ -120,8 +121,11 @@ class  BsController extends FrontendBaseController
         if (!preg_match('/^\d{4}$/', $year)) {
             $year = date('Y');
         }
+        $slips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, $year, '', 60);
+        $summary = $this->buildMobileSalarySummary($slips);
         $this->view->setVar('year', $year);
-        $this->view->setVar('slips', PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, $year, '', 60));
+        $this->view->setVar('slips', $slips);
+        $this->view->setVar('summary', $summary);
     }
 
     public function salaryhistoryAction()
@@ -135,13 +139,50 @@ class  BsController extends FrontendBaseController
                 $historySlips[] = $slip;
             }
         }
+        $summary = $this->buildMobileSalarySummary($historySlips);
         $this->view->setVar('slips', $historySlips);
+        $this->view->setVar('summary', $summary);
     }
 
     public function salarysubordinateAction()
     {
         $this->checkSalaryMobile();
-        $this->view->setVar('canViewSubordinateSalary', $this->canViewSubordinateSalary());
+        $scope = $this->getMobileSalaryScope();
+        $year = trim($this->request->get('year'));
+        if (!preg_match('/^\d{4}$/', $year)) {
+            $year = date('Y');
+        }
+        $slips = array();
+        if ($this->scopeHasSalaryRows($scope)) {
+            $slips = PayrollSlipModel::getAuthorizedPublishedSlips($this->companyId, $scope, $this->userId, $year, '', 200);
+        }
+        $this->view->setVar('year', $year);
+        $this->view->setVar('slips', $slips);
+        $this->view->setVar('summary', $this->buildMobileSalarySummary($slips));
+        $this->view->setVar('canViewSubordinateSalary', $this->scopeHasSalaryRows($scope));
+    }
+
+    public function salarysubordinatedetailAction()
+    {
+        $this->checkSalaryMobile();
+        $slipId = intval($this->request->get('id'));
+        $backUrl = $this->getHelper()->createUrl(array('p' => 'bs/salarysubordinate'));
+        if ($slipId <= 0) {
+            Utils::showFrontMsg('参数错误', $backUrl);
+        }
+        $scope = $this->getMobileSalaryScope();
+        if (!$this->scopeHasSalaryRows($scope)) {
+            Utils::showFrontMsg('没有下属薪酬查看权限', $this->getHelper()->createUrl(array('p' => 'bs/salary')));
+        }
+        $slip = PayrollSlipModel::getAuthorizedPublishedSlipDetail($this->companyId, $scope, $slipId, $this->userId);
+        if (!$slip) {
+            Utils::showFrontMsg('工资条不存在或无权查看', $backUrl);
+        }
+        $slip['published_time'] = empty($slip['published_at']) ? '-' : date('Y-m-d H:i', intval($slip['published_at']));
+        $slip['viewed_time'] = empty($slip['viewed_at']) ? '-' : date('Y-m-d H:i', intval($slip['viewed_at']));
+        $slip['confirmed_time'] = empty($slip['confirmed_at']) ? '-' : date('Y-m-d H:i', intval($slip['confirmed_at']));
+        $this->addMobileSalaryLog('mobile_subordinate_salary_view', 'payroll_slip', $slipId, $slip['payroll_month'], '手机端查看下属薪酬明细');
+        $this->view->setVar('slip', $slip);
     }
 
     public function salarydetailAction()
@@ -710,16 +751,76 @@ class  BsController extends FrontendBaseController
 
     protected function canViewSubordinateSalary()
     {
-        $scopes = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $this->userId);
-        if (empty($scopes)) {
-            return 0;
+        return $this->scopeHasSalaryRows($this->getMobileSalaryScope()) ? 1 : 0;
+    }
+
+    protected function getMobileSalaryScope()
+    {
+        $userInfo = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and id=' . intval($this->userId));
+        if ($userInfo && intval($userInfo->is_admin) == 1) {
+            return array('all' => 1, 'employee_ids' => array(), 'department_names' => array());
         }
-        foreach ($scopes as $items) {
-            if (!empty($items)) {
-                return 1;
+        $departmentIds = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $this->userId, 'department');
+        $employeeIds = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $this->userId, 'employee');
+        return array(
+            'all' => 0,
+            'employee_ids' => $employeeIds,
+            'department_names' => $this->getMobileSalaryDepartmentNames($departmentIds),
+        );
+    }
+
+    protected function getMobileSalaryDepartmentNames($departmentIds)
+    {
+        $names = array();
+        if (empty($departmentIds)) {
+            return $names;
+        }
+        $ids = array();
+        foreach ($departmentIds as $departmentId) {
+            $departmentId = intval($departmentId);
+            if ($departmentId > 0) {
+                $ids[] = $departmentId;
             }
         }
-        return 0;
+        if (empty($ids)) {
+            return $names;
+        }
+        $items = CompanyDepartModel::find('company_id=' . intval($this->companyId) . ' and id in (' . implode(',', array_unique($ids)) . ')');
+        foreach ($items as $item) {
+            $names[] = $item->name;
+        }
+        return array_unique($names);
+    }
+
+    protected function scopeHasSalaryRows($scope)
+    {
+        if (!empty($scope['all'])) {
+            return true;
+        }
+        return !empty($scope['employee_ids']) || !empty($scope['department_names']);
+    }
+
+    protected function buildMobileSalarySummary($slips)
+    {
+        $summary = array('count' => 0, 'earning_total' => '0.00', 'deduction_total' => '0.00', 'net_total' => '0.00');
+        $earning = 0;
+        $deduction = 0;
+        $net = 0;
+        foreach ($slips as $slip) {
+            $summary['count']++;
+            $earning += floatval($slip['earning_total']);
+            $deduction += floatval($slip['deduction_total']);
+            $net += floatval($slip['net_amount']);
+        }
+        $summary['earning_total'] = sprintf('%.2f', round($earning, 2));
+        $summary['deduction_total'] = sprintf('%.2f', round($deduction, 2));
+        $summary['net_total'] = sprintf('%.2f', round($net, 2));
+        return $summary;
+    }
+
+    protected function addMobileSalaryLog($actionCode, $objectType = '', $objectId = 0, $payrollMonth = '', $summary = '')
+    {
+        SalaryOperationLogModel::factory()->addLog($this->companyId, $this->userId, $actionCode, $objectType, $objectId, $payrollMonth, $summary);
     }
 
     /**
