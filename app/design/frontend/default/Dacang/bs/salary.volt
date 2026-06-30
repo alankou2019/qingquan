@@ -34,6 +34,7 @@
 			<div class="month">{{monthSlip['payroll_month']}}</div>
 			<div class="money">￥{{monthSlip['net_amount']}}</div>
 			<div class="meta">应发 {{monthSlip['earning_total']}}　扣减 {{monthSlip['deduction_total']}}</div>
+			<div class="meta">{% if monthSlip['confirmed_at'] > 0 %}已确认{% else %}待确认{% endif %}</div>
 			<a class="salary_btn" href="{{helper.createUrl(['p':'bs/salarydetail','id':monthSlip['id']])}}">查看当月薪酬</a>
 		</div>
 		{% else %}

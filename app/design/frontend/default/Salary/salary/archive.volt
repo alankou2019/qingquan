@@ -44,7 +44,11 @@
 				<td class="money">{{period['deduction_total']}}</td>
 				<td class="money">{{period['net_total']}}</td>
 				<td>{{period['archived_time']}}</td>
-				<td>已发 {{period['published_count']}} 人</td>
+				<td>
+					已发 {{period['published_count']}} 人<br />
+					已查看 {{period['viewed_count']}} 人，已确认 {{period['confirmed_count']}} 人
+					{% if period['unconfirmed_count'] > 0 %}<br />未确认 {{period['unconfirmed_count']}} 人{% endif %}
+				</td>
 				<td>
 					{% if canSendPayslip %}
 					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['payroll_period_id'],'archive_id':period['id'],'from':'archive'])}}">发工资条</a>

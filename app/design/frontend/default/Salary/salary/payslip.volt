@@ -32,7 +32,7 @@
 					<th>来源</th>
 					<th>状态</th>
 					<th>工资表人数</th>
-					<th>已发工资条</th>
+					<th>工资条进度</th>
 					<th class="money">实发合计</th>
 					<th>发放时间</th>
 					<th class="operate">操作</th>
@@ -47,7 +47,11 @@
 						<span class="salary_status {% if period['status']=='published' %}salary_status_done{% endif %}">{{period['status_name']}}</span>
 					</td>
 					<td>{{period['row_count']}}</td>
-					<td>{{period['published_count']}}</td>
+					<td>
+						已发 {{period['published_count']}}<br />
+						已查看 {{period['viewed_count']}}，已确认 {{period['confirmed_count']}}
+						{% if period['unconfirmed_count'] > 0 %}<br />未确认 {{period['unconfirmed_count']}}{% endif %}
+					</td>
 					<td class="money">{{period['net_total']}}</td>
 					<td>{{period['published_time']}}</td>
 					<td class="operate">

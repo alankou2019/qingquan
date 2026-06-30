@@ -29,6 +29,9 @@ use ScshuxCms\Dacang\Model\PointReportModel;
 use ScshuxCms\Dacang\Model\QuotaApplyModel;
 use ScshuxCms\Dacang\Model\PointReportItemDetailModel;
 use ScshuxCms\User\Model\UserModel;
+use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Salary\Model\PayrollSlipModel;
+use ScshuxCms\Salary\Model\SalaryViewRoleModel;
 use Phalcon\Di\FactoryDefault;
 
 class  BsController extends FrontendBaseController
@@ -86,6 +89,92 @@ class  BsController extends FrontendBaseController
         $this->view->setVar('pointmofule', UserModel::checkPointModule());
         $this->view->setVar('controller_name', $this->getDI()->get('router')->getControllerName());
         $this->view->setVar('bro', $this->checkBrowser());
+    }
+
+    public function salaryAction()
+    {
+        $this->checkSalaryMobile();
+        $currentMonth = date('Y-m');
+        $currentYear = date('Y');
+        $monthSlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, '', $currentMonth, 1);
+        $yearSlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, $currentYear, '', 60);
+        $historySlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, '', '', 120);
+        $historyCount = 0;
+        foreach ($historySlips as $slip) {
+            if (strpos($slip['payroll_month'], $currentYear . '-') !== 0) {
+                $historyCount++;
+            }
+        }
+
+        $this->view->setVar('currentMonth', $currentMonth);
+        $this->view->setVar('monthSlip', empty($monthSlips) ? false : $monthSlips[0]);
+        $this->view->setVar('yearSlipCount', count($yearSlips));
+        $this->view->setVar('historyCount', $historyCount);
+        $this->view->setVar('canViewSubordinateSalary', $this->canViewSubordinateSalary());
+    }
+
+    public function salaryyearAction()
+    {
+        $this->checkSalaryMobile();
+        $year = trim($this->request->get('year'));
+        if (!preg_match('/^\d{4}$/', $year)) {
+            $year = date('Y');
+        }
+        $this->view->setVar('year', $year);
+        $this->view->setVar('slips', PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, $year, '', 60));
+    }
+
+    public function salaryhistoryAction()
+    {
+        $this->checkSalaryMobile();
+        $currentYear = date('Y');
+        $allSlips = PayrollSlipModel::getEmployeePublishedSlips($this->companyId, $this->userId, '', '', 120);
+        $historySlips = array();
+        foreach ($allSlips as $slip) {
+            if (strpos($slip['payroll_month'], $currentYear . '-') !== 0) {
+                $historySlips[] = $slip;
+            }
+        }
+        $this->view->setVar('slips', $historySlips);
+    }
+
+    public function salarysubordinateAction()
+    {
+        $this->checkSalaryMobile();
+        $this->view->setVar('canViewSubordinateSalary', $this->canViewSubordinateSalary());
+    }
+
+    public function salarydetailAction()
+    {
+        $this->checkSalaryMobile();
+        $slipId = intval($this->request->get('id'));
+        $backUrl = $this->getHelper()->createUrl(array('p' => 'bs/salary'));
+        if ($slipId <= 0) {
+            Utils::showFrontMsg('参数错误', $backUrl);
+        }
+        $slip = PayrollSlipModel::getEmployeePublishedSlipDetail($this->companyId, $this->userId, $slipId);
+        if (!$slip) {
+            Utils::showFrontMsg('工资条不存在', $backUrl);
+        }
+        $slip['published_time'] = empty($slip['published_at']) ? '-' : date('Y-m-d H:i', intval($slip['published_at']));
+        $slip['viewed_time'] = empty($slip['viewed_at']) ? '-' : date('Y-m-d H:i', intval($slip['viewed_at']));
+        $slip['confirmed_time'] = empty($slip['confirmed_at']) ? '-' : date('Y-m-d H:i', intval($slip['confirmed_at']));
+        $this->view->setVar('slip', $slip);
+    }
+
+    public function salaryconfirmAction()
+    {
+        $this->checkSalaryMobile();
+        $slipId = intval($this->request->get('id'));
+        $backUrl = $this->getHelper()->createUrl(array('p' => 'bs/salarydetail', 'id' => $slipId));
+        if (!$this->request->isPost()) {
+            Utils::showFrontMsg('不支持的请求方式', $backUrl);
+        }
+        $result = PayrollSlipModel::factory()->confirmEmployeeSlip($this->companyId, $this->userId, $slipId);
+        if (!$result) {
+            Utils::showFrontMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
+        }
+        Utils::showFrontMsg('工资条已确认', $backUrl);
     }
 
     /**
@@ -604,6 +693,34 @@ class  BsController extends FrontendBaseController
         $this->view->setVar('extrareportdesc', ExtraReportDescModel::getDesc($id));
     }
 
+
+    protected function checkSalaryMobile()
+    {
+        if (!$this->hasSalaryMobile()) {
+            Utils::showFrontMsg('薪酬管理或工资条功能未开通', $this->getHelper()->createUrl(array('p' => 'bs/newindex')));
+        }
+        return true;
+    }
+
+    protected function hasSalaryMobile()
+    {
+        $authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
+        return CompanyModuleAuthModel::isEnabled($authMap, 'salary') && CompanyModuleAuthModel::isEnabled($authMap, 'salary', 'payslip');
+    }
+
+    protected function canViewSubordinateSalary()
+    {
+        $scopes = SalaryViewRoleModel::factory()->getUserScope($this->companyId, $this->userId);
+        if (empty($scopes)) {
+            return 0;
+        }
+        foreach ($scopes as $items) {
+            if (!empty($items)) {
+                return 1;
+            }
+        }
+        return 0;
+    }
 
     /**
      * 获取当前登录顶顶用户信息

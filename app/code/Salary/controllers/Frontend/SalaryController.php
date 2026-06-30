@@ -490,7 +490,9 @@ class SalaryController extends FrontendBaseController
 	public function archiveAction()
 	{
 		$this->checkFeature('payroll');
-		$this->view->setVar('periods', PayrollArchiveModel::factory()->getCompanyArchives($this->companyId));
+		$periods = PayrollArchiveModel::factory()->getCompanyArchives($this->companyId);
+		$periods = $this->appendPayslipConfirmStats($periods, 'payroll_period_id');
+		$this->view->setVar('periods', $periods);
 		$this->view->setVar('canSendPayslip', $this->isSalaryFeatureEnabled('payslip'));
 	}
 
@@ -707,6 +709,26 @@ class SalaryController extends FrontendBaseController
 		return false;
 	}
 
+	protected function appendPayslipConfirmStats($periods, $periodIdKey = 'id')
+	{
+		$periodIds = array();
+		foreach ($periods as $period) {
+			if (isset($period[$periodIdKey])) {
+				$periodIds[] = intval($period[$periodIdKey]);
+			}
+		}
+		$statsMap = PayrollSlipModel::factory()->getPeriodConfirmStats($this->companyId, $periodIds);
+		foreach ($periods as $key => $period) {
+			$periodId = isset($period[$periodIdKey]) ? intval($period[$periodIdKey]) : 0;
+			$stats = isset($statsMap[$periodId]) ? $statsMap[$periodId] : array('published_count' => 0, 'viewed_count' => 0, 'confirmed_count' => 0);
+			$periods[$key]['published_count'] = intval($stats['published_count']);
+			$periods[$key]['viewed_count'] = intval($stats['viewed_count']);
+			$periods[$key]['confirmed_count'] = intval($stats['confirmed_count']);
+			$periods[$key]['unconfirmed_count'] = max(0, intval($stats['published_count']) - intval($stats['confirmed_count']));
+		}
+		return $periods;
+	}
+
 	protected function checkModule()
 	{
 		$authMap = CompanyModuleAuthModel::getCompanyAuthMap($this->companyId);
@@ -748,6 +770,7 @@ class SalaryController extends FrontendBaseController
 	protected function formatPayrollPeriods($archived = false)
 	{
 		$periods = PayrollPeriodModel::factory()->getCompanyPeriods($this->companyId, 36, $archived);
+		$periods = $this->appendPayslipConfirmStats($periods);
 		$periodIds = array();
 		foreach ($periods as $period) {
 			$periodIds[] = intval($period['id']);

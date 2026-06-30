@@ -20,6 +20,7 @@
 			<div class="info">
 				<div class="month">{{slip['payroll_month']}}</div>
 				<div class="meta">应发 {{slip['earning_total']}}　扣减 {{slip['deduction_total']}}</div>
+				<div class="meta">{% if slip['confirmed_at'] > 0 %}已确认{% else %}待确认{% endif %}</div>
 			</div>
 			<div class="money">￥{{slip['net_amount']}}</div>
 		</a>

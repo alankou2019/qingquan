@@ -97,6 +97,69 @@ class PayrollSlipModel extends BaseModel
 		return $map;
 	}
 
+	public function getPeriodConfirmStats($companyId, $periodIds)
+	{
+		$return = array();
+		if (empty($periodIds) || !is_array($periodIds)) {
+			return $return;
+		}
+		$cleanIds = array();
+		foreach ($periodIds as $periodId) {
+			$periodId = intval($periodId);
+			if ($periodId > 0) {
+				$cleanIds[$periodId] = $periodId;
+			}
+		}
+		if (empty($cleanIds)) {
+			return $return;
+		}
+		$sql = 'select payroll_period_id,count(*) as published_count,' .
+			'sum(case when viewed_at>0 then 1 else 0 end) as viewed_count,' .
+			'sum(case when confirmed_at>0 then 1 else 0 end) as confirmed_count ' .
+			'from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
+			' and payroll_period_id in (' . implode(',', $cleanIds) . ') and status="published" group by payroll_period_id';
+		$items = $this->getDB()->query($sql)->fetchAll();
+		foreach ($items as $item) {
+			$periodId = intval($item['payroll_period_id']);
+			$return[$periodId] = array(
+				'published_count' => intval($item['published_count']),
+				'viewed_count' => intval($item['viewed_count']),
+				'confirmed_count' => intval($item['confirmed_count']),
+			);
+		}
+		return $return;
+	}
+
+	public function confirmEmployeeSlip($companyId, $employeeId, $slipId)
+	{
+		$companyId = intval($companyId);
+		$employeeId = intval($employeeId);
+		$slipId = intval($slipId);
+		if ($companyId <= 0 || $employeeId <= 0 || $slipId <= 0) {
+			$this->_lastError = '参数错误';
+			return false;
+		}
+		$item = $this->findFirst('id=' . $slipId . ' and company_id=' . $companyId . ' and employee_id=' . $employeeId . ' and status="published"');
+		if (!$item) {
+			$this->_lastError = '工资条不存在';
+			return false;
+		}
+		if (intval($item->confirmed_at) > 0) {
+			return true;
+		}
+		$now = time();
+		$item->confirmed_at = $now;
+		if (empty($item->viewed_at)) {
+			$item->viewed_at = $now;
+		}
+		$item->updated_at = $now;
+		if (!$item->save()) {
+			$this->_lastError = '确认失败，请稍后再试';
+			return false;
+		}
+		return true;
+	}
+
 	protected function buildEmployeeIdMap($employeeIds)
 	{
 		$map = array();
