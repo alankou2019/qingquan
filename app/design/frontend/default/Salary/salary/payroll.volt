@@ -103,10 +103,7 @@
 				</form>
 				{% endif %}
 				{% if period['can_publish'] and canSendPayslip %}
-				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/sendpayslip'])}}" onsubmit="return confirm('确定按当前工资表发工资条吗？');">
-					<input type="hidden" name="id" value="{{period['id']}}" />
-					<button class="salary_link_btn" type="submit">发工资条</button>
-				</form>
+				<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['id'],'from':'payroll'])}}">发工资条</a>
 				{% endif %}
 				{% if period['can_archive'] %}
 				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/archivepayroll'])}}" onsubmit="return confirm('归档后将转入归档记录，确定归档吗？');">

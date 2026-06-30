@@ -25,21 +25,32 @@ class PayrollSlipModel extends BaseModel
 		return self::$_instance;
 	}
 
-	public function publishByPeriod($companyId, $periodId, $operatorId)
+	public function publishByPeriod($companyId, $periodId, $operatorId, $employeeIds = array(), $allowArchivedRecord = false)
 	{
 		$period = PayrollPeriodModel::factory()->getCompanyPeriod($companyId, $periodId);
 		if (!$period) {
 			$this->_lastError = '月工资表不存在';
 			return false;
 		}
-		if (!PayrollPeriodModel::canPublishPayslip($period['status'])) {
-			$this->_lastError = '只有审核通过的工资表可以发工资条并归档';
+		if (!$allowArchivedRecord && !PayrollPeriodModel::canPublishPayslip($period['status'])) {
+			$this->_lastError = '只有审核通过或已归档的工资表可以发工资条';
 			return false;
 		}
 
 		$rows = PayrollEmployeeRowModel::factory()->getRowsByPeriod($companyId, $periodId);
+		$employeeMap = $this->buildEmployeeIdMap($employeeIds);
+		if (!empty($employeeMap)) {
+			$filteredRows = array();
+			foreach ($rows as $row) {
+				$employeeId = intval($row['employee_id']);
+				if (isset($employeeMap[$employeeId])) {
+					$filteredRows[] = $row;
+				}
+			}
+			$rows = $filteredRows;
+		}
 		if (empty($rows)) {
-			$this->_lastError = '月工资表没有员工工资数据';
+			$this->_lastError = '没有符合发放范围的员工工资数据';
 			return false;
 		}
 
@@ -69,6 +80,36 @@ class PayrollSlipModel extends BaseModel
 
 		PayrollPeriodModel::factory()->markPublished($companyId, $periodId, $operatorId);
 		return $publishedCount;
+	}
+
+	public function getPublishedEmployeeIdMap($companyId, $periodId)
+	{
+		$sql = 'select employee_id from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
+			' and payroll_period_id=' . intval($periodId) . ' and status="published"';
+		$items = $this->getDB()->query($sql)->fetchAll();
+		$map = array();
+		foreach ($items as $item) {
+			$employeeId = intval($item['employee_id']);
+			if ($employeeId > 0) {
+				$map[$employeeId] = 1;
+			}
+		}
+		return $map;
+	}
+
+	protected function buildEmployeeIdMap($employeeIds)
+	{
+		$map = array();
+		if (empty($employeeIds) || !is_array($employeeIds)) {
+			return $map;
+		}
+		foreach ($employeeIds as $employeeId) {
+			$employeeId = intval($employeeId);
+			if ($employeeId > 0) {
+				$map[$employeeId] = 1;
+			}
+		}
+		return $map;
 	}
 
 	public static function getEmployeePublishedSlips($companyId, $employeeId, $year = '', $month = '', $limit = 24)

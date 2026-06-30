@@ -357,11 +357,70 @@ class SalaryController extends FrontendBaseController
 		Utils::showMsg('审核处理成功', $backUrl);
 	}
 
+	public function payslipconfirmAction()
+	{
+		$this->checkFeature('payroll');
+		$this->checkFeature('payslip');
+		$periodId = intval($this->request->get('id'));
+		$from = trim($this->request->get('from'));
+		$archiveId = intval($this->request->get('archive_id'));
+		$backUrl = $from == 'archive' ? Helper::factory()->createUrl(array('p' => 'salary/archive')) : Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		if ($periodId <= 0) {
+			Utils::showMsg('请选择工资表', $backUrl);
+		}
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		if (!$period) {
+			Utils::showMsg('工资表不存在', $backUrl);
+		}
+		if ($from != 'archive') {
+			$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period['payroll_month']));
+		}
+
+		$archive = false;
+		if ($from == 'archive') {
+			if ($archiveId <= 0) {
+				Utils::showMsg('请选择归档记录', Helper::factory()->createUrl(array('p' => 'salary/archive')));
+			}
+			$archive = PayrollArchiveModel::factory()->getArchive($this->companyId, $archiveId);
+			if (!$archive || intval($archive['payroll_period_id']) != $periodId) {
+				Utils::showMsg('归档记录不存在', Helper::factory()->createUrl(array('p' => 'salary/archive')));
+			}
+		} elseif (!PayrollPeriodModel::canPublishPayslip($period['status'])) {
+			Utils::showMsg('只有审核通过或已归档的工资表可以发工资条', $backUrl);
+		}
+
+		$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, $periodId);
+		$publishedMap = PayrollSlipModel::factory()->getPublishedEmployeeIdMap($this->companyId, $periodId);
+		$departments = array();
+		foreach ($rows as $key => $row) {
+			$employeeId = intval($row['employee_id']);
+			$departmentName = trim($row['department_name']);
+			if ($departmentName == '') {
+				$departmentName = '未设置部门';
+			}
+			$rows[$key]['department_name'] = $departmentName;
+			$rows[$key]['is_published'] = isset($publishedMap[$employeeId]) ? 1 : 0;
+			$departments[$departmentName] = $departmentName;
+		}
+		ksort($departments);
+		$period['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
+
+		$this->view->setVar('period', $period);
+		$this->view->setVar('archive', $archive);
+		$this->view->setVar('sourcePage', $from == 'archive' ? 'archive' : 'payroll');
+		$this->view->setVar('archiveId', $archiveId);
+		$this->view->setVar('rows', $rows);
+		$this->view->setVar('departments', $departments);
+		$this->view->setVar('publishedCount', count($publishedMap));
+		$this->view->setVar('backUrl', $backUrl);
+	}
+
 	public function sendpayslipAction()
 	{
 		$this->checkFeature('payroll');
 		$this->checkFeature('payslip');
-		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll'));
+		$from = trim($this->request->get('from'));
+		$backUrl = $from == 'archive' ? Helper::factory()->createUrl(array('p' => 'salary/archive')) : Helper::factory()->createUrl(array('p' => 'salary/payroll'));
 		if (!$this->request->isPost()) {
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
@@ -369,7 +428,25 @@ class SalaryController extends FrontendBaseController
 		if ($periodId <= 0) {
 			Utils::showMsg('请选择工资表', $backUrl);
 		}
-		$result = PayrollSlipModel::factory()->publishByPeriod($this->companyId, $periodId, $this->getOperatorId());
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		if ($period) {
+			$backUrl = $from == 'archive' ? Helper::factory()->createUrl(array('p' => 'salary/archive')) : Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period['payroll_month']));
+		}
+		$rows = PayrollEmployeeRowModel::factory()->getRowsByPeriod($this->companyId, $periodId);
+		$employeeIds = $this->buildPayslipEmployeeScope($rows, $_POST);
+		if ($employeeIds === false) {
+			Utils::showMsg('请选择工资条发放范围', Helper::factory()->createUrl(array('p' => 'salary/payslipconfirm', 'id' => $periodId, 'from' => $from, 'archive_id' => intval($this->request->get('archive_id')))));
+		}
+		$allowArchivedRecord = false;
+		if ($from == 'archive') {
+			$archiveId = intval($this->request->get('archive_id'));
+			$archive = PayrollArchiveModel::factory()->getArchive($this->companyId, $archiveId);
+			if (!$archive || intval($archive['payroll_period_id']) != $periodId) {
+				Utils::showMsg('归档记录不存在', Helper::factory()->createUrl(array('p' => 'salary/archive')));
+			}
+			$allowArchivedRecord = true;
+		}
+		$result = PayrollSlipModel::factory()->publishByPeriod($this->companyId, $periodId, $this->getOperatorId(), $employeeIds, $allowArchivedRecord);
 		if (!$result) {
 			Utils::showMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
 		}
@@ -568,6 +645,66 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('featureCode', $featureCode);
 		$this->view->setVar('featureName', $featureName);
 		$this->view->pick('salary/feature');
+	}
+
+	protected function buildPayslipEmployeeScope($rows, $postData)
+	{
+		$rangeType = isset($postData['range_type']) ? trim($postData['range_type']) : 'all';
+		$employeeIds = array();
+		if ($rangeType == 'all') {
+			foreach ($rows as $row) {
+				$employeeId = intval($row['employee_id']);
+				if ($employeeId > 0) {
+					$employeeIds[$employeeId] = $employeeId;
+				}
+			}
+			return array_values($employeeIds);
+		}
+
+		if ($rangeType == 'department') {
+			$departments = isset($postData['departments']) && is_array($postData['departments']) ? $postData['departments'] : array();
+			$departmentMap = array();
+			foreach ($departments as $department) {
+				$department = trim($department);
+				if ($department != '') {
+					$departmentMap[$department] = 1;
+				}
+			}
+			if (empty($departmentMap)) {
+				return false;
+			}
+			foreach ($rows as $row) {
+				$departmentName = trim($row['department_name']);
+				if ($departmentName == '') {
+					$departmentName = '未设置部门';
+				}
+				$employeeId = intval($row['employee_id']);
+				if ($employeeId > 0 && isset($departmentMap[$departmentName])) {
+					$employeeIds[$employeeId] = $employeeId;
+				}
+			}
+			return empty($employeeIds) ? false : array_values($employeeIds);
+		}
+
+		if ($rangeType == 'employee') {
+			$selectedIds = isset($postData['employee_ids']) && is_array($postData['employee_ids']) ? $postData['employee_ids'] : array();
+			$allowedMap = array();
+			foreach ($rows as $row) {
+				$employeeId = intval($row['employee_id']);
+				if ($employeeId > 0) {
+					$allowedMap[$employeeId] = 1;
+				}
+			}
+			foreach ($selectedIds as $employeeId) {
+				$employeeId = intval($employeeId);
+				if ($employeeId > 0 && isset($allowedMap[$employeeId])) {
+					$employeeIds[$employeeId] = $employeeId;
+				}
+			}
+			return empty($employeeIds) ? false : array_values($employeeIds);
+		}
+
+		return false;
 	}
 
 	protected function checkModule()

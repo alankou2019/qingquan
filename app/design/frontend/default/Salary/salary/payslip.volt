@@ -54,9 +54,7 @@
 						{% if period['status']=='published' %}
 							<span class="salary_disabled">已发放</span>
 						{% elseif period['can_publish'] %}
-							<form method="post" action="{{helper.createUrl(['p':'salary/sendpayslip','id':period['id']])}}" onsubmit="return confirm('确定给本月工资表的员工发工资条吗？');">
-								<button class="salary_link_btn" type="submit">发工资条</button>
-							</form>
+							<a class="salary_link" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['id'],'from':'payroll'])}}">发工资条</a>
 						{% else %}
 							<span class="salary_disabled">待归档</span>
 						{% endif %}

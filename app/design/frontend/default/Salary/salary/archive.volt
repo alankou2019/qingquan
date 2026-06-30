@@ -47,10 +47,7 @@
 				<td>已发 {{period['published_count']}} 人</td>
 				<td>
 					{% if canSendPayslip %}
-					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/sendpayslip'])}}" onsubmit="return confirm('确定按归档工资表发工资条吗？');">
-						<input type="hidden" name="id" value="{{period['payroll_period_id']}}" />
-						<button class="salary_link_btn" type="submit">发工资条</button>
-					</form>
+					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['payroll_period_id'],'archive_id':period['id'],'from':'archive'])}}">发工资条</a>
 					{% endif %}
 					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/restorearchive'])}}" onsubmit="return confirm('确定恢复到工资表核算重新核算吗？');">
 						<input type="hidden" name="id" value="{{period['id']}}" />
