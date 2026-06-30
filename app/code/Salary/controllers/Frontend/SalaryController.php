@@ -115,15 +115,37 @@ class SalaryController extends FrontendBaseController
 		$this->checkFeature('payroll');
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
 		$headers = SalaryPayrollImportModel::getDefaultTemplateHeaders($projects);
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('工资表模板');
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueByColumnAndRow($index, 1, $header);
+			if ($index == 0) {
+				$sheet->setCellValueByColumnAndRow($index, 2, '张三');
+				$sheet->getColumnDimensionByColumn($index)->setWidth(14);
+			} elseif ($index == 1) {
+				$sheet->setCellValueByColumnAndRow($index, 2, '13800000000');
+				$sheet->getColumnDimensionByColumn($index)->setWidth(16);
+			} else {
+				$sheet->setCellValueByColumnAndRow($index, 2, 0);
+				$sheet->getColumnDimensionByColumn($index)->setWidth(14);
+			}
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . '2')->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('A2');
+
 		ob_clean();
 		header("Content-type:application/vnd.ms-excel; charset=utf-8");
 		header("Content-Disposition:attachment;filename=salary_payroll_template.xls");
-		echo implode("\t", $headers) . "\n";
-		echo "张三\t13800000000";
-		for ($i = 2; $i < count($headers); $i++) {
-			echo "\t0";
-		}
-		echo "\n";
+		header("Cache-Control:max-age=0");
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
 		exit();
 	}
 
