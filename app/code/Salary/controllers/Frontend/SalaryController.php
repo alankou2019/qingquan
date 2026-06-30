@@ -206,25 +206,44 @@ class SalaryController extends FrontendBaseController
 			Utils::showMsg('工资表不存在', $backUrl);
 		}
 		$items = PayrollSlipModel::factory()->getPeriodSlipDetails($this->companyId, $periodId, $status);
-		foreach ($items as $key => $item) {
-			$items[$key]['published_time'] = empty($item['published_at']) ? '-' : date('Y-m-d H:i', intval($item['published_at']));
-			$items[$key]['viewed_time'] = empty($item['viewed_at']) ? '-' : date('Y-m-d H:i', intval($item['viewed_at']));
-			$items[$key]['confirmed_time'] = empty($item['confirmed_at']) ? '-' : date('Y-m-d H:i', intval($item['confirmed_at']));
-			if (intval($item['confirmed_at']) > 0) {
-				$items[$key]['confirm_status'] = '已确认';
-			} elseif (intval($item['viewed_at']) > 0) {
-				$items[$key]['confirm_status'] = '已查看未确认';
-			} else {
-				$items[$key]['confirm_status'] = '未查看';
-			}
-		}
+		$items = $this->formatPayslipDetailItems($items);
 		$periodItems = $this->appendPayslipConfirmStats(array($period));
 		$period = $this->formatPayslipPeriods($periodItems);
+		$exportScope = $this->buildPayslipExportScope($items);
 		$this->view->setVar('period', empty($period) ? false : $period[0]);
 		$this->view->setVar('items', $items);
+		$this->view->setVar('departments', $exportScope['departments']);
+		$this->view->setVar('employees', $exportScope['employees']);
 		$this->view->setVar('status', $status);
 		$this->view->setVar('sourcePage', $from == 'archive' ? 'archive' : 'payslip');
 		$this->view->setVar('backUrl', $backUrl);
+	}
+
+	public function payslipexportAction()
+	{
+		$this->checkFeature('payroll');
+		$this->checkFeature('payslip');
+		$periodId = intval($this->request->get('id'));
+		$status = trim($this->request->get('status'));
+		$from = trim($this->request->get('from'));
+		if (!in_array($status, array('all', 'unviewed', 'viewed_unconfirmed', 'confirmed'))) {
+			$status = 'all';
+		}
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payslipdetail', 'id' => $periodId, 'status' => $status, 'from' => $from));
+		if ($periodId <= 0) {
+			Utils::showMsg('请选择工资表', Helper::factory()->createUrl(array('p' => 'salary/payslip')));
+		}
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		if (!$period) {
+			Utils::showMsg('工资表不存在', Helper::factory()->createUrl(array('p' => 'salary/payslip')));
+		}
+		$items = PayrollSlipModel::factory()->getPeriodSlipDetails($this->companyId, $periodId, $status);
+		$items = $this->formatPayslipDetailItems($items);
+		$filteredItems = $this->filterPayslipExportItems($items, $_GET);
+		if ($filteredItems === false) {
+			Utils::showMsg('请选择导出范围', $backUrl);
+		}
+		$this->outputPayslipConfirmExport($period, $filteredItems);
 	}
 
 	public function generatepayrollAction()
@@ -787,6 +806,147 @@ class SalaryController extends FrontendBaseController
 			$periods[$key]['can_publish'] = PayrollPeriodModel::canPublishPayslip($period['status']) ? 1 : 0;
 		}
 		return $periods;
+	}
+
+	protected function formatPayslipDetailItems($items)
+	{
+		foreach ($items as $key => $item) {
+			$items[$key]['published_time'] = empty($item['published_at']) ? '-' : date('Y-m-d H:i', intval($item['published_at']));
+			$items[$key]['viewed_time'] = empty($item['viewed_at']) ? '-' : date('Y-m-d H:i', intval($item['viewed_at']));
+			$items[$key]['confirmed_time'] = empty($item['confirmed_at']) ? '-' : date('Y-m-d H:i', intval($item['confirmed_at']));
+			if (intval($item['confirmed_at']) > 0) {
+				$items[$key]['confirm_status'] = '已确认';
+			} elseif (intval($item['viewed_at']) > 0) {
+				$items[$key]['confirm_status'] = '已查看未确认';
+			} else {
+				$items[$key]['confirm_status'] = '未查看';
+			}
+		}
+		return $items;
+	}
+
+	protected function buildPayslipExportScope($items)
+	{
+		$departments = array();
+		$employees = array();
+		foreach ($items as $item) {
+			$departmentName = trim($item['department_name']);
+			if ($departmentName == '') {
+				$departmentName = '未设置部门';
+			}
+			$departments[$departmentName] = $departmentName;
+			$employeeId = intval($item['employee_id']);
+			if ($employeeId > 0) {
+				$employees[$employeeId] = array(
+					'id' => $employeeId,
+					'name' => $item['employee_name'],
+					'mobile' => $item['employee_no'],
+					'department_name' => $departmentName,
+				);
+			}
+		}
+		ksort($departments);
+		return array('departments' => $departments, 'employees' => $employees);
+	}
+
+	protected function filterPayslipExportItems($items, $requestData)
+	{
+		$rangeType = isset($requestData['range_type']) ? trim($requestData['range_type']) : 'all';
+		if ($rangeType == 'all') {
+			return $items;
+		}
+		$return = array();
+		if ($rangeType == 'department') {
+			$departments = isset($requestData['departments']) && is_array($requestData['departments']) ? $requestData['departments'] : array();
+			$departmentMap = array();
+			foreach ($departments as $department) {
+				$department = trim($department);
+				if ($department != '') {
+					$departmentMap[$department] = 1;
+				}
+			}
+			if (empty($departmentMap)) {
+				return false;
+			}
+			foreach ($items as $item) {
+				$departmentName = trim($item['department_name']);
+				if ($departmentName == '') {
+					$departmentName = '未设置部门';
+				}
+				if (isset($departmentMap[$departmentName])) {
+					$return[] = $item;
+				}
+			}
+			return $return;
+		}
+		if ($rangeType == 'employee') {
+			$employeeIds = isset($requestData['employee_ids']) && is_array($requestData['employee_ids']) ? $requestData['employee_ids'] : array();
+			$employeeMap = array();
+			foreach ($employeeIds as $employeeId) {
+				$employeeId = intval($employeeId);
+				if ($employeeId > 0) {
+					$employeeMap[$employeeId] = 1;
+				}
+			}
+			if (empty($employeeMap)) {
+				return false;
+			}
+			foreach ($items as $item) {
+				$employeeId = intval($item['employee_id']);
+				if (isset($employeeMap[$employeeId])) {
+					$return[] = $item;
+				}
+			}
+			return $return;
+		}
+		return false;
+	}
+
+	protected function outputPayslipConfirmExport($period, $items)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('工资条确认结果');
+		$headers = array('工资月份', '员工姓名', '手机号', '部门', '应发', '扣款', '实发', '发放时间', '查看时间', '确认时间', '确认状态');
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueByColumnAndRow($index, 1, $header);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index >= 7 ? 18 : 14);
+		}
+		$rowNumber = 2;
+		foreach ($items as $item) {
+			$sheet->setCellValueByColumnAndRow(0, $rowNumber, $period['payroll_month']);
+			$sheet->setCellValueByColumnAndRow(1, $rowNumber, $item['employee_name']);
+			$sheet->setCellValueByColumnAndRow(2, $rowNumber, $item['employee_no']);
+			$sheet->setCellValueByColumnAndRow(3, $rowNumber, $item['department_name']);
+			$sheet->setCellValueByColumnAndRow(4, $rowNumber, $item['earning_total']);
+			$sheet->setCellValueByColumnAndRow(5, $rowNumber, $item['deduction_total']);
+			$sheet->setCellValueByColumnAndRow(6, $rowNumber, $item['net_amount']);
+			$sheet->setCellValueByColumnAndRow(7, $rowNumber, $item['published_time']);
+			$sheet->setCellValueByColumnAndRow(8, $rowNumber, $item['viewed_time']);
+			$sheet->setCellValueByColumnAndRow(9, $rowNumber, $item['confirmed_time']);
+			$sheet->setCellValueByColumnAndRow(10, $rowNumber, $item['confirm_status']);
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('A2');
+
+		ob_clean();
+		header("Content-Description: File Transfer");
+		header("Content-type:application/vnd.ms-excel; charset=utf-8");
+		header("Content-Disposition:attachment;filename=payslip_confirm_" . str_replace('-', '', $period['payroll_month']) . ".xls");
+		header("Content-Transfer-Encoding: binary");
+		header("Pragma: public");
+		header("Cache-Control:max-age=0");
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
 	}
 
 	protected function checkModule()
