@@ -58,7 +58,7 @@
 					<td class="money">{{period['net_total']}}</td>
 					<td>{{period['published_time']}}</td>
 					<td class="operate">
-						<a class="salary_link" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['id']])}}">确认明细</a>
+						<a class="salary_link" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['id']])}}">查看确认</a>
 						{% if period['can_publish'] %}
 							<br />
 							<a class="salary_link" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['id'],'from':'payroll'])}}">发工资条</a>
