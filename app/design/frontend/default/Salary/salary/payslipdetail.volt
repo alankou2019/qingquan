@@ -49,6 +49,7 @@
 			<a class="{% if status=='viewed_unconfirmed' %}on{% endif %}" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['id'],'from':sourcePage,'status':'viewed_unconfirmed'])}}">已查看未确认</a>
 			<a class="{% if status=='confirmed' %}on{% endif %}" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['id'],'from':sourcePage,'status':'confirmed'])}}">已确认</a>
 		</div>
+		{% if canExportPayslip %}
 		<div class="salary_export">
 			<div class="salary_export_title">导出确认结果</div>
 			<form method="get" action="{{helper.createUrl(['p':'salary/payslipexport'])}}" onsubmit="return checkPayslipExportScope();">
@@ -81,6 +82,7 @@
 				<button class="salary_btn" type="submit">导出Excel</button>
 			</form>
 		</div>
+		{% endif %}
 		{% endif %}
 		{% if items is empty %}
 		<div class="salary_empty">当前筛选条件下暂无工资条明细。</div>
@@ -132,8 +134,13 @@ function getPayslipExportRangeType() {
 }
 function togglePayslipExportScope() {
 	var rangeType = getPayslipExportRangeType();
-	document.getElementById('export_department_scope').className = rangeType == 'department' ? 'salary_export_scope salary_export_scope_on' : 'salary_export_scope';
-	document.getElementById('export_employee_scope').className = rangeType == 'employee' ? 'salary_export_scope salary_export_scope_on' : 'salary_export_scope';
+	var departmentScope = document.getElementById('export_department_scope');
+	var employeeScope = document.getElementById('export_employee_scope');
+	if (!departmentScope || !employeeScope) {
+		return;
+	}
+	departmentScope.className = rangeType == 'department' ? 'salary_export_scope salary_export_scope_on' : 'salary_export_scope';
+	employeeScope.className = rangeType == 'employee' ? 'salary_export_scope salary_export_scope_on' : 'salary_export_scope';
 }
 function checkAllExportEmployees(checked) {
 	var boxes = document.getElementsByClassName('export_employee_check');

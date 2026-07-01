@@ -283,6 +283,7 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('items', $items);
 		$this->view->setVar('departments', $exportScope['departments']);
 		$this->view->setVar('employees', $exportScope['employees']);
+		$this->view->setVar('canExportPayslip', $this->canExportSalaryData());
 		$this->view->setVar('status', $status);
 		$this->view->setVar('sourcePage', $from == 'archive' ? 'archive' : 'payslip');
 		$this->view->setVar('backUrl', $backUrl);
@@ -305,6 +306,9 @@ class SalaryController extends FrontendBaseController
 		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
 		if (!$period) {
 			Utils::showMsg('工资表不存在', Helper::factory()->createUrl(array('p' => 'salary/payslip')));
+		}
+		if (!$this->canExportSalaryData()) {
+			Utils::showMsg('No salary export permission', $backUrl);
 		}
 		$items = PayrollSlipModel::factory()->getPeriodSlipDetails($this->companyId, $periodId, $status);
 		$items = $this->formatPayslipDetailItems($items);
@@ -829,6 +833,12 @@ class SalaryController extends FrontendBaseController
 			'employee_ids' => $employeeIds,
 			'department_names' => $this->getSalaryDepartmentNames($departmentIds),
 		);
+	}
+
+	protected function canExportSalaryData()
+	{
+		$scope = $this->getSalaryReportScope();
+		return !empty($scope['can_export']);
 	}
 
 	protected function getSalaryRoleUserId()
