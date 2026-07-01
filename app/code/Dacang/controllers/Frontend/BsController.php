@@ -90,6 +90,7 @@ class  BsController extends FrontendBaseController
         $this->view->setVar('pointmofule', UserModel::checkPointModule());
         $this->view->setVar('controller_name', $this->getDI()->get('router')->getControllerName());
         $this->view->setVar('bro', $this->checkBrowser());
+        $this->view->setVar('hasSalaryMobile', $this->hasSalaryMobile());
     }
 
     public function salaryAction()
@@ -200,6 +201,7 @@ class  BsController extends FrontendBaseController
         $slip['published_time'] = empty($slip['published_at']) ? '-' : date('Y-m-d H:i', intval($slip['published_at']));
         $slip['viewed_time'] = empty($slip['viewed_at']) ? '-' : date('Y-m-d H:i', intval($slip['viewed_at']));
         $slip['confirmed_time'] = empty($slip['confirmed_at']) ? '-' : date('Y-m-d H:i', intval($slip['confirmed_at']));
+        $this->addMobileSalaryLog('mobile_payslip_view', 'payroll_slip', $slipId, $slip['payroll_month'], '手机端查看本人薪酬明细');
         $this->view->setVar('slip', $slip);
     }
 
@@ -215,6 +217,7 @@ class  BsController extends FrontendBaseController
         if (!$result) {
             Utils::showFrontMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
         }
+        $this->addMobileSalaryLog('mobile_payslip_confirm', 'payroll_slip', $slipId, '', '手机端确认本人工资条');
         Utils::showFrontMsg('工资条已确认', $backUrl);
     }
 
@@ -738,7 +741,7 @@ class  BsController extends FrontendBaseController
     protected function checkSalaryMobile()
     {
         if (!$this->hasSalaryMobile()) {
-            Utils::showFrontMsg('薪酬管理或工资条功能未开通', $this->getHelper()->createUrl(array('p' => 'bs/newindex')));
+            Utils::showFrontMsg('企业尚未开通员工薪酬查询，请联系HR确认。', $this->getHelper()->createUrl(array('p' => 'bs/newindex')));
         }
         return true;
     }

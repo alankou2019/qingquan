@@ -78,11 +78,12 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
               <a href="{{helper.createUrl(['p':'salary/project'])}}" target="mainFrame" onFocus="this.blur()">工资项目设置</a>
               {% if salaryFeatures['payroll'] %}
               <a href="{{helper.createUrl(['p':'salary/payroll'])}}" target="mainFrame" onFocus="this.blur()">工资表核算</a>
+              <a href="{{helper.createUrl(['p':'salary/archive'])}}" target="mainFrame" onFocus="this.blur()">工资表归档记录</a>
+              <a href="{{helper.createUrl(['p':'salary/report'])}}" target="mainFrame" onFocus="this.blur()">薪酬统计报表</a>
               {% endif %}
               {% if salaryFeatures['payslip'] %}
               <a href="{{helper.createUrl(['p':'salary/payslip'])}}" target="mainFrame" onFocus="this.blur()">工资条发放</a>
               {% endif %}
-              <a href="{{helper.createUrl(['p':'salary/report'])}}" target="mainFrame" onFocus="this.blur()">薪酬统计报表</a>
               <a href="{{helper.createUrl(['p':'salary/log'])}}" target="mainFrame" onFocus="this.blur()">薪酬操作日志</a>
               {% if salaryFeatures['commission'] %}
               <a href="{{helper.createUrl(['p':'salary/commission'])}}" target="mainFrame" onFocus="this.blur()">提成核算</a>

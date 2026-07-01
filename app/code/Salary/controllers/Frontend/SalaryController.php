@@ -1212,8 +1212,10 @@ class SalaryController extends FrontendBaseController
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {
-			if ($item['code'] == 'project' || $item['code'] == 'archive' || $item['code'] == 'report' || $item['code'] == 'log') {
+			if ($item['code'] == 'project' || $item['code'] == 'log') {
 				$items[$key]['enabled'] = 1;
+			} elseif ($item['code'] == 'archive' || $item['code'] == 'report') {
+				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', 'payroll') ? 1 : 0;
 			} else {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
 			}
