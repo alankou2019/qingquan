@@ -213,11 +213,15 @@ class  BsController extends FrontendBaseController
         if (!$this->request->isPost()) {
             Utils::showFrontMsg('不支持的请求方式', $backUrl);
         }
+        $slip = PayrollSlipModel::getEmployeePublishedSlipDetail($this->companyId, $this->userId, $slipId);
+        if (!$slip) {
+            Utils::showFrontMsg('工资条不存在', $backUrl);
+        }
         $result = PayrollSlipModel::factory()->confirmEmployeeSlip($this->companyId, $this->userId, $slipId);
         if (!$result) {
             Utils::showFrontMsg(PayrollSlipModel::factory()->getLastError(), $backUrl);
         }
-        $this->addMobileSalaryLog('mobile_payslip_confirm', 'payroll_slip', $slipId, '', '手机端确认本人工资条');
+        $this->addMobileSalaryLog('mobile_payslip_confirm', 'payroll_slip', $slipId, $slip['payroll_month'], '手机端确认本人工资条');
         Utils::showFrontMsg('工资条已确认', $backUrl);
     }
 

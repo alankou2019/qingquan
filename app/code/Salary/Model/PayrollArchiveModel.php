@@ -63,7 +63,19 @@ class PayrollArchiveModel extends BaseModel
 			$this->_lastError = '保存归档记录失败';
 			return false;
 		}
-		return intval($this->getDB()->lastInsertId());
+		$archiveId = intval($this->getDB()->lastInsertId());
+		if ($archiveId > 0) {
+			return $archiveId;
+		}
+		$sql = 'select id from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
+			' and payroll_period_id=' . intval($periodId) . ' and archived_by=' . intval($operatorId) .
+			' and archived_at=' . $now . ' and created_at=' . $now . ' order by id desc limit 1';
+		$row = $this->getDB()->query($sql)->fetch();
+		if ($row) {
+			return intval($row['id']);
+		}
+		$this->_lastError = '保存归档记录失败';
+		return false;
 	}
 
 	public function getCompanyArchives($companyId, $limit = 36)
@@ -88,6 +100,49 @@ class PayrollArchiveModel extends BaseModel
 		$this->ensureTable();
 		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) . ' and id=' . intval($archiveId) . ' limit 1';
 		return $this->getDB()->query($sql)->fetch();
+	}
+
+	public function restoreToPayroll($companyId, $archiveId, $operatorId)
+	{
+		$archive = $this->getArchive($companyId, $archiveId);
+		if (!$archive) {
+			$this->_lastError = 'Archive payroll not found';
+			return false;
+		}
+		$snapshot = @unserialize($archive['snapshot_data']);
+		if (empty($snapshot) || !is_array($snapshot)) {
+			$this->_lastError = 'Archive payroll data is incomplete';
+			return false;
+		}
+		$rows = array();
+		foreach ($snapshot as $item) {
+			$employeeId = isset($item['employee_id']) ? intval($item['employee_id']) : 0;
+			if ($employeeId <= 0) {
+				continue;
+			}
+			$rows[] = array(
+				'employee' => array(
+					'id' => $employeeId,
+					'name' => isset($item['employee_name']) ? $item['employee_name'] : '',
+					'mobile' => isset($item['employee_no']) ? $item['employee_no'] : '',
+					'department_name' => isset($item['department_name']) ? $item['department_name'] : '',
+				),
+				'values' => isset($item['values']) && is_array($item['values']) ? $item['values'] : array(),
+			);
+		}
+		if (empty($rows)) {
+			$this->_lastError = 'Archive payroll has no employee rows to restore';
+			return false;
+		}
+		$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
+		$periodId = PayrollPeriodModel::factory()->savePayrollMatrix($companyId, $archive['payroll_month'], $projects, $rows, $operatorId, 'manual', 'archive restore', intval($archive['payroll_period_id']));
+		if (!$periodId) {
+			$this->_lastError = PayrollPeriodModel::factory()->getLastError();
+			return false;
+		}
+		$slipTable = $this->getTableName('payroll_slips');
+		$this->getDB()->execute('delete from `' . $slipTable . '` where company_id=' . intval($companyId) . ' and payroll_period_id=' . intval($periodId));
+		return $periodId;
 	}
 
 	protected function money($value)

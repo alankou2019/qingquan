@@ -77,6 +77,20 @@ class PayrollPeriodModel extends BaseModel
 		return $this->getDB()->execute($sql);
 	}
 
+	public function archivePeriod($companyId, $periodId, $operatorId)
+	{
+		if (!$this->markArchived($companyId, $periodId, $operatorId)) {
+			$this->_lastError = 'Archive status update failed';
+			return false;
+		}
+		$period = $this->getCompanyPeriod($companyId, $periodId);
+		if (!$period || $period['status'] != 'archived') {
+			$this->_lastError = 'Archive status verify failed';
+			return false;
+		}
+		return true;
+	}
+
 	public function markSubmitted($companyId, $periodId, $operatorId)
 	{
 		$now = time();
@@ -234,7 +248,7 @@ class PayrollPeriodModel extends BaseModel
 				$sql = 'update `' . $periodTable . '` set status="calculated",source_type="' . addslashes($sourceType) . '",source_name="' . addslashes($sourceName) . '",' .
 					'employee_count=' . intval($employeeCount) . ',earning_total=' . $this->formatMoney($earningTotal) . ',deduction_total=' . $this->formatMoney($deductionTotal) . ',net_total=' . $this->formatMoney($netTotal) . ',' .
 					'generated_by=' . intval($operatorId) . ',submitted_by=NULL,approved_by=NULL,rejected_by=NULL,published_by=NULL,archived_by=NULL,' .
-					'generated_at=' . $now . ',calculated_at=' . $now . ',submitted_at=NULL,approved_at=NULL,rejected_at=NULL,archived_at=NULL,rejected_reason="",updated_at=' . $now .
+					'generated_at=' . $now . ',calculated_at=' . $now . ',submitted_at=NULL,approved_at=NULL,rejected_at=NULL,published_at=NULL,archived_at=NULL,rejected_reason="",updated_at=' . $now .
 					' where id=' . $periodId . ' and company_id=' . intval($companyId);
 				$db->execute($sql);
 			} else {

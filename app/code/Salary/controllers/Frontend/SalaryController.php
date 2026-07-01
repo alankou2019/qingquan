@@ -622,7 +622,9 @@ class SalaryController extends FrontendBaseController
 		if (!$archiveId) {
 			Utils::showMsg(PayrollArchiveModel::factory()->getLastError(), $backUrl);
 		}
-		PayrollPeriodModel::factory()->markArchived($this->companyId, $periodId, $this->getOperatorId());
+		if (!PayrollPeriodModel::factory()->archivePeriod($this->companyId, $periodId, $this->getOperatorId())) {
+			Utils::showMsg(PayrollPeriodModel::factory()->getLastError(), $backUrl);
+		}
 		$this->addSalaryLog('payroll_archive', 'salary_payroll_archive', $archiveId, $period['payroll_month'], '归档工资表');
 		Utils::showMsg('工资表已归档', Helper::factory()->createUrl(array('p' => 'salary/archive')));
 	}
@@ -663,7 +665,10 @@ class SalaryController extends FrontendBaseController
 		if (!$period) {
 			Utils::showMsg('工资表不存在', $backUrl);
 		}
-		PayrollPeriodModel::factory()->markRejected($this->companyId, $periodId, $this->getOperatorId(), '从归档记录恢复到工资表核算');
+		$restorePeriodId = PayrollArchiveModel::factory()->restoreToPayroll($this->companyId, $archiveId, $this->getOperatorId());
+		if (!$restorePeriodId) {
+			Utils::showMsg(PayrollArchiveModel::factory()->getLastError(), $backUrl);
+		}
 		$this->addSalaryLog('payroll_restore', 'salary_payroll_archive', $archiveId, $period['payroll_month'], '从归档记录恢复到工资表核算');
 		Utils::showMsg('已恢复到工资表核算，原归档记录仍保留', Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period['payroll_month'])));
 	}
