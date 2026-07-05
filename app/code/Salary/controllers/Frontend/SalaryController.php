@@ -689,10 +689,10 @@ class SalaryController extends FrontendBaseController
 			),
 			'wecom' => array(
 				'name' => '企业微信',
-				'status' => '预留',
-				'desc' => '企业微信接口尚未接入，当前可先用Excel或后台维护员工信息。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/index')),
-				'action' => '去部门管理',
+				'status' => '已接入',
+				'desc' => '已支持企业微信自建应用、免登录、通讯录同步和后台配置。',
+				'url' => $this->getHelper()->createUrl(array('p' => 'wecom/index', 'company_id' => $this->companyId)),
+				'action' => '去企业微信配置',
 			),
 			'feishu' => array(
 				'name' => '飞书',
