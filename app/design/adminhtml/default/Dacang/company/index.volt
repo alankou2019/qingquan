@@ -50,7 +50,7 @@
         <!--搜索按钮-->
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'dingding'])}}';"><i class="iconfont icon-tianjia"></i>添加钉钉公司</button>
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'wecom'])}}';"><i class="iconfont icon-tianjia"></i>添加企业微信公司</button>
-        <button class="operate company-platform-button" type="button" onclick="layer.msg('飞书接入暂未开放');"><i class="iconfont icon-tianjia"></i>添加飞书公司</button>
+        <button class="operate company-platform-button" type="button" onclick="layer.msg('飞书接入暂未开放');"><i class="iconfont icon-tianjia"></i>添加飞书公司（暂未开放）</button>
         <!--右侧配置-->
         <div class="search_right">
             <span class="num">共<span id="recordCount"></span>条记录</span>
