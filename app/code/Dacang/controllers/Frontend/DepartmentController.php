@@ -335,33 +335,81 @@ class DepartmentController extends FrontendBaseController
             return;
         }
 
+        $companyUserModel = new CompanyUserModel();
+        $userTable = $companyUserModel->getSource();
+        $columns = $this->getTableColumns($userTable);
+        $mobileColumn = $this->getCompanyUserMobileColumn($userTable);
+
         foreach ($userArr as $user) {
             $data = [
                 'company_id'    => $this->companyId,
                 'department_id' => $departID,
                 'name'          => $user['username'],
-                'jobnumber'     => $user['mobile'],
-                'created'       => Helper::factory()->getTime()->gmtime(),
-                'right'         => 1,
-                'is_admin'      => 0,
-                'is_boss'       => 0,
-                'active'        => 0,
-                'is_leader'     => 0,
-                'addreport'     => 0,
-                'passwd'        => md5(123456),
             ];
+            if ($mobileColumn != '') {
+                $data[$mobileColumn] = $user['mobile'];
+            }
+            $optional = [
+                'created'   => Helper::factory()->getTime()->gmtime(),
+                'right'     => 1,
+                'is_admin'  => 0,
+                'is_boss'   => 0,
+                'active'    => 0,
+                'is_leader' => 0,
+                'addreport' => 0,
+                'passwd'    => md5(123456),
+            ];
+            foreach ($optional as $column => $value) {
+                if (isset($columns[$column])) {
+                    $data[$column] = $value;
+                }
+            }
 
             //不存在则添加
-            $companyUserModel = new CompanyUserModel();
-            $isExists         = $companyUserModel->findFirst("company_id=" . $this->companyId . " and jobnumber='{$user['mobile']}'");
+            $where = "company_id=" . intval($this->companyId);
+            if ($mobileColumn != '') {
+                $where .= " and `" . $mobileColumn . "`='" . addslashes($user['mobile']) . "'";
+            } else {
+                $where .= " and name='" . addslashes($user['username']) . "' and department_id=" . intval($departID);
+            }
+            $isExists = $companyUserModel->findFirst($where);
             if (!$isExists) {
+                $companyUserModel = new CompanyUserModel();
                 $companyUserModel->save($data);
 
-                $companyUserModel->save([
-                    'dingding_user_id' => $companyUserModel->id,
-                ]);
+                if (isset($columns['dingding_user_id'])) {
+                    $companyUserModel->save([
+                        'dingding_user_id' => $companyUserModel->id,
+                    ]);
+                }
             }
         }
+    }
+
+    private function getCompanyUserMobileColumn($userTable)
+    {
+        foreach (['jobnumber', 'mobile', 'phone'] as $column) {
+            if ($this->tableHasColumn($userTable, $column)) {
+                return $column;
+            }
+        }
+        return '';
+    }
+
+    private function getTableColumns($tableName)
+    {
+        $items = $this->getDI()->get('db')->query('SHOW COLUMNS FROM `' . $tableName . '`')->fetchAll();
+        $columns = [];
+        foreach ($items as $item) {
+            $columns[$item['Field']] = 1;
+        }
+        return $columns;
+    }
+
+    private function tableHasColumn($tableName, $column)
+    {
+        $item = $this->getDI()->get('db')->query("SHOW COLUMNS FROM `" . $tableName . "` LIKE '" . addslashes($column) . "'")->fetch();
+        return $item ? true : false;
     }
 
     private function saveDepart($parentDepartName, $departName)
