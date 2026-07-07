@@ -82,7 +82,7 @@
 						{% endfor %}
 					</select>
 					<label>项目属性</label>
-					<select name="source_type">
+					<select id="salary_project_source_type" name="source_type" onchange="toggleSalaryFormulaBox();">
 						{% for key,label in sourceTypes %}
 						<option value="{{key}}" {% if editItem and (editItem.source_type==key or (editItem.source_type=='fixed' and key=='number')) %}selected="selected"{% endif %}>{{label}}</option>
 						{% endfor %}
@@ -100,7 +100,7 @@
 						{% endfor %}
 					</select>
 				</div>
-				<div>
+				<div id="salary_formula_row">
 					<label>核算公式</label>
 					<div class="salary_formula_area">
 						<textarea id="salary_formula_text" name="formula_text">{% if editItem %}{{editItem.formula_text}}{% endif %}</textarea>
@@ -251,4 +251,13 @@ function insertSalaryFormulaText(text) {
 		textarea.value += text;
 	}
 }
+function toggleSalaryFormulaBox() {
+	var sourceType = document.getElementById('salary_project_source_type');
+	var formulaRow = document.getElementById('salary_formula_row');
+	if (!sourceType || !formulaRow) {
+		return;
+	}
+	formulaRow.style.display = sourceType.value == 'calculated' ? 'block' : 'none';
+}
+toggleSalaryFormulaBox();
 </script>
