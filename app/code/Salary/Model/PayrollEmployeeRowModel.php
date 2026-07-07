@@ -43,7 +43,11 @@ class PayrollEmployeeRowModel extends BaseModel
 			if (!isset($values[$rowId])) {
 				$values[$rowId] = array();
 			}
-			$values[$rowId][intval($item['salary_project_id'])] = sprintf('%.2f', floatval($item['final_amount']));
+			if (SalaryProjectModel::isTextProject($item) && isset($item['text_value'])) {
+				$values[$rowId][intval($item['salary_project_id'])] = $item['text_value'];
+			} else {
+				$values[$rowId][intval($item['salary_project_id'])] = sprintf('%.2f', floatval($item['final_amount']));
+			}
 		}
 		foreach ($rows as $key => $row) {
 			$rowId = intval($row['id']);

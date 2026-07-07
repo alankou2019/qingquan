@@ -37,7 +37,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 					continue;
 				}
 				$projectId = intval($project['id']);
-				$rowValues[$projectId] = isset($values[intval($employee['id'])][$projectId]) ? $values[intval($employee['id'])][$projectId] : '0.00';
+				$rowValues[$projectId] = isset($values[intval($employee['id'])][$projectId]) ? $values[intval($employee['id'])][$projectId] : (SalaryProjectModel::isTextProject($project) ? '' : '0.00');
 			}
 			$employees[$key]['values'] = $rowValues;
 		}
@@ -75,16 +75,20 @@ class EmployeeSalaryStructureModel extends BaseModel
 				$structureId = $this->getOrCreateInitialStructure($companyId, $employeeId, $operatorId);
 				$numberValues = array();
 				foreach ($projectMap as $projectId => $project) {
-					if ($project['calculation_mode'] == 'formula') {
+					if (SalaryProjectModel::isFormulaProject($project)) {
 						continue;
 					}
 					$value = isset($projectAmounts[$projectId]) ? $projectAmounts[$projectId] : 0;
+					if (SalaryProjectModel::isTextProject($project)) {
+						$this->saveStructureValue($structureId, $projectId, 0, $value);
+						continue;
+					}
 					$amount = $this->formatMoney($value);
 					$numberValues[$project['name']] = $amount;
 					$this->saveStructureValue($structureId, $projectId, $amount);
 				}
 				foreach ($projectMap as $projectId => $project) {
-					if ($project['calculation_mode'] != 'formula') {
+					if (!SalaryProjectModel::isFormulaProject($project)) {
 						continue;
 					}
 					$amount = $this->calculateFormulaAmount($project['formula_text'], $numberValues);
@@ -111,7 +115,8 @@ class EmployeeSalaryStructureModel extends BaseModel
 		$return = array();
 		$structureTable = $this->getSource();
 		$valueTable = $this->getTableName('employee_salary_structure_values');
-		$sql = 'select s.employee_id,v.salary_project_id,v.default_amount from `' . $structureTable . '` s ' .
+		$textColumn = $this->hasTextValueColumn($valueTable) ? 'v.text_value' : '"" as text_value';
+		$sql = 'select s.employee_id,v.salary_project_id,v.default_amount,' . $textColumn . ' from `' . $structureTable . '` s ' .
 			'left join `' . $valueTable . '` v on s.id=v.structure_id ' .
 			'where s.company_id=' . intval($companyId) . ' and s.status="active"';
 		$items = $this->getDB()->query($sql)->fetchAll();
@@ -124,7 +129,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 			if (!isset($return[$employeeId])) {
 				$return[$employeeId] = array();
 			}
-			$return[$employeeId][$projectId] = sprintf('%.2f', floatval($item['default_amount']));
+			$return[$employeeId][$projectId] = $item['text_value'] !== '' ? $item['text_value'] : sprintf('%.2f', floatval($item['default_amount']));
 		}
 		return $return;
 	}
@@ -166,14 +171,26 @@ class EmployeeSalaryStructureModel extends BaseModel
 		return intval($model->id);
 	}
 
-	protected function saveStructureValue($structureId, $projectId, $amount)
+	protected function saveStructureValue($structureId, $projectId, $amount, $textValue = '')
 	{
 		$valueTable = $this->getTableName('employee_salary_structure_values');
 		$now = time();
-		$sql = 'insert into `' . $valueTable . '` (`structure_id`,`salary_project_id`,`default_amount`,`created_at`,`updated_at`) values ' .
-			'(' . intval($structureId) . ',' . intval($projectId) . ',' . $this->formatMoney($amount) . ',' . $now . ',' . $now . ') ' .
-			'on duplicate key update default_amount=values(default_amount),updated_at=values(updated_at)';
+		if ($this->hasTextValueColumn($valueTable)) {
+			$sql = 'insert into `' . $valueTable . '` (`structure_id`,`salary_project_id`,`default_amount`,`text_value`,`created_at`,`updated_at`) values ' .
+				'(' . intval($structureId) . ',' . intval($projectId) . ',' . $this->formatMoney($amount) . ',"' . addslashes(trim((string)$textValue)) . '",' . $now . ',' . $now . ') ' .
+				'on duplicate key update default_amount=values(default_amount),text_value=values(text_value),updated_at=values(updated_at)';
+		} else {
+			$sql = 'insert into `' . $valueTable . '` (`structure_id`,`salary_project_id`,`default_amount`,`created_at`,`updated_at`) values ' .
+				'(' . intval($structureId) . ',' . intval($projectId) . ',' . $this->formatMoney($amount) . ',' . $now . ',' . $now . ') ' .
+				'on duplicate key update default_amount=values(default_amount),updated_at=values(updated_at)';
+		}
 		return $this->getDB()->execute($sql);
+	}
+
+	protected function hasTextValueColumn($table)
+	{
+		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'text_value'")->fetch();
+		return $item ? true : false;
 	}
 
 	public function calculateFormulaAmount($formula, $amountMap)

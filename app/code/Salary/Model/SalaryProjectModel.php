@@ -29,17 +29,30 @@ class SalaryProjectModel extends BaseModel
 	public static function getSourceTypeLabels()
 	{
 		return array(
-			'fixed' => '固定项目',
-			'calculated' => '核算项目',
+			'fixed' => '数字项',
+			'number' => '数字项',
+			'text' => '文本项',
+			'calculated' => '核算项',
+		);
+	}
+
+	public static function getSourceTypeOptions()
+	{
+		return array(
+			'number' => '数字项',
+			'text' => '文本项',
+			'calculated' => '核算项',
 		);
 	}
 
 	public static function getDirectionLabels()
 	{
 		return array(
-			'earning' => '收入项',
-			'deduction' => '扣款项',
-			'statistic' => '统计项',
+			'earning' => '应发类',
+			'deduction' => '应扣类',
+			'statistic' => '统计类',
+			'data' => '数据类',
+			'note' => '说明类',
 		);
 	}
 
@@ -49,7 +62,8 @@ class SalaryProjectModel extends BaseModel
 			'number' => '数字',
 			'manual' => '数字',
 			'fixed' => '固定金额',
-			'formula' => '公式计算',
+			'text' => '文本',
+			'formula' => '核算公式',
 			'module' => '模块带入',
 		);
 	}
@@ -168,13 +182,14 @@ class SalaryProjectModel extends BaseModel
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
 		$direction = isset($postData['direction']) ? trim($postData['direction']) : 'earning';
-		$sourceType = isset($postData['source_type']) ? trim($postData['source_type']) : 'calculated';
-		$calculationMode = isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : 'number';
+		$sourceType = self::normalizeSourceType(isset($postData['source_type']) ? trim($postData['source_type']) : 'number');
+		$calculationMode = self::defaultCalculationMode($sourceType, isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : '');
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
 		if (!isset($directions[$direction]) || !isset($sourceTypes[$sourceType]) || !isset($calculationModes[$calculationMode]) || !isset($statusLabels[$status])) {
 			$this->_lastError = '工资项目参数不正确';
 			return false;
 		}
+		$includeFlags = self::getIncludeFlagsByDirection($direction, $sourceType);
 
 		$where = 'company_id=' . $companyId . ' and name="' . addslashes($name) . '" and deleted_at=0';
 		if ($id > 0) {
@@ -196,9 +211,9 @@ class SalaryProjectModel extends BaseModel
 			'calculation_mode' => $calculationMode,
 			'linked_module' => isset($postData['linked_module']) ? trim($postData['linked_module']) : 'none',
 			'formula_text' => isset($postData['formula_text']) ? trim($postData['formula_text']) : '',
-			'include_earning' => isset($postData['include_earning']) ? intval($postData['include_earning']) : 0,
-			'include_deduction' => isset($postData['include_deduction']) ? intval($postData['include_deduction']) : 0,
-			'include_net' => isset($postData['include_net']) ? intval($postData['include_net']) : 1,
+			'include_earning' => $includeFlags['include_earning'],
+			'include_deduction' => $includeFlags['include_deduction'],
+			'include_net' => $includeFlags['include_net'],
 			'sort_order' => isset($postData['sort_order']) ? intval($postData['sort_order']) : 0,
 			'status' => $status,
 			'deleted_at' => 0,
@@ -217,6 +232,59 @@ class SalaryProjectModel extends BaseModel
 		$data['created_at'] = $now;
 		$model = new SalaryProjectModel();
 		return $model->save($data);
+	}
+
+	public static function normalizeSourceType($sourceType)
+	{
+		$sourceType = trim((string)$sourceType);
+		if ($sourceType == 'fixed' || $sourceType == 'manual') {
+			return 'number';
+		}
+		if (!in_array($sourceType, array('number', 'text', 'calculated'))) {
+			return 'number';
+		}
+		return $sourceType;
+	}
+
+	public static function defaultCalculationMode($sourceType, $currentMode = '')
+	{
+		if ($sourceType == 'text') {
+			return 'text';
+		}
+		if ($sourceType == 'calculated') {
+			return 'formula';
+		}
+		if (in_array($currentMode, array('module', 'formula'))) {
+			return $currentMode;
+		}
+		return 'number';
+	}
+
+	public static function getIncludeFlagsByDirection($direction, $sourceType = 'number')
+	{
+		if ($sourceType == 'text') {
+			return array('include_earning' => 0, 'include_deduction' => 0, 'include_net' => 0);
+		}
+		if ($direction == 'earning') {
+			return array('include_earning' => 1, 'include_deduction' => 0, 'include_net' => 1);
+		}
+		if ($direction == 'deduction') {
+			return array('include_earning' => 0, 'include_deduction' => 1, 'include_net' => 1);
+		}
+		return array('include_earning' => 0, 'include_deduction' => 0, 'include_net' => 0);
+	}
+
+	public static function isTextProject($project)
+	{
+		$sourceType = isset($project['source_type']) ? self::normalizeSourceType($project['source_type']) : 'number';
+		$direction = isset($project['direction']) ? $project['direction'] : '';
+		$calculationMode = isset($project['calculation_mode']) ? $project['calculation_mode'] : '';
+		return $sourceType == 'text' || $direction == 'note' || $calculationMode == 'text';
+	}
+
+	public static function isFormulaProject($project)
+	{
+		return isset($project['calculation_mode']) && $project['calculation_mode'] == 'formula';
 	}
 
 	public function deleteCompanyProject($companyId, $projectId)
@@ -240,12 +308,20 @@ class SalaryProjectModel extends BaseModel
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
 		foreach ($items as $key => $item) {
+			$sourceType = self::normalizeSourceType($item['source_type']);
 			$item['source_type_label'] = self::label($sourceTypes, $item['source_type']);
 			$item['direction_label'] = self::label($directions, $item['direction']);
 			$item['calculation_mode_label'] = self::label($calculationModes, $item['calculation_mode']);
-			if (!in_array($item['calculation_mode'], array('formula', 'module'))) {
+			if ($sourceType == 'text') {
+				$item['calculation_mode_label'] = '文本';
+			} elseif ($item['calculation_mode'] == 'formula') {
+				$item['calculation_mode_label'] = '核算公式';
+			} elseif (!in_array($item['calculation_mode'], array('module'))) {
 				$item['calculation_mode_label'] = '数字';
 			}
+			$item['source_type_option'] = $sourceType;
+			$item['is_text_project'] = self::isTextProject($item) ? 1 : 0;
+			$item['is_formula_project'] = self::isFormulaProject($item) ? 1 : 0;
 			$item['status_label'] = self::label($statusLabels, $item['status']);
 			$item['project_kind'] = empty($item['template_id']) ? 'custom' : 'common';
 			$item['project_kind_label'] = empty($item['template_id']) ? '自定义项目' : '通用项目';

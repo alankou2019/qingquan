@@ -100,11 +100,12 @@ class SalaryController extends FrontendBaseController
 		$templates = SalaryProjectTemplateModel::factory()->getActiveTemplates();
 		$templateProjectMap = SalaryProjectModel::factory()->getCompanyTemplateProjectMap($this->companyId);
 		$directions = SalaryProjectModel::getDirectionLabels();
-		$sourceTypes = SalaryProjectModel::getSourceTypeLabels();
+		$sourceTypes = SalaryProjectModel::getSourceTypeOptions();
+		$sourceTypeLabels = SalaryProjectModel::getSourceTypeLabels();
 		foreach ($templates as $key => $template) {
 			$templates[$key]['is_selected'] = isset($templateProjectMap[intval($template['id'])]) ? 1 : 0;
 			$templates[$key]['direction_label'] = SalaryProjectModel::label($directions, $template['direction']);
-			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypes, $template['source_type']);
+			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypeLabels, $template['source_type']);
 		}
 
 		$editId = intval($this->request->get('id'));
@@ -113,8 +114,25 @@ class SalaryController extends FrontendBaseController
 			$editItem = SalaryProjectModel::factory()->findFirst('id=' . $editId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
 		}
 
+		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
+		$formulaProjects = array();
+		$editProjectId = $editItem ? intval($editItem->id) : 0;
+		foreach ($projects as $project) {
+			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
+				continue;
+			}
+			if ($editProjectId > 0 && intval($project['id']) == $editProjectId) {
+				continue;
+			}
+			if (SalaryProjectModel::isTextProject($project)) {
+				continue;
+			}
+			$formulaProjects[] = $project;
+		}
+
 		$this->view->setVar('templates', $templates);
-		$this->view->setVar('projects', SalaryProjectModel::factory()->getCompanyProjects($this->companyId));
+		$this->view->setVar('projects', $projects);
+		$this->view->setVar('formulaProjects', $formulaProjects);
 		$this->view->setVar('editItem', $editItem);
 		$this->view->setVar('sourceTypes', $sourceTypes);
 		$this->view->setVar('directions', $directions);

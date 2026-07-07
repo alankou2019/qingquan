@@ -15,6 +15,7 @@
 .salary_table th{background:#f8fafc;color:#334155;font-weight:normal;text-align:left;padding:9px;border-bottom:1px solid #d9e2ef;white-space:nowrap;}
 .salary_table td{padding:8px;border-bottom:1px solid #edf2f7;color:#475569;vertical-align:middle;white-space:nowrap;}
 .salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
+.salary_sheet input.salary_text_input{text-align:left;width:120px;}
 .salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
 .salary_empty{border:1px solid #d9e2ef;background:#fbfdff;padding:18px;color:#64748b;}
 .salary_link_btn{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px;}
@@ -76,7 +77,11 @@
 							{% for project in projects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
 								<td>
-									<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['calculation_mode']=='formula' %}readonly="readonly"{% endif %} />
+									{% if project['is_text_project'] %}
+									<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
+									{% else %}
+									<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
+									{% endif %}
 								</td>
 								{% endif %}
 							{% endfor %}

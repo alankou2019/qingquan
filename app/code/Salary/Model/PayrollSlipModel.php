@@ -268,7 +268,8 @@ class PayrollSlipModel extends BaseModel
 		}
 
 		$valueTable = $model->getTableName('payroll_item_values');
-		$valueSql = 'select project_name,direction,final_amount,remark from `' . $valueTable . '` ' .
+		$valueSelect = $model->hasTextValueColumn($valueTable) ? 'project_name,source_type,direction,calculation_mode,final_amount,text_value,remark' : 'project_name,source_type,direction,calculation_mode,final_amount,"" as text_value,remark';
+		$valueSql = 'select ' . $valueSelect . ' from `' . $valueTable . '` ' .
 			'where company_id=' . intval($companyId) .
 			' and employee_id=' . intval($employeeId) .
 			' and payroll_employee_row_id=' . intval($item['row_id']) .
@@ -334,7 +335,8 @@ class PayrollSlipModel extends BaseModel
 			return false;
 		}
 		$valueTable = $model->getTableName('payroll_item_values');
-		$valueSql = 'select project_name,direction,final_amount,remark from `' . $valueTable . '` ' .
+		$valueSelect = $model->hasTextValueColumn($valueTable) ? 'project_name,source_type,direction,calculation_mode,final_amount,text_value,remark' : 'project_name,source_type,direction,calculation_mode,final_amount,"" as text_value,remark';
+		$valueSql = 'select ' . $valueSelect . ' from `' . $valueTable . '` ' .
 			'where company_id=' . intval($companyId) .
 			' and employee_id=' . intval($item['employee_id']) .
 			' and payroll_employee_row_id=' . intval($item['row_id']) .
@@ -375,5 +377,11 @@ class PayrollSlipModel extends BaseModel
 			}
 		}
 		return empty($parts) ? '1=0' : '(' . implode(' or ', $parts) . ')';
+	}
+
+	protected function hasTextValueColumn($table)
+	{
+		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'text_value'")->fetch();
+		return $item ? true : false;
 	}
 }

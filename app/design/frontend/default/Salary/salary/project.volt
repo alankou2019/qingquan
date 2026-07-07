@@ -19,7 +19,16 @@
 .salary_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff;}
 .salary_sheet{min-width:980px;}
 .salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
+.salary_sheet input.salary_text_input{text-align:left;width:120px;}
 .salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
+.salary_formula_area{display:inline-block;vertical-align:top;}
+.salary_formula_tools{display:inline-block;vertical-align:top;width:520px;margin-left:8px;color:#64748b;}
+.salary_formula_tools .formula_hint{line-height:22px;margin-bottom:6px;}
+.salary_formula_refs{border:1px solid #e2e8f0;background:#fbfdff;padding:8px;max-height:92px;overflow:auto;}
+.salary_formula_refs button{border:1px solid #cbd5e1;background:#fff;color:#334155;height:24px;line-height:22px;margin:0 6px 6px 0;padding:0 8px;cursor:pointer;}
+.salary_formula_refs button:hover{border-color:#4560e6;color:#4560e6;}
+.salary_formula_ops{margin-top:6px;}
+.salary_formula_ops button{border:1px solid #cbd5e1;background:#fff;color:#334155;width:26px;height:24px;line-height:22px;margin-right:4px;cursor:pointer;}
 </style>
 <div class="full_box">
 	<div class="head_tab clear">
@@ -28,7 +37,7 @@
 		</ul>
 	</div>
 	<div class="salary_page">
-		<div class="salary_tip">工资项目分为两类：平台提供的通用项目由企业勾选启用；企业自定义项目可自行维护名称、类别、计算方式和是否计入合计。</div>
+		<div class="salary_tip">工资项目分为通用项目和自定义项目。项目类别决定是否计入应发、应扣和实发；项目属性分为数字项、文本项和核算项，核算项按公式自动计算。</div>
 
 		<div class="salary_block">
 			<h3>通用项目</h3>
@@ -37,8 +46,8 @@
 					<tr>
 						<th width="8%">启用</th>
 						<th width="22%">项目名称</th>
-						<th width="14%">类别</th>
-						<th width="14%">项目类型</th>
+						<th width="14%">项目类别</th>
+						<th width="14%">项目属性</th>
 						<th>说明</th>
 					</tr>
 					{% for item in templates %}
@@ -66,38 +75,24 @@
 				<div>
 					<label>项目名称</label>
 					<input type="text" name="name" maxlength="80" value="{% if editItem %}{{editItem.name}}{% endif %}" />
-					<label>类别</label>
+					<label>项目类别</label>
 					<select name="direction">
 						{% for key,label in directions %}
 						<option value="{{key}}" {% if editItem and editItem.direction==key %}selected="selected"{% endif %}>{{label}}</option>
 						{% endfor %}
 					</select>
-					<label>项目类型</label>
+					<label>项目属性</label>
 					<select name="source_type">
 						{% for key,label in sourceTypes %}
-						<option value="{{key}}" {% if editItem and editItem.source_type==key %}selected="selected"{% endif %}>{{label}}</option>
+						<option value="{{key}}" {% if editItem and (editItem.source_type==key or (editItem.source_type=='fixed' and key=='number')) %}selected="selected"{% endif %}>{{label}}</option>
 						{% endfor %}
 					</select>
 				</div>
 				<div>
-					<label>计算方式</label>
-					<select name="calculation_mode">
-						{% for key,label in calculationModes %}
-						<option value="{{key}}" {% if editItem and editItem.calculation_mode==key %}selected="selected"{% endif %}>{{label}}</option>
-						{% endfor %}
-					</select>
 					<label>关联模块</label>
 					<input type="text" name="linked_module" maxlength="30" value="{% if editItem %}{{editItem.linked_module}}{% else %}none{% endif %}" />
 					<label>排序</label>
 					<input type="text" name="sort_order" maxlength="10" style="width:70px;" value="{% if editItem %}{{editItem.sort_order}}{% else %}0{% endif %}" />
-				</div>
-				<div>
-					<label>计入应发</label>
-					<input type="checkbox" name="include_earning" value="1" {% if editItem and editItem.include_earning %}checked="checked"{% endif %} />
-					<label>计入扣款</label>
-					<input type="checkbox" name="include_deduction" value="1" {% if editItem and editItem.include_deduction %}checked="checked"{% endif %} />
-					<label>计入实发</label>
-					<input type="checkbox" name="include_net" value="1" {% if !editItem or editItem.include_net %}checked="checked"{% endif %} />
 					<label>状态</label>
 					<select name="status">
 						{% for key,label in statusLabels %}
@@ -106,8 +101,28 @@
 					</select>
 				</div>
 				<div>
-					<label>公式说明</label>
-					<textarea name="formula_text">{% if editItem %}{{editItem.formula_text}}{% endif %}</textarea>
+					<label>核算公式</label>
+					<div class="salary_formula_area">
+						<textarea id="salary_formula_text" name="formula_text">{% if editItem %}{{editItem.formula_text}}{% endif %}</textarea>
+					</div>
+					<div class="salary_formula_tools">
+						<div class="formula_hint">点击工资项目名称可插入公式。支持 +、-、*、/、括号；被引用项目建议排在本项目前面。</div>
+						<div class="salary_formula_refs">
+							{% for item in formulaProjects %}
+							<button type="button" data-project-name="{{item['name']}}" onclick="insertSalaryFormulaProject(this);">{{item['name']}}</button>
+							{% elsefor %}
+							<span>暂无可引用项目，请先启用数字项或核算项。</span>
+							{% endfor %}
+						</div>
+						<div class="salary_formula_ops">
+							<button type="button" onclick="insertSalaryFormulaText(' + ');">+</button>
+							<button type="button" onclick="insertSalaryFormulaText(' - ');">-</button>
+							<button type="button" onclick="insertSalaryFormulaText(' * ');">*</button>
+							<button type="button" onclick="insertSalaryFormulaText(' / ');">/</button>
+							<button type="button" onclick="insertSalaryFormulaText('(');">(</button>
+							<button type="button" onclick="insertSalaryFormulaText(')');">)</button>
+						</div>
+					</div>
 				</div>
 				<div style="margin-top:10px;">
 					<button class="salary_btn" type="submit">保存自定义项目</button>
@@ -124,9 +139,9 @@
 				<tr>
 					<th width="12%">来源</th>
 					<th width="18%">项目名称</th>
-					<th width="12%">类别</th>
-					<th width="12%">项目类型</th>
-					<th width="12%">计算方式</th>
+					<th width="12%">项目类别</th>
+					<th width="12%">项目属性</th>
+					<th width="12%">核算方式</th>
 					<th width="8%">应发</th>
 					<th width="8%">扣款</th>
 					<th width="8%">实发</th>
@@ -188,7 +203,11 @@
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
 								<td>
-									<input type="text" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['id']] is defined %}{{employee['values'][project['id']]}}{% else %}0.00{% endif %}" {% if project['calculation_mode']=='formula' %}readonly="readonly"{% endif %} />
+									{% if project['is_text_project'] %}
+									<input type="text" class="salary_text_input" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['id']] is defined %}{{employee['values'][project['id']]}}{% endif %}" />
+									{% else %}
+									<input type="text" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['id']] is defined %}{{employee['values'][project['id']]}}{% else %}0.00{% endif %}" {% if project['is_formula_project'] %}readonly="readonly"{% endif %} />
+									{% endif %}
 								</td>
 								{% endif %}
 							{% endfor %}
@@ -205,3 +224,31 @@
 		</div>
 	</div>
 </div>
+<script type="text/javascript">
+function insertSalaryFormulaProject(button) {
+	if (!button) {
+		return;
+	}
+	insertSalaryFormulaText(button.getAttribute('data-project-name'));
+}
+function insertSalaryFormulaText(text) {
+	var textarea = document.getElementById('salary_formula_text');
+	if (!textarea || text === null || typeof text == 'undefined') {
+		return;
+	}
+	text = String(text);
+	textarea.focus();
+	if (typeof textarea.selectionStart == 'number') {
+		var start = textarea.selectionStart;
+		var end = textarea.selectionEnd;
+		var value = textarea.value;
+		textarea.value = value.substring(0, start) + text + value.substring(end);
+		textarea.selectionStart = textarea.selectionEnd = start + text.length;
+	} else if (document.selection) {
+		var range = document.selection.createRange();
+		range.text = text;
+	} else {
+		textarea.value += text;
+	}
+}
+</script>

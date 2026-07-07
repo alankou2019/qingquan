@@ -187,6 +187,10 @@ class SalaryPayrollImportModel extends BaseModel
 				$header = $item['header'];
 				$project = $item['project'];
 				$valueInfo = isset($excelRow['values'][$header['key']]) ? $excelRow['values'][$header['key']] : array('raw' => '');
+				if (SalaryProjectModel::isTextProject($project)) {
+					$amountPost['amount'][$employeeId][intval($project['id'])] = trim((string)$valueInfo['raw']);
+					continue;
+				}
 				$amount = $this->parseAmount($valueInfo['raw']);
 				if ($amount === false) {
 					$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $excelRow['name'], 'mobile' => $excelRow['mobile'], 'reason' => '工资项目“' . $header['name'] . '”金额格式不正确');
@@ -321,14 +325,11 @@ class SalaryPayrollImportModel extends BaseModel
 			$direction = $this->guessDirection($name);
 			$postData = array(
 				'name' => $name,
-				'source_type' => 'calculated',
+				'source_type' => 'number',
 				'direction' => $direction,
-				'calculation_mode' => 'manual',
+				'calculation_mode' => 'number',
 				'linked_module' => 'none',
 				'formula_text' => '首次导入工资表时按Excel表头自动生成',
-				'include_earning' => $direction == 'earning' ? 1 : 0,
-				'include_deduction' => $direction == 'deduction' ? 1 : 0,
-				'include_net' => $direction == 'statistic' ? 0 : 1,
 				'sort_order' => $sort,
 				'status' => 'active',
 			);
@@ -409,6 +410,10 @@ class SalaryPayrollImportModel extends BaseModel
 				$header = $item['header'];
 				$project = $item['project'];
 				$valueInfo = isset($excelRow['values'][$header['key']]) ? $excelRow['values'][$header['key']] : array('raw' => '');
+				if (SalaryProjectModel::isTextProject($project)) {
+					$itemValues[] = array('project' => $project, 'amount' => 0, 'text' => trim((string)$valueInfo['raw']));
+					continue;
+				}
 				$amount = $this->parseAmount($valueInfo['raw']);
 				if ($amount === false) {
 					$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => '工资项目“' . $header['name'] . '”金额格式不正确');
@@ -537,8 +542,14 @@ class SalaryPayrollImportModel extends BaseModel
 				$rowId = intval($db->lastInsertId());
 				foreach ($row['values'] as $value) {
 					$project = $value['project'];
-					$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
-						'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($project['id']) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->money($value['amount']) . ',' . $this->money($value['amount']) . ',"excel","",' . $now . ',' . $now . ')';
+					$textValue = isset($value['text']) ? $value['text'] : '';
+					if ($this->hasTextValueColumn($valueTable)) {
+						$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`text_value`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
+							'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($project['id']) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->money($value['amount']) . ',' . $this->money($value['amount']) . ',"' . addslashes(trim((string)$textValue)) . '","excel","",' . $now . ',' . $now . ')';
+					} else {
+						$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
+							'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($project['id']) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->money($value['amount']) . ',' . $this->money($value['amount']) . ',"excel","",' . $now . ',' . $now . ')';
+					}
 					$db->execute($valueSql);
 				}
 			}
@@ -632,7 +643,7 @@ class SalaryPayrollImportModel extends BaseModel
 
 	protected function directionName($direction)
 	{
-		$map = array('earning' => '收入项', 'deduction' => '扣款项', 'statistic' => '统计项');
+		$map = array('earning' => '应发类', 'deduction' => '应扣类', 'statistic' => '统计类', 'data' => '数据类', 'note' => '说明类');
 		return isset($map[$direction]) ? $map[$direction] : $direction;
 	}
 
@@ -653,5 +664,11 @@ class SalaryPayrollImportModel extends BaseModel
 	protected function money($value)
 	{
 		return sprintf('%.2f', floatval($value));
+	}
+
+	protected function hasTextValueColumn($table)
+	{
+		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'text_value'")->fetch();
+		return $item ? true : false;
 	}
 }

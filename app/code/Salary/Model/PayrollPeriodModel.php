@@ -195,26 +195,30 @@ class PayrollPeriodModel extends BaseModel
 			$nameAmountMap = array();
 			$itemValues = array();
 			foreach ($projectMap as $projectId => $project) {
-				if ($project['calculation_mode'] == 'formula') {
+				if (SalaryProjectModel::isFormulaProject($project)) {
 					continue;
 				}
 				$amount = isset($values[$projectId]) ? $values[$projectId] : 0;
+				if (SalaryProjectModel::isTextProject($project)) {
+					$itemValues[$projectId] = array('amount' => '0.00', 'text' => trim((string)$amount));
+					continue;
+				}
 				$amount = $this->formatMoney($amount);
 				$nameAmountMap[$project['name']] = $amount;
-				$itemValues[$projectId] = $amount;
+				$itemValues[$projectId] = array('amount' => $amount, 'text' => '');
 			}
 			foreach ($projectMap as $projectId => $project) {
-				if ($project['calculation_mode'] != 'formula') {
+				if (!SalaryProjectModel::isFormulaProject($project)) {
 					continue;
 				}
 				$amount = EmployeeSalaryStructureModel::factory()->calculateFormulaAmount($project['formula_text'], $nameAmountMap);
 				$nameAmountMap[$project['name']] = $amount;
-				$itemValues[$projectId] = $amount;
+				$itemValues[$projectId] = array('amount' => $amount, 'text' => '');
 			}
 			$rowEarning = 0;
 			$rowDeduction = 0;
 			foreach ($projectMap as $projectId => $project) {
-				$amount = isset($itemValues[$projectId]) ? floatval($itemValues[$projectId]) : 0;
+				$amount = isset($itemValues[$projectId]['amount']) ? floatval($itemValues[$projectId]['amount']) : 0;
 				if (intval($project['include_earning'])) {
 					$rowEarning += $amount;
 				}
@@ -264,9 +268,16 @@ class PayrollPeriodModel extends BaseModel
 				$db->execute($rowSql);
 				$rowId = intval($db->lastInsertId());
 				foreach ($projectMap as $projectId => $project) {
-					$amount = isset($row['items'][$projectId]) ? $row['items'][$projectId] : '0.00';
-					$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
-						'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($projectId) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->formatMoney($amount) . ',' . $this->formatMoney($amount) . ',"manual","",' . $now . ',' . $now . ')';
+					$value = isset($row['items'][$projectId]) ? $row['items'][$projectId] : array('amount' => '0.00', 'text' => '');
+					$amount = isset($value['amount']) ? $value['amount'] : '0.00';
+					$textValue = isset($value['text']) ? $value['text'] : '';
+					if ($this->hasTextValueColumn($valueTable)) {
+						$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`text_value`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
+							'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($projectId) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->formatMoney($amount) . ',' . $this->formatMoney($amount) . ',"' . addslashes(trim((string)$textValue)) . '","manual","",' . $now . ',' . $now . ')';
+					} else {
+						$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
+							'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($projectId) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->formatMoney($amount) . ',' . $this->formatMoney($amount) . ',"manual","",' . $now . ',' . $now . ')';
+					}
 					$db->execute($valueSql);
 				}
 			}
@@ -286,6 +297,12 @@ class PayrollPeriodModel extends BaseModel
 			$value = 0;
 		}
 		return sprintf('%.2f', round(floatval($value), 2));
+	}
+
+	protected function hasTextValueColumn($table)
+	{
+		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'text_value'")->fetch();
+		return $item ? true : false;
 	}
 
 	public static function getStatusName($status)

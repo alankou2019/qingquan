@@ -23,7 +23,7 @@
 			<thead>
 				<tr>
 					<th>工资项目</th>
-					<th>系统初步识别类别</th>
+					<th>系统初步识别项目类别</th>
 				</tr>
 			</thead>
 			<tbody>

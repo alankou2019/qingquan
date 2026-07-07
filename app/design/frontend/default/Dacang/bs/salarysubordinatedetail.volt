@@ -28,7 +28,7 @@
 			{% for item in slip['values'] %}
 			<div class="salary_row">
 				<div class="name">{{item['project_name']}}</div>
-				<div class="amount">￥{{item['final_amount']}}</div>
+				<div class="amount">{% if item['text_value'] is defined and item['text_value']!='' %}{{item['text_value']}}{% else %}￥{{item['final_amount']}}{% endif %}</div>
 			</div>
 			{% endfor %}
 		{% else %}
