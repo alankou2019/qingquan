@@ -40,6 +40,28 @@
 		<div class="salary_tip">工资项目分为通用项目和自定义项目。项目类别决定是否计入应发、应扣和实发；项目属性分为数字项、文本项和核算项，核算项按公式自动计算。</div>
 
 		<div class="salary_block">
+			<h3>固定项目</h3>
+			<table class="salary_table">
+				<tr>
+					<th width="18%">项目名称</th>
+					<th width="14%">项目类别</th>
+					<th width="14%">项目属性</th>
+					<th width="28%">核算方式</th>
+					<th>操作</th>
+				</tr>
+				{% for item in fixedProjects %}
+				<tr>
+					<td>{{item['name']}}</td>
+					<td>{{item['direction_label']}}</td>
+					<td>{{item['source_type_label']}}</td>
+					<td>{{item['calculation_mode_label']}}</td>
+					<td>系统固定，不可编辑/停用/删除</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+
+		<div class="salary_block">
 			<h3>通用项目</h3>
 			<form method="post" action="{{helper.createUrl(['p':'salary/projectsavetemplates'])}}">
 				<table class="salary_table">
@@ -142,9 +164,9 @@
 					<th width="12%">项目类别</th>
 					<th width="12%">项目属性</th>
 					<th width="12%">核算方式</th>
-					<th width="8%">应发</th>
-					<th width="8%">扣款</th>
-					<th width="8%">实发</th>
+					<th width="8%">计入应发</th>
+					<th width="8%">计入应扣</th>
+					<th width="8%">计入实发</th>
 					<th>操作</th>
 				</tr>
 				{% for item in projects %}
@@ -161,9 +183,13 @@
 						{% if item['project_kind']=='custom' %}
 						<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','id':item['id']])}}">编辑</a>
 						{% endif %}
-						<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectdelete'])}}" onsubmit="return confirm('确定停用这个工资项目吗？');">
+						<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectdisable'])}}" onsubmit="return confirm('确定停用这个工资项目吗？');">
 							<input type="hidden" name="id" value="{{item['id']}}" />
 							<button class="salary_link_btn" type="submit">停用</button>
+						</form>
+						<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectdelete'])}}" onsubmit="return confirm('确定删除这个工资项目吗？删除后不会影响历史工资表和归档记录。');">
+							<input type="hidden" name="id" value="{{item['id']}}" />
+							<button class="salary_link_btn" type="submit">删除</button>
 						</form>
 					</td>
 				</tr>

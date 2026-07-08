@@ -17,6 +17,7 @@
 .salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
 .salary_sheet input.salary_text_input{text-align:left;width:120px;}
 .salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
+.salary_total_col{background:#fbfdff;font-weight:bold;color:#1f2937;}
 .salary_empty{border:1px solid #d9e2ef;background:#fbfdff;padding:18px;color:#64748b;}
 .salary_link_btn{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px;}
 .inline_form{display:inline-block;margin:0 8px 4px 0;}
@@ -50,7 +51,7 @@
 			<div class="salary_tip">
 				当前工资表：{{period['payroll_month']}}　
 				状态：<span class="salary_status {% if period['status']=='approved' %}salary_status_done{% elseif period['status']=='submitted' %}salary_status_warn{% endif %}">{{period['status_name']}}</span>
-				　应发合计：{{period['earning_total']}}　扣款合计：{{period['deduction_total']}}　实发合计：{{period['net_total']}}
+				　应发总额：{{period['earning_total']}}　应扣总额：{{period['deduction_total']}}　实发总额：{{period['net_total']}}
 			</div>
 			<form method="post" action="{{helper.createUrl(['p':'salary/savepayroll'])}}">
 				<input type="hidden" name="id" value="{{period['id']}}" />
@@ -60,34 +61,54 @@
 							<th>员工</th>
 							<th>手机号</th>
 							<th>部门</th>
-							{% for project in projects %}
-								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
-								{% endif %}
+							{% for project in payrollProjectGroups['earning'] %}
+							<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
 							{% endfor %}
-							<th>应发</th>
-							<th>扣款</th>
-							<th>实发</th>
+							<th class="salary_total_col">应发总额<br />系统固定</th>
+							{% for project in payrollProjectGroups['deduction'] %}
+							<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
+							{% endfor %}
+							<th class="salary_total_col">应扣总额<br />系统固定</th>
+							{% for project in payrollProjectGroups['other'] %}
+							<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
+							{% endfor %}
+							<th class="salary_total_col">实发总额<br />系统固定</th>
 						</tr>
 						{% for row in payrollRows %}
 						<tr>
 							<td>{{row['employee_name']}}</td>
 							<td>{{row['employee_no']}}</td>
 							<td>{{row['department_name']}}</td>
-							{% for project in projects %}
-								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<td>
-									{% if project['is_text_project'] %}
-									<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
-									{% else %}
-									<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
-									{% endif %}
-								</td>
+							{% for project in payrollProjectGroups['earning'] %}
+							<td>
+								{% if project['is_text_project'] %}
+								<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
+								{% else %}
+								<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
 								{% endif %}
+							</td>
 							{% endfor %}
-							<td>{{row['earning_total']}}</td>
-							<td>{{row['deduction_total']}}</td>
-							<td>{{row['net_amount']}}</td>
+							<td class="salary_total_col">{{row['earning_total']}}</td>
+							{% for project in payrollProjectGroups['deduction'] %}
+							<td>
+								{% if project['is_text_project'] %}
+								<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
+								{% else %}
+								<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
+								{% endif %}
+							</td>
+							{% endfor %}
+							<td class="salary_total_col">{{row['deduction_total']}}</td>
+							{% for project in payrollProjectGroups['other'] %}
+							<td>
+								{% if project['is_text_project'] %}
+								<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
+								{% else %}
+								<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
+								{% endif %}
+							</td>
+							{% endfor %}
+							<td class="salary_total_col">{{row['net_amount']}}</td>
 						</tr>
 						{% elsefor %}
 						<tr><td colspan="50" class="salary_empty">当前工资表暂无员工数据</td></tr>

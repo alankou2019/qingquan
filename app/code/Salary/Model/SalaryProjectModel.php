@@ -81,6 +81,58 @@ class SalaryProjectModel extends BaseModel
 		return isset($labels[$key]) ? $labels[$key] : $key;
 	}
 
+	public static function getFixedSummaryProjects()
+	{
+		return array(
+			array(
+				'code' => 'earning_total',
+				'name' => '应发总额',
+				'direction_label' => '统计类',
+				'source_type_label' => '系统固定项',
+				'calculation_mode_label' => '所有应发类项目合计',
+				'formula_text' => '应发类项目合计',
+			),
+			array(
+				'code' => 'deduction_total',
+				'name' => '应扣总额',
+				'direction_label' => '统计类',
+				'source_type_label' => '系统固定项',
+				'calculation_mode_label' => '所有应扣类项目合计',
+				'formula_text' => '应扣类项目合计',
+			),
+			array(
+				'code' => 'net_total',
+				'name' => '实发总额',
+				'direction_label' => '统计类',
+				'source_type_label' => '系统固定项',
+				'calculation_mode_label' => '应发总额 - 应扣总额',
+				'formula_text' => '应发总额 - 应扣总额',
+			),
+		);
+	}
+
+	public static function groupPayrollProjects($projects)
+	{
+		$groups = array(
+			'earning' => array(),
+			'deduction' => array(),
+			'other' => array(),
+		);
+		foreach ($projects as $project) {
+			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
+				continue;
+			}
+			if ($project['direction'] == 'earning') {
+				$groups['earning'][] = $project;
+			} elseif ($project['direction'] == 'deduction') {
+				$groups['deduction'][] = $project;
+			} else {
+				$groups['other'][] = $project;
+			}
+		}
+		return $groups;
+	}
+
 	public function getCompanyProjects($companyId)
 	{
 		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
@@ -297,6 +349,19 @@ class SalaryProjectModel extends BaseModel
 		return $item->save(array(
 			'status' => 'inactive',
 			'deleted_at' => time(),
+			'updated_at' => time(),
+		));
+	}
+
+	public function disableCompanyProject($companyId, $projectId)
+	{
+		$item = self::factory()->findFirst('id=' . intval($projectId) . ' and company_id=' . intval($companyId) . ' and deleted_at=0');
+		if (!$item) {
+			$this->_lastError = '工资项目不存在';
+			return false;
+		}
+		return $item->save(array(
+			'status' => 'inactive',
 			'updated_at' => time(),
 		));
 	}

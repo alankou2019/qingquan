@@ -48,9 +48,9 @@
 					<div class="salary_summary_item"><label>已发工资条</label><strong>{{publishedCount}} 人</strong></div>
 				</div>
 				<div class="salary_summary">
-					<div class="salary_summary_item"><label>应发合计</label><strong>{{period['earning_total']}}</strong></div>
-					<div class="salary_summary_item"><label>扣款合计</label><strong>{{period['deduction_total']}}</strong></div>
-					<div class="salary_summary_item"><label>实发合计</label><strong>{{period['net_total']}}</strong></div>
+					<div class="salary_summary_item"><label>应发总额</label><strong>{{period['earning_total']}}</strong></div>
+					<div class="salary_summary_item"><label>应扣总额</label><strong>{{period['deduction_total']}}</strong></div>
+					<div class="salary_summary_item"><label>实发总额</label><strong>{{period['net_total']}}</strong></div>
 				</div>
 				{% if sourcePage=='archive' %}
 				<div class="salary_warn">当前从归档记录进入发放，请确认月份和人员范围后再发放。</div>
@@ -85,9 +85,9 @@
 									<th>员工</th>
 									<th>手机号</th>
 									<th>部门</th>
-									<th class="money">应发</th>
-									<th class="money">扣款</th>
-									<th class="money">实发</th>
+									<th class="money">应发总额</th>
+									<th class="money">应扣总额</th>
+									<th class="money">实发总额</th>
 									<th>工资条</th>
 								</tr>
 								{% for row in rows %}

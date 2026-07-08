@@ -28,9 +28,9 @@
 				<th>工资月份</th>
 				<th>来源</th>
 				<th>人数</th>
-				<th class="money">应发合计</th>
-				<th class="money">扣款合计</th>
-				<th class="money">实发合计</th>
+				<th class="money">应发总额</th>
+				<th class="money">应扣总额</th>
+				<th class="money">实发总额</th>
 				<th>归档时间</th>
 				<th>工资条</th>
 				<th>操作</th>

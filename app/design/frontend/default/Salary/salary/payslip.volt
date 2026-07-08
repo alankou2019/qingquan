@@ -36,7 +36,7 @@
 					<th>状态</th>
 					<th>工资表人数</th>
 					<th>工资条进度</th>
-					<th class="money">实发合计</th>
+					<th class="money">实发总额</th>
 					<th>发放时间</th>
 					<th class="operate">操作</th>
 				</tr>

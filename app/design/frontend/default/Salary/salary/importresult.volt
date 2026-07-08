@@ -18,7 +18,7 @@
 	<div class="salary_page">
 		{% if result %}
 		<div class="salary_success">
-			工资表导入成功，共导入 {{result['employee_count']}} 人。应发合计 {{result['earning_total']}}，扣款合计 {{result['deduction_total']}}，实发合计 {{result['net_total']}}。下一步可在工资表核算页面提交审核。
+			工资表导入成功，共导入 {{result['employee_count']}} 人。应发总额 {{result['earning_total']}}，应扣总额 {{result['deduction_total']}}，实发总额 {{result['net_total']}}。下一步可在工资表核算页面提交审核。
 		</div>
 		<a class="salary_btn" href="{{helper.createUrl(['p':'salary/payroll'])}}">返回工资表核算</a>
 		{% else %}

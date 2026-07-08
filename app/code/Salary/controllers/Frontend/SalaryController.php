@@ -131,6 +131,7 @@ class SalaryController extends FrontendBaseController
 		}
 
 		$this->view->setVar('templates', $templates);
+		$this->view->setVar('fixedProjects', SalaryProjectModel::getFixedSummaryProjects());
 		$this->view->setVar('projects', $projects);
 		$this->view->setVar('formulaProjects', $formulaProjects);
 		$this->view->setVar('editItem', $editItem);
@@ -183,7 +184,23 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
 		}
-		$this->addSalaryLog('project_delete', 'salary_project', $projectId, '', '停用工资项目');
+		$this->addSalaryLog('project_delete', 'salary_project', $projectId, '', '删除工资项目');
+		Utils::showMsg('工资项目已删除', $backUrl);
+	}
+
+	public function projectdisableAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$projectId = intval($this->request->get('id'));
+		$result = SalaryProjectModel::factory()->disableCompanyProject($this->companyId, $projectId);
+		if (!$result) {
+			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('project_disable', 'salary_project', $projectId, '', '停用工资项目');
 		Utils::showMsg('工资项目已停用', $backUrl);
 	}
 
@@ -261,6 +278,7 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('payrollMonth', $payrollMonth);
 		$this->view->setVar('period', $period);
 		$this->view->setVar('projects', $projects);
+		$this->view->setVar('payrollProjectGroups', SalaryProjectModel::groupPayrollProjects($projects));
 		$this->view->setVar('payrollRows', $rows);
 		$this->view->setVar('canSendPayslip', $this->isSalaryFeatureEnabled('payslip'));
 		$this->view->setVar('defaultPayrollMonth', date('Y-m'));
@@ -927,7 +945,7 @@ class SalaryController extends FrontendBaseController
 		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
 		$sheet = $objPHPExcel->setActiveSheetIndex(0);
 		$sheet->setTitle('薪酬报表');
-		$headers = array('工资月份', '员工姓名', '手机号', '部门', '状态', '来源', '应发合计', '扣款合计', '实发合计');
+		$headers = array('工资月份', '员工姓名', '手机号', '部门', '状态', '来源', '应发总额', '应扣总额', '实发总额');
 		foreach ($headers as $index => $header) {
 			$sheet->setCellValueByColumnAndRow($index, 1, $header);
 			$sheet->getColumnDimensionByColumn($index)->setWidth($index >= 6 ? 14 : 16);
@@ -1173,7 +1191,7 @@ class SalaryController extends FrontendBaseController
 		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
 		$sheet = $objPHPExcel->setActiveSheetIndex(0);
 		$sheet->setTitle('工资条确认结果');
-		$headers = array('工资月份', '员工姓名', '手机号', '部门', '应发', '扣款', '实发', '发放时间', '查看时间', '确认时间', '确认状态');
+		$headers = array('工资月份', '员工姓名', '手机号', '部门', '应发总额', '应扣总额', '实发总额', '发放时间', '查看时间', '确认时间', '确认状态');
 		foreach ($headers as $index => $header) {
 			$sheet->setCellValueByColumnAndRow($index, 1, $header);
 			$sheet->getColumnDimensionByColumn($index)->setWidth($index >= 7 ? 18 : 14);

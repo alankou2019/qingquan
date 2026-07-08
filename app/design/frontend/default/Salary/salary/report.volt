@@ -64,9 +64,9 @@
 		{% endif %}
 		<div class="salary_summary">
 			<div class="salary_summary_item">记录数<strong>{{summary['row_count']}}</strong></div>
-			<div class="salary_summary_item">应发合计<strong>{{summary['earning_total']}}</strong></div>
-			<div class="salary_summary_item">扣款合计<strong>{{summary['deduction_total']}}</strong></div>
-			<div class="salary_summary_item">实发合计<strong>{{summary['net_total']}}</strong></div>
+			<div class="salary_summary_item">应发总额<strong>{{summary['earning_total']}}</strong></div>
+			<div class="salary_summary_item">应扣总额<strong>{{summary['deduction_total']}}</strong></div>
+			<div class="salary_summary_item">实发总额<strong>{{summary['net_total']}}</strong></div>
 		</div>
 		{% if rows %}
 		<div class="salary_scroll">
@@ -79,9 +79,9 @@
 						<th>部门</th>
 						<th>状态</th>
 						<th>来源</th>
-						<th class="money">应发合计</th>
-						<th class="money">扣款合计</th>
-						<th class="money">实发合计</th>
+						<th class="money">应发总额</th>
+						<th class="money">应扣总额</th>
+						<th class="money">实发总额</th>
 					</tr>
 				</thead>
 				<tbody>

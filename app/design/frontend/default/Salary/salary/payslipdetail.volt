@@ -93,9 +93,9 @@
 					<th>员工</th>
 					<th>手机号</th>
 					<th>部门</th>
-					<th class="money">应发</th>
-					<th class="money">扣款</th>
-					<th class="money">实发</th>
+					<th class="money">应发总额</th>
+					<th class="money">应扣总额</th>
+					<th class="money">实发总额</th>
 					<th>状态</th>
 					<th>发放时间</th>
 					<th>查看时间</th>
