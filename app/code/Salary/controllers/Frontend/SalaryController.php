@@ -750,6 +750,7 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('platform', $platform);
 		$this->view->setVar('platformName', isset($platformOptions[$platform]) ? $platformOptions[$platform] : $platform);
 		$this->view->setVar('syncItems', $syncItems);
+		$this->view->setVar('userItems', $this->getCompanyUsers());
 	}
 
 	public function authAction()
@@ -1398,19 +1399,13 @@ class SalaryController extends FrontendBaseController
 
 	protected function getCompanyUsers()
 	{
-		$return = array();
-		$items = $this->modelsManager->createBuilder()
-			->columns('u.id,u.name,u.department_id,u.is_admin,u.is_leader,d.name as departmentname')
-			->addFrom('ScshuxCms\Dacang\Model\CompanyUserModel', 'u')
-			->leftJoin('ScshuxCms\Dacang\Model\DepartmentModel', 'u.department_id=d.dingding_id and u.company_id=d.company_id', 'd')
-			->where('u.company_id=' . intval($this->companyId))
-			->orderBy('u.id asc')
-			->getQuery()
-			->execute()
-			->toArray();
-		foreach ($items as $item) {
-			$return[] = $item;
-		}
-		return $return;
+		$userTable = CompanyUserModel::factory()->getSource();
+		$departTable = DepartmentModel::factory()->getSource();
+		$sql = 'select u.id,u.name,u.department_id,u.is_admin,u.is_leader,coalesce(d1.name,d2.name,"") as departmentname ' .
+			'from `' . $userTable . '` u ' .
+			'left join `' . $departTable . '` d1 on u.department_id=d1.id and u.company_id=d1.company_id ' .
+			'left join `' . $departTable . '` d2 on d2.id=(select min(d3.id) from `' . $departTable . '` d3 where d3.company_id=u.company_id and d3.dingding_id=u.department_id) ' .
+			'where u.company_id=' . intval($this->companyId) . ' order by u.id asc';
+		return $this->getDI()->get('db')->query($sql)->fetchAll();
 	}
 }
