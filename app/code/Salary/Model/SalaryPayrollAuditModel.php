@@ -32,11 +32,11 @@ class SalaryPayrollAuditModel extends BaseModel
 
 	public function getReviewerItems($companyId)
 	{
-		$sql = 'select r.reviewer_id,u.name,u.department_id,coalesce(d1.name,d2.name,"") as departmentname ' .
+		$departmentSql = SalaryEmployeeDepartmentModel::factory()->getDepartmentSql($companyId, 'u');
+		$sql = 'select r.reviewer_id,u.name,u.department_id,' . $departmentSql['select'] . ' as departmentname ' .
 			'from `' . $this->getRoleTable() . '` r ' .
 			'left join `' . $this->getTableName('company_user') . '` u on r.reviewer_id=u.id and r.company_id=u.company_id ' .
-			'left join `' . $this->getTableName('company_department') . '` d1 on u.department_id=d1.id and u.company_id=d1.company_id ' .
-			'left join `' . $this->getTableName('company_department') . '` d2 on d2.id=(select min(d3.id) from `' . $this->getTableName('company_department') . '` d3 where d3.company_id=u.company_id and d3.dingding_id=u.department_id) ' .
+			$departmentSql['join'] .
 			'where r.company_id=' . intval($companyId) . ' and r.status="active" ' .
 			'order by r.sort_order asc,r.id asc';
 		return $this->getDB()->query($sql)->fetchAll();

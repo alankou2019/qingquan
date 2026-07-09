@@ -136,17 +136,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 
 	public function getCompanyEmployees($companyId)
 	{
-		$db = $this->getDB();
-		$userTable = $this->getTableName('company_user');
-		$departTable = $this->getTableName('company_department');
-		$mobileColumn = $this->getEmployeeMobileColumn($userTable);
-		$mobileSelect = $mobileColumn ? 'u.`' . $mobileColumn . '` as mobile' : '"" as mobile';
-		$sql = 'select u.id,u.name,' . $mobileSelect . ',u.department_id,coalesce(d1.name,d2.name,"") as department_name ' .
-			'from `' . $userTable . '` u ' .
-			'left join `' . $departTable . '` d1 on u.department_id=d1.id and u.company_id=d1.company_id ' .
-			'left join `' . $departTable . '` d2 on d2.id=(select min(d3.id) from `' . $departTable . '` d3 where d3.company_id=u.company_id and d3.dingding_id=u.department_id) ' .
-			'where u.company_id=' . intval($companyId) . ' order by u.id asc';
-		return $db->query($sql)->fetchAll();
+		return SalaryEmployeeDepartmentModel::factory()->getCompanyEmployees($companyId, 'mobile');
 	}
 
 	protected function getOrCreateInitialStructure($companyId, $employeeId, $operatorId = 0)

@@ -344,17 +344,7 @@ class SalaryPayrollImportModel extends BaseModel
 
 	protected function getCompanyEmployees($companyId)
 	{
-		$db = $this->getDB();
-		$userTable = $this->getTableName('company_user');
-		$departTable = $this->getTableName('company_department');
-		$mobileColumn = $this->getEmployeeMobileColumn($userTable);
-		$mobileSelect = $mobileColumn ? 'u.`' . $mobileColumn . '` as mobile_source' : '"" as mobile_source';
-		$sql = 'select u.id,u.name,' . $mobileSelect . ',u.department_id,coalesce(d1.name,d2.name,"") as department_name ' .
-			'from `' . $userTable . '` u ' .
-			'left join `' . $departTable . '` d1 on u.department_id=d1.id and u.company_id=d1.company_id ' .
-			'left join `' . $departTable . '` d2 on d2.id=(select min(d3.id) from `' . $departTable . '` d3 where d3.company_id=u.company_id and d3.dingding_id=u.department_id) ' .
-			'where u.company_id=' . intval($companyId) . ' order by u.id asc';
-		$items = $db->query($sql)->fetchAll();
+		$items = SalaryEmployeeDepartmentModel::factory()->getCompanyEmployees($companyId, 'mobile_source');
 		$nameMap = array();
 		foreach ($items as $item) {
 			$key = $this->normalizeName($item['name']);
