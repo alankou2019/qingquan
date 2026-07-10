@@ -238,12 +238,13 @@ class  BsController extends FrontendBaseController
         $page     = isset($_REQUEST['page']) ? intval($_REQUEST['page']) : 1;
         $page     = $page < 1 ? 1 : $page;
         $pagesize = 20;
+        $hasPointPagesize = 100;
 
         //获取需要当前登录用户评分的用户列表
         $needdatalist = ReportItemModel::factory()->getNeedPointList($userId, $page, $pagesize);
 
         //获取当前登录用户已经评分的用户列表
-        $hasdatalist = ReportItemModel::factory()->getHasPointList($userId, $page, $pagesize);
+        $hasdatalist = ReportItemModel::factory()->getHasPointList($userId, $page, $hasPointPagesize);
 
         //获取当前正在对我进行评分的考核表
         $reportinglist = ReportItemModel::factory()->getReportIngList($userId, $page, $pagesize);
@@ -280,7 +281,7 @@ class  BsController extends FrontendBaseController
                 $data     = Render::renderNeedIndex($datalist);
                 break;
             case 'haspointlist':
-                $datalist = ReportItemModel::factory()->getHasPointList($userId, $page, $pagesize);
+                $datalist = ReportItemModel::factory()->getHasPointList($userId, $page, 100);
                 $data     = Render::renderHasIndex($datalist);
                 break;
             case 'reportinglist':
