@@ -11,6 +11,7 @@ use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Salary\Model\CommissionPeriodModel;
 use ScshuxCms\Salary\Model\CommissionProjectModel;
 use ScshuxCms\Salary\Model\EmployeeSalaryStructureModel;
 use ScshuxCms\Salary\Model\PayrollArchiveModel;
@@ -40,16 +41,23 @@ class SalaryController extends FrontendBaseController
 		$model = CommissionProjectModel::factory();
 		$editItem = false;
 		$editId = intval($this->request->get('id'));
+		$projects = $model->getCompanyProjects($this->companyId);
 		if ($editId > 0) {
-			$editItem = $model->findFirst('id=' . $editId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+			foreach ($projects as $project) {
+				if (intval($project['id']) == $editId) {
+					$editItem = $project;
+					break;
+				}
+			}
 		}
-		$this->view->setVar('projects', $model->getCompanyProjects($this->companyId));
+		$this->view->setVar('projects', $projects);
 		$this->view->setVar('scopeOptions', $model->getScopeOptions($this->companyId));
 		$this->view->setVar('editItem', $editItem);
 		$this->view->setVar('metricLabels', CommissionProjectModel::getMetricLabels());
 		$this->view->setVar('modeLabels', CommissionProjectModel::getModeLabels());
 		$this->view->setVar('scopeLabels', CommissionProjectModel::getScopeLabels());
 		$this->view->setVar('statusLabels', CommissionProjectModel::getStatusLabels());
+		$this->view->setVar('rateTypeLabels', CommissionProjectModel::getRateTypeLabels());
 	}
 
 	public function commissionsaveAction()
@@ -81,6 +89,60 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_project_delete', 'commission_project', $projectId, '', '删除提成项目规则');
 		Utils::showMsg('提成项目已删除', $backUrl);
+	}
+
+	public function commissionpayrollAction()
+	{
+		$this->checkFeature('commission');
+		$commissionMonth = trim($this->request->get('commission_month'));
+		if (!preg_match('/^\d{4}\-\d{2}$/', $commissionMonth)) {
+			$commissionMonth = date('Y-m');
+		}
+		$period = CommissionPeriodModel::factory()->getCompanyPeriodByMonth($this->companyId, $commissionMonth);
+		$rows = array();
+		if ($period) {
+			$period['status_name'] = CommissionPeriodModel::getStatusName($period['status']);
+			$period['can_edit'] = in_array($period['status'], array('draft', 'calculated')) ? 1 : 0;
+			$rows = CommissionPeriodModel::factory()->getCommissionMatrix($this->companyId, intval($period['id']));
+		}
+		$projects = CommissionProjectModel::factory()->getCompanyProjects($this->companyId);
+		$this->view->setVar('commissionMonth', $commissionMonth);
+		$this->view->setVar('period', $period);
+		$this->view->setVar('commissionRows', $rows);
+		$this->view->setVar('commissionProjects', $projects);
+	}
+
+	public function generatecommissionAction()
+	{
+		$this->checkFeature('commission');
+		$commissionMonth = trim($this->request->getPost('commission_month'));
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $commissionMonth));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$result = CommissionPeriodModel::factory()->generateFromEmployees($this->companyId, $commissionMonth, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg(CommissionPeriodModel::factory()->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_generate', 'commission_period', intval($result), $commissionMonth, '生成月提成核算表');
+		Utils::showMsg('月提成核算表已生成', $backUrl);
+	}
+
+	public function savecommissionpayrollAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->getPost('id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$result = CommissionPeriodModel::factory()->saveCommissionMatrixFromPost($this->companyId, $periodId, $_POST, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg(CommissionPeriodModel::factory()->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_save', 'commission_period', $periodId, $period ? $period['commission_month'] : '', '保存月提成核算表');
+		Utils::showMsg('月提成核算表已保存', $backUrl);
 	}
 
 	public function logAction()

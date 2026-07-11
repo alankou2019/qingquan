@@ -28,8 +28,10 @@ class SalaryEmployeeDepartmentModel extends BaseModel
 		$userTable = $this->getTableName('company_user');
 		$mobileColumn = $this->getEmployeeMobileColumn($userTable);
 		$mobileSelect = $mobileColumn ? 'u.`' . $mobileColumn . '` as ' . $mobileAlias : '"" as ' . $mobileAlias;
+		$positionColumn = $this->getEmployeePositionColumn($userTable);
+		$positionSelect = $positionColumn ? ',u.`' . $positionColumn . '` as position_name' : ',"" as position_name';
 		$departmentSql = $this->getDepartmentSql($companyId, 'u');
-		$sql = 'select u.id,u.name,' . $mobileSelect . ',u.department_id,' . $departmentSql['select'] . ' as department_name ' .
+		$sql = 'select u.id,u.name,' . $mobileSelect . ',u.department_id,' . $departmentSql['select'] . ' as department_name' . $positionSelect . ' ' .
 			'from `' . $userTable . '` u ' .
 			$departmentSql['join'] .
 			'where u.company_id=' . intval($companyId) . ' order by u.id asc';
@@ -75,6 +77,16 @@ class SalaryEmployeeDepartmentModel extends BaseModel
 	public function getEmployeeMobileColumn($userTable)
 	{
 		foreach (array('jobnumber', 'mobile', 'phone') as $column) {
+			if ($this->hasColumn($userTable, $column)) {
+				return $column;
+			}
+		}
+		return '';
+	}
+
+	public function getEmployeePositionColumn($userTable)
+	{
+		foreach (array('position_name', 'position', 'job_title', 'title', 'post') as $column) {
 			if ($this->hasColumn($userTable, $column)) {
 				return $column;
 			}

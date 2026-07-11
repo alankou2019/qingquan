@@ -43,6 +43,11 @@ class CommissionProjectModel extends BaseModel
 		return array('active' => '启用', 'inactive' => '停用');
 	}
 
+	public static function getRateTypeLabels()
+	{
+		return array('percent' => '按比例', 'fixed' => '按固定金额');
+	}
+
 	public function getCompanyProjects($companyId)
 	{
 		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) . ' and deleted_at=0 order by priority desc,id desc';
@@ -71,6 +76,8 @@ class CommissionProjectModel extends BaseModel
 		$scopeValue = isset($postData['scope_value']) ? trim($postData['scope_value']) : '';
 		$scopeLabel = isset($postData['scope_label']) ? trim($postData['scope_label']) : '';
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
+		$rateType = isset($postData['rate_type']) ? trim($postData['rate_type']) : 'percent';
+		$rateValue = isset($postData['rate_value']) ? round(floatval($postData['rate_value']), 4) : 0;
 
 		if ($companyId <= 0 || $name == '') {
 			$this->_lastError = '请填写提成项目名称';
@@ -92,6 +99,15 @@ class CommissionProjectModel extends BaseModel
 			$this->_lastError = '请选择提成项目适用范围';
 			return false;
 		}
+		$rateTypes = self::getRateTypeLabels();
+		if (!isset($rateTypes[$rateType])) {
+			$rateType = 'percent';
+		}
+		$tierConfig = $this->buildTierConfig($postData);
+		if (in_array($mode, array('ladder', 'over_ladder')) && empty($tierConfig)) {
+			$this->_lastError = '阶梯提成请至少填写一档规则';
+			return false;
+		}
 
 		$duplicateWhere = 'company_id=' . $companyId . ' and name="' . addslashes($name) . '" and deleted_at=0';
 		if ($id > 0) {
@@ -110,6 +126,9 @@ class CommissionProjectModel extends BaseModel
 			'metric_name' => $metricType == 'custom' ? substr($metricName, 0, 80) : $metrics[$metricType],
 			'commission_mode' => $mode,
 			'threshold_value' => isset($postData['threshold_value']) ? round(floatval($postData['threshold_value']), 2) : 0,
+			'rate_type' => $rateType,
+			'rate_value' => $rateValue,
+			'tier_config' => json_encode($tierConfig, JSON_UNESCAPED_UNICODE),
 			'rule_detail' => isset($postData['rule_detail']) ? substr(trim($postData['rule_detail']), 0, 5000) : '',
 			'scope_type' => $scopeType,
 			'scope_value' => $scopeType == 'all' ? '' : substr($scopeValue, 0, 255),
@@ -151,13 +170,142 @@ class CommissionProjectModel extends BaseModel
 		$modes = self::getModeLabels();
 		$scopes = self::getScopeLabels();
 		$statuses = self::getStatusLabels();
+		$rateTypes = self::getRateTypeLabels();
 		foreach ($items as $key => $item) {
 			$item['metric_label'] = isset($metrics[$item['metric_type']]) ? $metrics[$item['metric_type']] : $item['metric_type'];
 			$item['mode_label'] = isset($modes[$item['commission_mode']]) ? $modes[$item['commission_mode']] : $item['commission_mode'];
 			$item['scope_type_label'] = isset($scopes[$item['scope_type']]) ? $scopes[$item['scope_type']] : $item['scope_type'];
 			$item['status_label'] = isset($statuses[$item['status']]) ? $statuses[$item['status']] : $item['status'];
+			$item['rate_type'] = isset($item['rate_type']) ? $item['rate_type'] : 'percent';
+			$item['rate_value'] = isset($item['rate_value']) ? $item['rate_value'] : '0.0000';
+			$item['rate_type_label'] = isset($rateTypes[$item['rate_type']]) ? $rateTypes[$item['rate_type']] : $item['rate_type'];
+			$item['tier_items'] = $this->decodeTierConfig(isset($item['tier_config']) ? $item['tier_config'] : '');
+			$item['rule_summary'] = $this->buildRuleSummary($item);
 			$items[$key] = $item;
 		}
 		return $items;
+	}
+
+	public function calculateAmount($project, $inputValue)
+	{
+		$value = floatval($this->formatMoney($inputValue));
+		if ($value <= 0) {
+			return '0.00';
+		}
+		$mode = isset($project['commission_mode']) ? $project['commission_mode'] : 'simple';
+		if ($mode == 'simple') {
+			$rateType = isset($project['rate_type']) ? $project['rate_type'] : 'percent';
+			$rateValue = isset($project['rate_value']) ? floatval($project['rate_value']) : 0;
+			if ($rateType == 'fixed') {
+				return $this->formatMoney($value * $rateValue);
+			}
+			return $this->formatMoney($value * $rateValue / 100);
+		}
+		$tiers = isset($project['tier_items']) ? $project['tier_items'] : $this->decodeTierConfig(isset($project['tier_config']) ? $project['tier_config'] : '');
+		if ($mode == 'over_ladder') {
+			return $this->formatMoney($this->calculateOverLadder($value, $tiers));
+		}
+		return $this->formatMoney($this->calculateWholeLadder($value, $tiers));
+	}
+
+	public function buildRuleSnapshot($project)
+	{
+		return json_encode(array(
+			'id' => intval($project['id']),
+			'name' => $project['name'],
+			'mode' => $project['commission_mode'],
+			'rate_type' => isset($project['rate_type']) ? $project['rate_type'] : 'percent',
+			'rate_value' => isset($project['rate_value']) ? $project['rate_value'] : '0',
+			'tiers' => isset($project['tier_items']) ? $project['tier_items'] : $this->decodeTierConfig(isset($project['tier_config']) ? $project['tier_config'] : ''),
+			'rule_detail' => isset($project['rule_detail']) ? $project['rule_detail'] : '',
+		), JSON_UNESCAPED_UNICODE);
+	}
+
+	protected function buildTierConfig($postData)
+	{
+		$return = array();
+		$mins = isset($postData['tier_min']) && is_array($postData['tier_min']) ? $postData['tier_min'] : array();
+		$maxs = isset($postData['tier_max']) && is_array($postData['tier_max']) ? $postData['tier_max'] : array();
+		$rates = isset($postData['tier_rate']) && is_array($postData['tier_rate']) ? $postData['tier_rate'] : array();
+		for ($i = 0; $i < 6; $i++) {
+			$min = isset($mins[$i]) ? trim($mins[$i]) : '';
+			$max = isset($maxs[$i]) ? trim($maxs[$i]) : '';
+			$rate = isset($rates[$i]) ? trim($rates[$i]) : '';
+			if ($min === '' && $max === '' && $rate === '') {
+				continue;
+			}
+			$return[] = array(
+				'min' => $min === '' ? 0 : round(floatval($min), 2),
+				'max' => $max === '' ? 0 : round(floatval($max), 2),
+				'rate' => $rate === '' ? 0 : round(floatval($rate), 4),
+			);
+		}
+		usort($return, function ($a, $b) {
+			if ($a['min'] == $b['min']) {
+				return 0;
+			}
+			return $a['min'] < $b['min'] ? -1 : 1;
+		});
+		return $return;
+	}
+
+	protected function decodeTierConfig($value)
+	{
+		$items = json_decode((string)$value, true);
+		return is_array($items) ? $items : array();
+	}
+
+	protected function buildRuleSummary($project)
+	{
+		if ($project['commission_mode'] == 'simple') {
+			$value = floatval(isset($project['rate_value']) ? $project['rate_value'] : 0);
+			return $project['rate_type'] == 'fixed' ? '每单位' . $this->formatMoney($value) . '元' : $value . '%';
+		}
+		$parts = array();
+		foreach ($project['tier_items'] as $tier) {
+			$max = empty($tier['max']) ? '以上' : $this->formatMoney($tier['max']);
+			$parts[] = $this->formatMoney($tier['min']) . '-' . $max . ':' . floatval($tier['rate']) . '%';
+		}
+		return implode('；', $parts);
+	}
+
+	protected function calculateWholeLadder($value, $tiers)
+	{
+		$rate = 0;
+		foreach ($tiers as $tier) {
+			$min = floatval($tier['min']);
+			$max = floatval($tier['max']);
+			if ($value >= $min && ($max <= 0 || $value <= $max)) {
+				$rate = floatval($tier['rate']);
+			}
+		}
+		return $value * $rate / 100;
+	}
+
+	protected function calculateOverLadder($value, $tiers)
+	{
+		$total = 0;
+		foreach ($tiers as $tier) {
+			$min = floatval($tier['min']);
+			$max = floatval($tier['max']);
+			if ($value <= $min) {
+				continue;
+			}
+			$upper = $max > 0 ? min($value, $max) : $value;
+			if ($upper <= $min) {
+				continue;
+			}
+			$total += ($upper - $min) * floatval($tier['rate']) / 100;
+		}
+		return $total;
+	}
+
+	protected function formatMoney($value)
+	{
+		$value = str_replace(array(',', '￥', '元', ' '), '', (string)$value);
+		if (!is_numeric($value)) {
+			$value = 0;
+		}
+		return sprintf('%.2f', round(floatval($value), 2));
 	}
 }
