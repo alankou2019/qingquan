@@ -11,6 +11,7 @@ use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Salary\Model\CommissionProjectModel;
 use ScshuxCms\Salary\Model\EmployeeSalaryStructureModel;
 use ScshuxCms\Salary\Model\PayrollArchiveModel;
 use ScshuxCms\Salary\Model\PayrollEmployeeRowModel;
@@ -31,6 +32,55 @@ class SalaryController extends FrontendBaseController
 	{
 		$this->checkModule();
 		$this->view->setVar('features', $this->getSalaryFeatures());
+	}
+
+	public function commissionAction()
+	{
+		$this->checkFeature('commission');
+		$model = CommissionProjectModel::factory();
+		$editItem = false;
+		$editId = intval($this->request->get('id'));
+		if ($editId > 0) {
+			$editItem = $model->findFirst('id=' . $editId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		}
+		$this->view->setVar('projects', $model->getCompanyProjects($this->companyId));
+		$this->view->setVar('scopeOptions', $model->getScopeOptions($this->companyId));
+		$this->view->setVar('editItem', $editItem);
+		$this->view->setVar('metricLabels', CommissionProjectModel::getMetricLabels());
+		$this->view->setVar('modeLabels', CommissionProjectModel::getModeLabels());
+		$this->view->setVar('scopeLabels', CommissionProjectModel::getScopeLabels());
+		$this->view->setVar('statusLabels', CommissionProjectModel::getStatusLabels());
+	}
+
+	public function commissionsaveAction()
+	{
+		$this->checkFeature('commission');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commission'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$model = CommissionProjectModel::factory();
+		if (!$model->saveProject($this->companyId, $_POST, $this->getOperatorId())) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_project_save', 'commission_project', intval($this->request->getPost('id')), '', '保存提成项目规则');
+		Utils::showMsg('提成项目已保存', $backUrl);
+	}
+
+	public function commissiondeleteAction()
+	{
+		$this->checkFeature('commission');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commission'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$projectId = intval($this->request->getPost('id'));
+		$model = CommissionProjectModel::factory();
+		if (!$model->deleteProject($this->companyId, $projectId)) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_project_delete', 'commission_project', $projectId, '', '删除提成项目规则');
+		Utils::showMsg('提成项目已删除', $backUrl);
 	}
 
 	public function logAction()
@@ -666,11 +716,6 @@ class SalaryController extends FrontendBaseController
 		Utils::showMsg('工资表已归档', Helper::factory()->createUrl(array('p' => 'salary/archive')));
 	}
 
-	public function commissionAction()
-	{
-		$this->showFeature('commission', '提成核算');
-	}
-
 	public function performanceAction()
 	{
 		$this->showFeature('performance_salary', '绩效工资核算');
@@ -1261,7 +1306,7 @@ class SalaryController extends FrontendBaseController
 			array('code' => 'archive', 'name' => '工资表归档记录', 'url' => 'salary/archive', 'desc' => '查看已归档工资表，可按归档数据发工资条或恢复重新核算。'),
 			array('code' => 'report', 'name' => '薪酬统计报表', 'url' => 'salary/report', 'desc' => '按月份、部门、员工查询薪酬汇总和明细，按授权范围控制查看和导出。'),
 			array('code' => 'log', 'name' => '薪酬操作日志', 'url' => 'salary/log', 'desc' => '记录工资项目、核算、审核、发放、归档、恢复和授权等关键操作。'),
-			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '预留销售提成规则、核算和明细查看入口。'),
+			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '设置提成项目与适用范围，后续按项目规则完成月度提成核算。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {

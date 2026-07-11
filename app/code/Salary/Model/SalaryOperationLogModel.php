@@ -126,6 +126,8 @@ class SalaryOperationLogModel extends BaseModel
 			'project_custom_save' => '保存自定义工资项目',
 			'project_delete' => '删除工资项目',
 			'project_disable' => '停用工资项目',
+			'commission_project_save' => '保存提成项目规则',
+			'commission_project_delete' => '删除提成项目规则',
 			'initial_salary_save' => '保存初始工资表',
 			'initial_salary_import' => '导入初始工资表',
 			'payroll_generate' => '生成工资表',
