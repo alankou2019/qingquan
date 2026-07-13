@@ -23,10 +23,14 @@ class CommissionPeriodModel extends BaseModel
 		return self::$_instance;
 	}
 
-	public function getCompanyPeriodByMonth($companyId, $commissionMonth)
+	public function getCompanyPeriodByMonth($companyId, $commissionMonth, $includeDeleted = false)
 	{
 		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
-			' and commission_month="' . addslashes($commissionMonth) . '" limit 1';
+			' and commission_month="' . addslashes($commissionMonth) . '"';
+		if (!$includeDeleted) {
+			$sql .= ' and status!="deleted"';
+		}
+		$sql .= ' limit 1';
 		return $this->getDB()->query($sql)->fetch();
 	}
 
@@ -41,6 +45,11 @@ class CommissionPeriodModel extends BaseModel
 	{
 		if (!preg_match('/^\d{4}\-\d{2}$/', $commissionMonth)) {
 			$this->_lastError = '提成月份不正确';
+			return false;
+		}
+		$existing = $this->getCompanyPeriodByMonth($companyId, $commissionMonth);
+		if ($existing) {
+			$this->_lastError = 'The commission sheet for this month already exists. Restore the archived record before recalculating.';
 			return false;
 		}
 		$employees = EmployeeSalaryStructureModel::factory()->getCompanyEmployees($companyId);
@@ -136,7 +145,7 @@ class CommissionPeriodModel extends BaseModel
 		$db->begin();
 		try {
 			if ($periodId <= 0) {
-				$existing = $this->getCompanyPeriodByMonth($companyId, $commissionMonth);
+				$existing = $this->getCompanyPeriodByMonth($companyId, $commissionMonth, true);
 				if ($existing) {
 					$periodId = intval($existing['id']);
 				}

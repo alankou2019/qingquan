@@ -33,6 +33,7 @@
 	<div class="commission_payroll_page">
 		<div class="commission_toolbar">
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a>
+			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a>
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a>
 		</div>
 		<form class="commission_filter" method="get" action="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">
@@ -101,6 +102,12 @@
 					{% endif %}
 				</div>
 			</form>
+			{% if period['can_edit'] %}
+			<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/archivecommission'])}}" onsubmit="return confirm('归档后不可直接修改，需要恢复后才能重新核算。确认归档吗？');">
+				<input type="hidden" name="id" value="{{period['id']}}" />
+				<button class="commission_btn commission_btn_gray" type="submit">归档</button>
+			</form>
+			{% endif %}
 		{% endif %}
 	</div>
 </div>

@@ -11,6 +11,7 @@ use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
+use ScshuxCms\Salary\Model\CommissionArchiveModel;
 use ScshuxCms\Salary\Model\CommissionPeriodModel;
 use ScshuxCms\Salary\Model\CommissionProjectModel;
 use ScshuxCms\Salary\Model\EmployeeSalaryStructureModel;
@@ -143,6 +144,85 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_save', 'commission_period', $periodId, $period ? $period['commission_month'] : '', '保存月提成核算表');
 		Utils::showMsg('月提成核算表已保存', $backUrl);
+	}
+
+	public function commissionarchiveAction()
+	{
+		$this->checkFeature('commission');
+		$filter = array(
+			'commission_month' => trim($this->request->get('commission_month')),
+			'department_name' => trim($this->request->get('department_name')),
+			'employee_name' => trim($this->request->get('employee_name')),
+		);
+		$archives = CommissionArchiveModel::factory()->getCompanyArchives($this->companyId, $filter);
+		$this->view->setVar('filter', $filter);
+		$this->view->setVar('archives', $archives);
+	}
+
+	public function commissionarchiveviewAction()
+	{
+		$this->checkFeature('commission');
+		$archiveId = intval($this->request->get('id'));
+		$model = CommissionArchiveModel::factory();
+		$archive = $model->getArchive($this->companyId, $archiveId);
+		if (!$archive) {
+			Utils::showMsg('Commission archive record does not exist', Helper::factory()->createUrl(array('p' => 'salary/commissionarchive')));
+		}
+		$this->view->setVar('archive', $archive);
+		$this->view->setVar('rows', $model->getArchiveRows($this->companyId, $archiveId));
+	}
+
+	public function archivecommissionAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->getPost('id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('Unsupported request method', $backUrl);
+		}
+		$model = CommissionArchiveModel::factory();
+		$archiveId = $model->archivePeriod($this->companyId, $periodId, $this->getOperatorId());
+		if (!$archiveId) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_archive', 'commission_archive', intval($archiveId), $period ? $period['commission_month'] : '', 'Archive monthly commission calculation sheet');
+		Utils::showMsg('Commission calculation sheet archived', Helper::factory()->createUrl(array('p' => 'salary/commissionarchive')));
+	}
+
+	public function restorecommissionarchiveAction()
+	{
+		$this->checkFeature('commission');
+		$archiveId = intval($this->request->getPost('id'));
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionarchive'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('Unsupported request method', $backUrl);
+		}
+		$model = CommissionArchiveModel::factory();
+		$archive = $model->getArchive($this->companyId, $archiveId);
+		$result = $model->restoreToCalculation($this->companyId, $archiveId, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_restore', 'commission_archive', $archiveId, $archive ? $archive['commission_month'] : '', 'Restore commission archive to calculation sheet');
+		Utils::showMsg('Restored to monthly commission calculation sheet', Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $archive ? $archive['commission_month'] : date('Y-m'))));
+	}
+
+	public function deletecommissionarchiveAction()
+	{
+		$this->checkFeature('commission');
+		$archiveId = intval($this->request->getPost('id'));
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionarchive'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('Unsupported request method', $backUrl);
+		}
+		$model = CommissionArchiveModel::factory();
+		$archive = $model->getArchive($this->companyId, $archiveId);
+		if (!$model->deleteArchive($this->companyId, $archiveId, $this->getOperatorId())) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_archive_delete', 'commission_archive', $archiveId, $archive ? $archive['commission_month'] : '', 'Delete commission archive record');
+		Utils::showMsg('Commission archive removed; its server backup will be retained for six months', $backUrl);
 	}
 
 	public function logAction()
