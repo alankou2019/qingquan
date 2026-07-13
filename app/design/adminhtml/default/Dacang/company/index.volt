@@ -6,6 +6,28 @@
     padding: 0 20px !important;
     white-space: nowrap;
 }
+.company-platform-label {
+    display: inline-block;
+    min-width: 66px;
+    margin-right: 8px;
+    padding: 5px 8px;
+    border: 1px solid #d8e2f3;
+    color: #476889;
+    background: #f5f8fc;
+    line-height: 18px;
+    text-align: center;
+    white-space: nowrap;
+}
+.company-platform-label.wecom {
+    color: #16865d;
+    border-color: #bee6d4;
+    background: #f2fbf7;
+}
+.company-platform-label.feishu {
+    color: #6254a7;
+    border-color: #d9d3f4;
+    background: #f7f5ff;
+}
 </style>
 <!--滚动条-->
 <script src="/skin/adminhtml/default/libs/nicescroll/jquery.nicescroll.js"></script>
@@ -84,8 +106,16 @@
             <tr>
                 <td class="check_box"><label class="radio_check"><input type="checkbox" name="radio_check" class="item_checkbox" value="{{item.id}}"/>{{item.id}}</label></td>
                 <td class="operate">
-                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
-                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'wecom/index','company_id':item.id])}}';">企业微信</button>
+                    {% if item.platform == 'wecom' %}
+                    <span class="company-platform-label wecom">企业微信</span>
+                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'wecom/index','company_id':item.id])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
+                    {% elseif item.platform == 'feishu' %}
+                    <span class="company-platform-label feishu">飞书</span>
+                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id,'platform':'feishu'])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
+                    {% else %}
+                    <span class="company-platform-label">钉钉</span>
+                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id,'platform':'dingding'])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
+                    {% endif %}
                     <button class="delete" onclick="listTable.remove({{item.id}},'您确认要删除吗?');"><i class="iconfont icon-shanchu"></i>删除</button>
                 </td>
                 <td class="name">

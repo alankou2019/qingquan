@@ -250,11 +250,12 @@ class  CompanyController extends AdminBaseController
 	    /*加载数据*/
 	    $offset = ($page-1)*$pagesize;    
 	    
-	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum';
+	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum,max(pi.platform) as platform';
 	    $items = $this->modelsManager->createBuilder()
 									    ->columns($columns)
 									    ->addFrom('ScshuxCms\Dacang\Model\CompanyModel','c')
 									    ->leftJoin('ScshuxCms\User\Model\UserModel','c.id = u.company_id','u')
+									    ->leftJoin('ScshuxCms\Dacang\Model\PlatformIntegrationModel','c.id = pi.company_id','pi')
 									    ->groupBy('c.id')
 									    ->where($where)
 									    ->orderBy('c.id desc')

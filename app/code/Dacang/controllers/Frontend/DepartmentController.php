@@ -268,18 +268,19 @@ class DepartmentController extends FrontendBaseController
             }
         }
 
-        if (!empty($departArr)) {
-            (new CompanyDepartModel())->deleteBySql("company_id=" . $this->companyId);
+        // Excel import is incremental. Existing departments and people must
+        // remain available when the latest roster is imported again.
+        $rootDepartment = (new CompanyDepartModel())->findFirst(
+            'company_id=' . intval($this->companyId) . ' and dingding_id=1'
+        );
+        if (empty($rootDepartment)) {
+            $rootDepartment = new CompanyDepartModel();
+            $rootDepartment->save([
+                'name'        => $this->companyName,
+                'company_id'  => $this->companyId,
+                'dingding_id' => 1,
+            ]);
         }
-
-        //先添加部门  在添加用户
-        $data               = [
-            'name'        => $this->companyName,
-            'company_id'  => $this->companyId,
-            'dingding_id' => 1,
-        ];
-        $companyDepartModel = new  CompanyDepartModel();
-        $companyDepartModel->save($data);
 
         $departId = 0;
         foreach ($departArr as $departName1 => $depart1) {
@@ -382,6 +383,13 @@ class DepartmentController extends FrontendBaseController
                         'dingding_user_id' => $companyUserModel->id,
                     ]);
                 }
+            } else {
+                // Re-importing the roster must refresh the employee's current
+                // name and department instead of leaving a stale department id.
+                $isExists->save([
+                    'name'          => $user['username'],
+                    'department_id' => $departID,
+                ]);
             }
         }
     }

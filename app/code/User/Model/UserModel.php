@@ -27,7 +27,12 @@ class  UserModel extends BaseModel
 	public  function  loadUserByUserName($userName)
 	{
 		$userName = addslashes($userName);
-		return $this->findFirst("user_name='{$userName}'");
+		return $this->findFirst(array(
+			'conditions' => "user_name='{$userName}'",
+			// Frontend login has no company selector. Prefer a real company account
+			// over legacy, unbound records with the same mobile number.
+			'order' => 'company_id > 0 desc, is_admin desc, user_id desc'
+		));
 	}
 
 	/**
@@ -38,7 +43,10 @@ class  UserModel extends BaseModel
 	public  function  loadUserByPhone($phone)
 	{
 		$phone = addslashes($phone);
-		return $this->findFirst("phone='{$phone}'");
+		return $this->findFirst(array(
+			'conditions' => "phone='{$phone}'",
+			'order' => 'company_id > 0 desc, is_admin desc, user_id desc'
+		));
 	}
 
 
