@@ -27,12 +27,15 @@
 	<div class="head_tab clear">
 		<ul>
 			<li><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a></li>
+			<li><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a></li>
 			<li class="on"><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a></li>
+			<li><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></li>
 		</ul>
 	</div>
 	<div class="commission_payroll_page">
 		<div class="commission_toolbar">
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a>
+			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a>
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a>
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a>
 		</div>

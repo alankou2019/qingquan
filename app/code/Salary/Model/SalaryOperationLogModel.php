@@ -133,6 +133,8 @@ class SalaryOperationLogModel extends BaseModel
 			'commission_archive' => '归档月提成核算表',
 			'commission_restore' => '恢复提成归档记录',
 			'commission_archive_delete' => '删除提成归档记录',
+			'commission_estimate_save' => '保存提成测算记录',
+			'commission_estimate_delete' => '删除提成测算记录',
 			'initial_salary_save' => '保存初始工资表',
 			'initial_salary_import' => '导入初始工资表',
 			'payroll_generate' => '生成工资表',

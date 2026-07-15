@@ -12,6 +12,7 @@ use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\CommissionArchiveModel;
+use ScshuxCms\Salary\Model\CommissionEstimateModel;
 use ScshuxCms\Salary\Model\CommissionPeriodModel;
 use ScshuxCms\Salary\Model\CommissionProjectModel;
 use ScshuxCms\Salary\Model\EmployeeSalaryStructureModel;
@@ -90,6 +91,62 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_project_delete', 'commission_project', $projectId, '', '删除提成项目规则');
 		Utils::showMsg('提成项目已删除', $backUrl);
+	}
+
+	public function commissionestimateAction()
+	{
+		$this->checkFeature('commission');
+		$model = CommissionEstimateModel::factory();
+		$employees = $model->getCompanyEmployees($this->companyId);
+		$recordId = intval($this->request->get('record_id'));
+		$record = $recordId > 0 ? $model->getRecord($this->companyId, $recordId) : false;
+		$employeeId = intval($this->request->get('employee_id'));
+		if ($this->request->isPost()) {
+			$employeeId = intval($this->request->getPost('employee_id'));
+		}
+		if ($record && !empty($record['estimate']['employee']['id'])) {
+			$employeeId = intval($record['estimate']['employee']['id']);
+		}
+		if ($employeeId <= 0 && !empty($employees)) {
+			$employeeId = intval($employees[0]['id']);
+		}
+
+		$inputValues = $this->request->isPost() && isset($_POST['estimate']) && is_array($_POST['estimate']) ? $_POST['estimate'] : array();
+		$estimate = $record && !empty($record['estimate']) ? $record['estimate'] : ($employeeId > 0 ? $model->calculateEstimate($this->companyId, $employeeId, $inputValues) : false);
+		if ($this->request->isPost() && trim($this->request->getPost('estimate_action')) == 'save') {
+			$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionestimate', 'employee_id' => $employeeId));
+			if (!$estimate) {
+				Utils::showMsg($model->getLastError(), $backUrl);
+			}
+			$savedId = $model->saveEstimate($this->companyId, $estimate, $this->getOperatorId());
+			if (!$savedId) {
+				Utils::showMsg($model->getLastError(), $backUrl);
+			}
+			$this->addSalaryLog('commission_estimate_save', 'commission_estimate', intval($savedId), '', '保存员工月收入提成测算');
+			Utils::showMsg('提成测算记录已保存', Helper::factory()->createUrl(array('p' => 'salary/commissionestimate', 'record_id' => intval($savedId))));
+		}
+
+		$this->view->setVar('employees', $employees);
+		$this->view->setVar('employeeId', $employeeId);
+		$this->view->setVar('estimate', $estimate);
+		$this->view->setVar('estimateRecord', $record);
+		$this->view->setVar('estimateRecords', $model->getCompanyRecords($this->companyId));
+	}
+
+	public function deletecommissionestimateAction()
+	{
+		$this->checkFeature('commission');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionestimate'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$recordId = intval($this->request->getPost('id'));
+		$model = CommissionEstimateModel::factory();
+		if (!$model->deleteRecord($this->companyId, $recordId, $this->getOperatorId())) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_estimate_delete', 'commission_estimate', $recordId, '', '删除员工月收入提成测算');
+		Utils::showMsg('提成测算记录已删除', $backUrl);
 	}
 
 	public function commissionpayrollAction()

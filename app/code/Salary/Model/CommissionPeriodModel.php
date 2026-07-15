@@ -216,7 +216,7 @@ class CommissionPeriodModel extends BaseModel
 		return isset($map[$status]) ? $map[$status] : $status;
 	}
 
-	protected function matchEmployeeProjects($employee, $projects)
+	public function matchEmployeeProjects($employee, $projects)
 	{
 		$return = array();
 		foreach ($projects as $project) {
@@ -230,7 +230,7 @@ class CommissionPeriodModel extends BaseModel
 		return $return;
 	}
 
-	protected function isProjectMatched($employee, $project)
+	public function isProjectMatched($employee, $project)
 	{
 		$type = isset($project['scope_type']) ? $project['scope_type'] : 'all';
 		$value = trim(isset($project['scope_value']) ? $project['scope_value'] : '');
