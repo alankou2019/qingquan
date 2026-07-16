@@ -348,20 +348,55 @@ class SalaryController extends FrontendBaseController
 	{
 		$this->checkModule();
 		$templates = SalaryProjectTemplateModel::factory()->getActiveTemplates();
-		$templateProjectMap = SalaryProjectModel::factory()->getCompanyTemplateProjectMap($this->companyId);
+		$templateProjectMap = SalaryProjectModel::factory()->getCompanyTemplateProjectMap($this->companyId, true);
 		$directions = SalaryProjectModel::getDirectionLabels();
 		$sourceTypes = SalaryProjectModel::getSourceTypeOptions();
 		$sourceTypeLabels = SalaryProjectModel::getSourceTypeLabels();
 		foreach ($templates as $key => $template) {
-			$templates[$key]['is_selected'] = isset($templateProjectMap[intval($template['id'])]) ? 1 : 0;
-			$templates[$key]['direction_label'] = SalaryProjectModel::label($directions, $template['direction']);
-			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypeLabels, $template['source_type']);
+			$templateId = intval($template['id']);
+			$companyProject = isset($templateProjectMap[$templateId]) ? $templateProjectMap[$templateId] : false;
+			if ($companyProject && intval($companyProject['deleted_at']) > 0) {
+				unset($templates[$key]);
+				continue;
+			}
+			if ($companyProject) {
+				foreach (array('name', 'source_type', 'direction', 'calculation_mode', 'linked_module', 'formula_text', 'default_number', 'default_text', 'sort_order', 'status') as $field) {
+					if (isset($companyProject[$field])) {
+						$templates[$key][$field] = $companyProject[$field];
+					}
+				}
+			}
+			$templates[$key]['project_id'] = $companyProject ? intval($companyProject['id']) : 0;
+			$templates[$key]['is_selected'] = $companyProject && $companyProject['status'] == 'active' ? 1 : 0;
+			$templates[$key]['direction_label'] = SalaryProjectModel::label($directions, $templates[$key]['direction']);
+			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypeLabels, $templates[$key]['source_type']);
 		}
+		$templates = array_values($templates);
 
 		$editId = intval($this->request->get('id'));
+		$editTemplateId = intval($this->request->get('template_id'));
 		$editItem = false;
 		if ($editId > 0) {
 			$editItem = SalaryProjectModel::factory()->findFirst('id=' . $editId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		} elseif ($editTemplateId > 0) {
+			if (isset($templateProjectMap[$editTemplateId]) && intval($templateProjectMap[$editTemplateId]['deleted_at']) == 0) {
+				$projectId = intval($templateProjectMap[$editTemplateId]['id']);
+				$editItem = SalaryProjectModel::factory()->findFirst('id=' . $projectId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+			} else {
+				$template = SalaryProjectTemplateModel::factory()->findFirst('id=' . $editTemplateId . ' and status="active"');
+				if ($template) {
+					$editItem = new \stdClass();
+					foreach (array('name', 'source_type', 'direction', 'calculation_mode', 'linked_module', 'sort_order') as $field) {
+						$editItem->$field = $template->$field;
+					}
+					$editItem->id = 0;
+					$editItem->template_id = $editTemplateId;
+					$editItem->formula_text = '';
+					$editItem->default_number = '0.00';
+					$editItem->default_text = '';
+					$editItem->status = 'inactive';
+				}
+			}
 		}
 
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
@@ -418,8 +453,8 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
 		}
-		$this->addSalaryLog('project_custom_save', 'salary_project', 0, '', '保存自定义工资项目');
-		Utils::showMsg('自定义工资项目已保存', $backUrl);
+		$this->addSalaryLog('project_save', 'salary_project', intval(isset($_POST['id']) ? $_POST['id'] : 0), '', '保存工资项目');
+		Utils::showMsg('工资项目已保存', $backUrl);
 	}
 
 	public function projectdeleteAction()
@@ -430,11 +465,16 @@ class SalaryController extends FrontendBaseController
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
 		$projectId = intval($this->request->get('id'));
-		$result = SalaryProjectModel::factory()->deleteCompanyProject($this->companyId, $projectId);
+		$templateId = intval($this->request->get('template_id'));
+		if ($templateId > 0) {
+			$result = SalaryProjectModel::factory()->deleteCompanyTemplateProject($this->companyId, $templateId);
+		} else {
+			$result = SalaryProjectModel::factory()->deleteCompanyProject($this->companyId, $projectId);
+		}
 		if (!$result) {
 			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
 		}
-		$this->addSalaryLog('project_delete', 'salary_project', $projectId, '', '删除工资项目');
+		$this->addSalaryLog('project_delete', 'salary_project', $projectId, '', $templateId > 0 ? '删除当前企业通用工资项目' : '删除工资项目');
 		Utils::showMsg('工资项目已删除', $backUrl);
 	}
 

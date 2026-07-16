@@ -141,11 +141,15 @@ class SalaryProjectModel extends BaseModel
 		return $this->formatProjectItems($items);
 	}
 
-	public function getCompanyTemplateProjectMap($companyId)
+	public function getCompanyTemplateProjectMap($companyId, $includeDeleted = false)
 	{
 		$return = array();
 		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
-			' and template_id is not null and template_id>0 and deleted_at=0';
+			' and template_id is not null and template_id>0';
+		if (!$includeDeleted) {
+			$sql .= ' and deleted_at=0';
+		}
+		$sql .= ' order by id asc';
 		$items = $this->getDB()->query($sql)->fetchAll();
 		foreach ($items as $item) {
 			$return[intval($item['template_id'])] = $item;
@@ -179,10 +183,10 @@ class SalaryProjectModel extends BaseModel
 		$now = time();
 
 		if (empty($selected)) {
-			$db->execute('update `' . $projectTable . '` set status="inactive",deleted_at=' . $now . ',updated_at=' . $now .
+			$db->execute('update `' . $projectTable . '` set status="inactive",updated_at=' . $now .
 				' where company_id=' . $companyId . ' and template_id is not null and template_id>0 and deleted_at=0');
 		} else {
-			$db->execute('update `' . $projectTable . '` set status="inactive",deleted_at=' . $now . ',updated_at=' . $now .
+			$db->execute('update `' . $projectTable . '` set status="inactive",updated_at=' . $now .
 				' where company_id=' . $companyId . ' and template_id is not null and template_id>0 and deleted_at=0 and template_id not in (' . implode(',', array_keys($selected)) . ')');
 		}
 
@@ -190,26 +194,12 @@ class SalaryProjectModel extends BaseModel
 			$templateId = intval($template['id']);
 			$project = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
 			if (isset($selected[$templateId])) {
-				$data = array(
-					'company_id' => $companyId,
-					'template_id' => $templateId,
-					'name' => $template['name'],
-					'source_type' => $template['source_type'],
-					'direction' => $template['direction'],
-					'calculation_mode' => $template['calculation_mode'],
-					'linked_module' => $template['linked_module'],
-					'formula_text' => '',
-					'include_earning' => intval($template['include_earning']),
-					'include_deduction' => intval($template['include_deduction']),
-					'include_net' => intval($template['include_net']),
-					'sort_order' => intval($template['sort_order']),
-					'status' => 'active',
-					'deleted_at' => 0,
-					'updated_at' => $now,
-				);
 				if ($project) {
-					$project->save($data);
+					// Keep the company's edited name, type, formula and defaults.
+					$project->save(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
 				} else {
+					$data = $this->buildTemplateProjectData($companyId, $template, $now);
+					$data['status'] = 'active';
 					$data['created_at'] = $now;
 					$model = new SalaryProjectModel();
 					$model->save($data);
@@ -219,10 +209,53 @@ class SalaryProjectModel extends BaseModel
 		return true;
 	}
 
+	protected function buildTemplateProjectData($companyId, $template, $now)
+	{
+		return array(
+			'company_id' => intval($companyId),
+			'template_id' => intval($template['id']),
+			'name' => $template['name'],
+			'source_type' => self::normalizeSourceType($template['source_type']),
+			'direction' => $template['direction'],
+			'calculation_mode' => $template['calculation_mode'],
+			'linked_module' => $template['linked_module'],
+			'formula_text' => '',
+			'default_number' => '0.00',
+			'default_text' => '',
+			'include_earning' => intval($template['include_earning']),
+			'include_deduction' => intval($template['include_deduction']),
+			'include_net' => intval($template['include_net']),
+			'sort_order' => intval($template['sort_order']),
+			'status' => 'inactive',
+			'deleted_at' => 0,
+			'updated_at' => intval($now),
+		);
+	}
+
 	public function saveCustomProject($companyId, $postData)
 	{
 		$companyId = intval($companyId);
 		$id = isset($postData['id']) ? intval($postData['id']) : 0;
+		$templateId = isset($postData['template_id']) ? intval($postData['template_id']) : 0;
+		$item = false;
+		if ($id > 0) {
+			$item = self::factory()->findFirst('id=' . $id . ' and company_id=' . $companyId . ' and deleted_at=0');
+			if (!$item) {
+				$this->_lastError = '工资项目不存在';
+				return false;
+			}
+			$templateId = intval($item->template_id);
+		} elseif ($templateId > 0) {
+			$template = $this->getDB()->query('select * from `' . $this->getTableName('salary_project_templates') . '` where id=' . $templateId . ' and status="active" limit 1')->fetch();
+			if (!$template) {
+				$this->_lastError = '通用工资项目不存在';
+				return false;
+			}
+			$item = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
+			if ($item) {
+				$id = intval($item->id);
+			}
+		}
 		$name = isset($postData['name']) ? trim($postData['name']) : '';
 		if ($companyId <= 0 || $name == '') {
 			$this->_lastError = '请填写工资项目名称';
@@ -254,15 +287,30 @@ class SalaryProjectModel extends BaseModel
 		}
 
 		$now = time();
+		$defaultNumber = isset($postData['default_number']) ? $this->formatDefaultNumber($postData['default_number']) : '0.00';
+		$defaultText = isset($postData['default_text']) ? trim((string)$postData['default_text']) : '';
+		if (function_exists('mb_substr')) {
+			$defaultText = mb_substr($defaultText, 0, 500, 'UTF-8');
+		} else {
+			$defaultText = substr($defaultText, 0, 500);
+		}
+		if ($sourceType != 'number') {
+			$defaultNumber = '0.00';
+		}
+		if ($sourceType != 'text') {
+			$defaultText = '';
+		}
 		$data = array(
 			'company_id' => $companyId,
-			'template_id' => null,
+			'template_id' => $templateId > 0 ? $templateId : null,
 			'name' => $name,
 			'source_type' => $sourceType,
 			'direction' => $direction,
 			'calculation_mode' => $calculationMode,
 			'linked_module' => isset($postData['linked_module']) ? trim($postData['linked_module']) : 'none',
-			'formula_text' => isset($postData['formula_text']) ? trim($postData['formula_text']) : '',
+			'formula_text' => $sourceType == 'calculated' && isset($postData['formula_text']) ? trim($postData['formula_text']) : '',
+			'default_number' => $defaultNumber,
+			'default_text' => $defaultText,
 			'include_earning' => $includeFlags['include_earning'],
 			'include_deduction' => $includeFlags['include_deduction'],
 			'include_net' => $includeFlags['include_net'],
@@ -272,18 +320,22 @@ class SalaryProjectModel extends BaseModel
 			'updated_at' => $now,
 		);
 
-		if ($id > 0) {
-			$item = self::factory()->findFirst('id=' . $id . ' and company_id=' . $companyId . ' and deleted_at=0');
-			if (!$item) {
-				$this->_lastError = '工资项目不存在';
-				return false;
-			}
+		if ($item) {
 			return $item->save($data);
 		}
 
 		$data['created_at'] = $now;
 		$model = new SalaryProjectModel();
 		return $model->save($data);
+	}
+
+	protected function formatDefaultNumber($value)
+	{
+		$value = str_replace(array(',', '，', '￥', '元', ' '), '', (string)$value);
+		if (!is_numeric($value)) {
+			$value = 0;
+		}
+		return sprintf('%.2f', round(floatval($value), 2));
 	}
 
 	public static function normalizeSourceType($sourceType)
@@ -353,6 +405,27 @@ class SalaryProjectModel extends BaseModel
 		));
 	}
 
+	public function deleteCompanyTemplateProject($companyId, $templateId)
+	{
+		$companyId = intval($companyId);
+		$templateId = intval($templateId);
+		$template = $this->getDB()->query('select * from `' . $this->getTableName('salary_project_templates') . '` where id=' . $templateId . ' and status="active" limit 1')->fetch();
+		if ($companyId <= 0 || !$template) {
+			$this->_lastError = '通用工资项目不存在';
+			return false;
+		}
+		$now = time();
+		$item = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
+		if ($item) {
+			return $item->save(array('status' => 'inactive', 'deleted_at' => $now, 'updated_at' => $now));
+		}
+		$data = $this->buildTemplateProjectData($companyId, $template, $now);
+		$data['deleted_at'] = $now;
+		$data['created_at'] = $now;
+		$model = new SalaryProjectModel();
+		return $model->save($data);
+	}
+
 	public function disableCompanyProject($companyId, $projectId)
 	{
 		$item = self::factory()->findFirst('id=' . intval($projectId) . ' and company_id=' . intval($companyId) . ' and deleted_at=0');
@@ -373,6 +446,12 @@ class SalaryProjectModel extends BaseModel
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
 		foreach ($items as $key => $item) {
+			if (!isset($item['default_number'])) {
+				$item['default_number'] = '0.00';
+			}
+			if (!isset($item['default_text'])) {
+				$item['default_text'] = '';
+			}
 			$sourceType = self::normalizeSourceType($item['source_type']);
 			$item['source_type_label'] = self::label($sourceTypes, $item['source_type']);
 			$item['direction_label'] = self::label($directions, $item['direction']);

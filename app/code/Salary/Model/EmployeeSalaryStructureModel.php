@@ -37,7 +37,15 @@ class EmployeeSalaryStructureModel extends BaseModel
 					continue;
 				}
 				$projectId = intval($project['id']);
-				$rowValues[$projectId] = isset($values[intval($employee['id'])][$projectId]) ? $values[intval($employee['id'])][$projectId] : (SalaryProjectModel::isTextProject($project) ? '' : '0.00');
+				if (isset($values[intval($employee['id'])][$projectId])) {
+					$rowValues[$projectId] = $values[intval($employee['id'])][$projectId];
+				} elseif (SalaryProjectModel::isTextProject($project)) {
+					$rowValues[$projectId] = isset($project['default_text']) ? $project['default_text'] : '';
+				} elseif (SalaryProjectModel::isFormulaProject($project)) {
+					$rowValues[$projectId] = '0.00';
+				} else {
+					$rowValues[$projectId] = isset($project['default_number']) ? sprintf('%.2f', floatval($project['default_number'])) : '0.00';
+				}
 			}
 			$employees[$key]['values'] = $rowValues;
 		}

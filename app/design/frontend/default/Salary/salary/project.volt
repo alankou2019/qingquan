@@ -29,6 +29,8 @@
 .salary_formula_refs button:hover{border-color:#4560e6;color:#4560e6;}
 .salary_formula_ops{margin-top:6px;}
 .salary_formula_ops button{border:1px solid #cbd5e1;background:#fff;color:#334155;width:26px;height:24px;line-height:22px;margin-right:4px;cursor:pointer;}
+.salary_default_field{display:inline-block;}
+.salary_default_field input{width:180px;}
 </style>
 <div class="full_box">
 	<div class="head_tab clear">
@@ -70,7 +72,8 @@
 						<th width="22%">项目名称</th>
 						<th width="14%">项目类别</th>
 						<th width="14%">项目属性</th>
-						<th>说明</th>
+						<th width="20%">说明</th>
+						<th>操作</th>
 					</tr>
 					{% for item in templates %}
 					<tr>
@@ -79,9 +82,13 @@
 						<td>{{item['direction_label']}}</td>
 						<td>{{item['source_type_label']}}</td>
 						<td>{% if item['linked_module']!='none' %}关联 {{item['linked_module']}}{% else %}-{% endif %}</td>
+						<td>
+							<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','template_id':item['id']])}}">编辑</a>
+							<button class="salary_link_btn" type="submit" name="template_id" value="{{item['id']}}" formaction="{{helper.createUrl(['p':'salary/projectdelete'])}}" formmethod="post" onclick="return confirm('确定删除当前企业的这个通用工资项目吗？删除不会影响平台模板、其他企业和历史归档记录。');">删除</button>
+						</td>
 					</tr>
 					{% elsefor %}
-					<tr><td colspan="5" class="salary_empty">暂无平台通用项目</td></tr>
+					<tr><td colspan="6" class="salary_empty">暂无平台通用项目</td></tr>
 					{% endfor %}
 				</table>
 				<div style="margin-top:10px;">
@@ -91,9 +98,10 @@
 		</div>
 
 		<div class="salary_block">
-			<h3>{% if editItem %}编辑自定义项目{% else %}新增自定义项目{% endif %}</h3>
+			<h3>{% if editItem %}编辑工资项目{% else %}新增自定义项目{% endif %}</h3>
 			<form class="salary_form" method="post" action="{{helper.createUrl(['p':'salary/projectsave'])}}">
 				<input type="hidden" name="id" value="{% if editItem %}{{editItem.id}}{% endif %}" />
+				<input type="hidden" name="template_id" value="{% if editItem %}{{editItem.template_id}}{% endif %}" />
 				<div>
 					<label>项目名称</label>
 					<input type="text" name="name" maxlength="80" value="{% if editItem %}{{editItem.name}}{% endif %}" />
@@ -109,6 +117,14 @@
 						<option value="{{key}}" {% if editItem and (editItem.source_type==key or (editItem.source_type=='fixed' and key=='number')) %}selected="selected"{% endif %}>{{label}}</option>
 						{% endfor %}
 					</select>
+					<span id="salary_default_number_field" class="salary_default_field">
+						<label>默认数字</label>
+						<input type="text" name="default_number" maxlength="18" value="{% if editItem %}{{editItem.default_number}}{% else %}0.00{% endif %}" />
+					</span>
+					<span id="salary_default_text_field" class="salary_default_field">
+						<label>默认文本</label>
+						<input type="text" name="default_text" maxlength="500" value="{% if editItem %}{{editItem.default_text}}{% endif %}" />
+					</span>
 				</div>
 				<div>
 					<label>关联模块</label>
@@ -147,7 +163,7 @@
 					</div>
 				</div>
 				<div style="margin-top:10px;">
-					<button class="salary_btn" type="submit">保存自定义项目</button>
+					<button class="salary_btn" type="submit">保存工资项目</button>
 					{% if editItem %}
 					<a class="salary_btn salary_btn_gray" href="{{helper.createUrl(['p':'salary/project'])}}">取消编辑</a>
 					{% endif %}
@@ -156,7 +172,7 @@
 		</div>
 
 		<div class="salary_block">
-			<h3>已启用项目</h3>
+			<h3>企业工资项目</h3>
 			<table class="salary_table">
 				<tr>
 					<th width="12%">来源</th>
@@ -180,9 +196,7 @@
 					<td>{% if item['include_deduction'] %}是{% else %}否{% endif %}</td>
 					<td>{% if item['include_net'] %}是{% else %}否{% endif %}</td>
 					<td>
-						{% if item['project_kind']=='custom' %}
 						<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','id':item['id']])}}">编辑</a>
-						{% endif %}
 						<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectdisable'])}}" onsubmit="return confirm('确定停用这个工资项目吗？');">
 							<input type="hidden" name="id" value="{{item['id']}}" />
 							<button class="salary_link_btn" type="submit">停用</button>
@@ -280,10 +294,14 @@ function insertSalaryFormulaText(text) {
 function toggleSalaryFormulaBox() {
 	var sourceType = document.getElementById('salary_project_source_type');
 	var formulaRow = document.getElementById('salary_formula_row');
-	if (!sourceType || !formulaRow) {
+	var numberField = document.getElementById('salary_default_number_field');
+	var textField = document.getElementById('salary_default_text_field');
+	if (!sourceType || !formulaRow || !numberField || !textField) {
 		return;
 	}
 	formulaRow.style.display = sourceType.value == 'calculated' ? 'block' : 'none';
+	numberField.style.display = sourceType.value == 'number' ? 'inline-block' : 'none';
+	textField.style.display = sourceType.value == 'text' ? 'inline-block' : 'none';
 }
 toggleSalaryFormulaBox();
 </script>
