@@ -9,7 +9,7 @@
 .commission_total{font-weight:bold;color:#0f172a;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear"><ul><li><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a></li><li><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a></li><li class="on"><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></li></ul></div>
+	<div class="head_tab clear"><ul><li><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a></li><li><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a></li><li><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a></li><li class="on"><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></li><li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li></ul></div>
 	<div class="commission_archive_page">
 		<a class="commission_btn" href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">返回归档记录</a>
 		<div class="commission_summary">归档月份：{{archive['commission_month']}}　参与人数：{{archive['employee_count']}}　规则匹配人数：{{archive['matched_count']}}　提成合计：<strong>{{archive['total_amount']}}</strong></div>

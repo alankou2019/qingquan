@@ -26,13 +26,13 @@
 	<div class="head_tab clear">
 		<ul>
 			<li class="on"><a href="#">工资表核算</a></li>
+			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
 		</ul>
 	</div>
 	<div class="salary_page">
 		<div class="salary_toolbar">
 			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a>
 			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a>
-			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a>
 		</div>
 		<form class="salary_filter" method="get" action="{{helper.createUrl(['p':'salary/payroll'])}}">
 			<input type="hidden" name="p" value="salary/payroll" />

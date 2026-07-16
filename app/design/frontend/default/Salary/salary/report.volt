@@ -23,11 +23,11 @@
 	<div class="head_tab clear">
 		<ul>
 			<li class="on"><a href="#">薪酬统计报表</a></li>
+			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
 		</ul>
 	</div>
 	<div class="salary_page">
 		<div class="salary_toolbar">
-			<a class="btn" href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a>
 			<a class="btn" href="{{helper.createUrl(['p':'salary/auth'])}}">薪酬管理授权</a>
 		</div>
 		<form class="salary_filter" method="get" action="{{helper.createUrl(['p':'salary/report'])}}">

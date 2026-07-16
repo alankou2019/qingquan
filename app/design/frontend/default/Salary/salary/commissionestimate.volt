@@ -42,6 +42,7 @@
 			<li class="on"><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a></li>
 			<li><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a></li>
 			<li><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></li>
+			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
 		</ul>
 	</div>
 	<div class="commission_estimate_page">

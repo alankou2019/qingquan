@@ -18,6 +18,7 @@
 		<ul>
 			<li><a href="{{helper.createUrl(['p':'salary/payroll'])}}">工资核算</a></li>
 			<li class="on"><a href="#">工资条发放</a></li>
+			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
 		</ul>
 	</div>
 	<div class="salary_page">
