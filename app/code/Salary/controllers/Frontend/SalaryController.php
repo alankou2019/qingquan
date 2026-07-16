@@ -156,18 +156,35 @@ class SalaryController extends FrontendBaseController
 		if (!preg_match('/^\d{4}\-\d{2}$/', $commissionMonth)) {
 			$commissionMonth = date('Y-m');
 		}
-		$period = CommissionPeriodModel::factory()->getCompanyPeriodByMonth($this->companyId, $commissionMonth);
+		$model = CommissionPeriodModel::factory();
+		$period = $model->getEditableCompanyPeriodByMonth($this->companyId, $commissionMonth);
+		$archivedPeriod = CommissionArchiveModel::factory()->getActiveArchiveByMonth($this->companyId, $commissionMonth);
 		$rows = array();
+		$editEmployeeId = intval($this->request->get('edit_employee_id'));
+		$editRow = false;
+		$selectedProjectMap = array();
 		if ($period) {
 			$period['status_name'] = CommissionPeriodModel::getStatusName($period['status']);
 			$period['can_edit'] = in_array($period['status'], array('draft', 'calculated')) ? 1 : 0;
-			$rows = CommissionPeriodModel::factory()->getCommissionMatrix($this->companyId, intval($period['id']));
+			$rows = $model->getCommissionMatrix($this->companyId, intval($period['id']));
+			foreach ($rows as $row) {
+				if ($editEmployeeId > 0 && intval($row['employee_id']) == $editEmployeeId) {
+					$editRow = $row;
+					foreach ($row['items'] as $item) {
+						$selectedProjectMap[intval($item['commission_project_id'])] = 1;
+					}
+					break;
+				}
+			}
 		}
 		$projects = CommissionProjectModel::factory()->getCompanyProjects($this->companyId);
 		$this->view->setVar('commissionMonth', $commissionMonth);
 		$this->view->setVar('period', $period);
 		$this->view->setVar('commissionRows', $rows);
 		$this->view->setVar('commissionProjects', $projects);
+		$this->view->setVar('archivedPeriod', $archivedPeriod);
+		$this->view->setVar('editRow', $editRow);
+		$this->view->setVar('selectedProjectMap', $selectedProjectMap);
 	}
 
 	public function generatecommissionAction()
@@ -178,9 +195,16 @@ class SalaryController extends FrontendBaseController
 		if (!$this->request->isPost()) {
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
-		$result = CommissionPeriodModel::factory()->generateFromEmployees($this->companyId, $commissionMonth, $this->getOperatorId());
+		$model = CommissionPeriodModel::factory();
+		if (CommissionArchiveModel::factory()->getActiveArchiveByMonth($this->companyId, $commissionMonth)) {
+			Utils::showMsg('该月份提成表已归档，请到归档记录查看或恢复后再核算', $backUrl);
+		}
+		if ($model->getEditableCompanyPeriodByMonth($this->companyId, $commissionMonth)) {
+			Utils::showMsg('该月份的提成核算表已经存在，已为您打开', $backUrl);
+		}
+		$result = $model->generateFromEmployees($this->companyId, $commissionMonth, $this->getOperatorId());
 		if (!$result) {
-			Utils::showMsg(CommissionPeriodModel::factory()->getLastError(), $backUrl);
+			Utils::showMsg($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('commission_generate', 'commission_period', intval($result), $commissionMonth, '生成月提成核算表');
 		Utils::showMsg('月提成核算表已生成', $backUrl);
@@ -201,6 +225,43 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_save', 'commission_period', $periodId, $period ? $period['commission_month'] : '', '保存月提成核算表');
 		Utils::showMsg('月提成核算表已保存', $backUrl);
+	}
+
+	public function savecommissionemployeeprojectsAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->getPost('id'));
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$projectIds = isset($_POST['project_ids']) ? $_POST['project_ids'] : array();
+		$model = CommissionPeriodModel::factory();
+		if (!$model->saveEmployeeProjectSelection($this->companyId, $periodId, $employeeId, $projectIds, $this->getOperatorId())) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_employee_projects_save', 'commission_period', $periodId, $period ? $period['commission_month'] : '', '修改员工提成项目，员工ID：' . $employeeId);
+		Utils::showMsg('员工提成项目已更新', $backUrl);
+	}
+
+	public function deletecommissionemployeeAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->getPost('id'));
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$model = CommissionPeriodModel::factory();
+		if (!$model->deleteEmployeeRow($this->companyId, $periodId, $employeeId)) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('commission_employee_delete', 'commission_period', $periodId, $period ? $period['commission_month'] : '', '从月提成核算表删除员工，员工ID：' . $employeeId);
+		Utils::showMsg('员工已从当前月提成核算表删除，不影响人事档案', $backUrl);
 	}
 
 	public function commissionarchiveAction()
@@ -427,6 +488,7 @@ class SalaryController extends FrontendBaseController
 		$initialTable = EmployeeSalaryStructureModel::factory()->getInitialSalaryTable($this->companyId);
 		$this->view->setVar('initialProjects', $initialTable['projects']);
 		$this->view->setVar('initialEmployees', $initialTable['employees']);
+		$this->view->setVar('excludedInitialEmployees', $initialTable['excluded_employees']);
 	}
 
 	public function projectsavetemplatesAction()
@@ -505,8 +567,41 @@ class SalaryController extends FrontendBaseController
 		if (!$result) {
 			Utils::showMsg(EmployeeSalaryStructureModel::factory()->getLastError(), $backUrl);
 		}
-		$this->addSalaryLog('initial_salary_save', 'employee_salary_structure', 0, '', '保存初始工资表');
-		Utils::showMsg('初始工资表已保存', $backUrl);
+		$employeeId = intval($this->request->getPost('initial_salary_employee_id'));
+		$this->addSalaryLog('initial_salary_employee_save', 'employee_salary_structure', $employeeId, '', '保存员工初始工资数据');
+		Utils::showMsg('员工初始工资数据已保存', $backUrl);
+	}
+
+	public function deleteinitialsalaryemployeeAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$employeeId = intval($this->request->getPost('initial_salary_employee_id'));
+		$model = EmployeeSalaryStructureModel::factory();
+		if (!$model->deleteInitialSalaryEmployee($this->companyId, $employeeId, $this->getOperatorId())) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('initial_salary_employee_delete', 'employee_salary_structure', $employeeId, '', '从初始工资表移出员工');
+		Utils::showMsg('员工已从初始工资表移出，不影响人事档案和历史工资记录', $backUrl);
+	}
+
+	public function restoreinitialsalaryemployeeAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$model = EmployeeSalaryStructureModel::factory();
+		if (!$model->restoreInitialSalaryEmployee($this->companyId, $employeeId)) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('initial_salary_employee_restore', 'employee_salary_structure', $employeeId, '', '恢复员工到初始工资表');
+		Utils::showMsg('员工已恢复到初始工资表', $backUrl);
 	}
 
 	public function initialtemplateAction()

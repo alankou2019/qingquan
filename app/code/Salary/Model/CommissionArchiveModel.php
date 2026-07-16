@@ -98,6 +98,16 @@ class CommissionArchiveModel extends BaseModel
 		return $this->getDB()->query($sql)->fetch();
 	}
 
+	public function getActiveArchiveByMonth($companyId, $commissionMonth)
+	{
+		if (!preg_match('/^\d{4}\-\d{2}$/', $commissionMonth)) {
+			return false;
+		}
+		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
+			' and commission_month="' . addslashes($commissionMonth) . '" and deleted_at=0 order by id desc limit 1';
+		return $this->getDB()->query($sql)->fetch();
+	}
+
 	public function getArchiveRows($companyId, $archiveId)
 	{
 		$archive = $this->getArchive($companyId, $archiveId);

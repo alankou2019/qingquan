@@ -34,6 +34,13 @@ class CommissionPeriodModel extends BaseModel
 		return $this->getDB()->query($sql)->fetch();
 	}
 
+	public function getEditableCompanyPeriodByMonth($companyId, $commissionMonth)
+	{
+		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
+			' and commission_month="' . addslashes($commissionMonth) . '" and status in ("draft","calculated") limit 1';
+		return $this->getDB()->query($sql)->fetch();
+	}
+
 	public function getCompanyPeriod($companyId, $periodId)
 	{
 		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . intval($companyId) .
@@ -47,9 +54,13 @@ class CommissionPeriodModel extends BaseModel
 			$this->_lastError = '提成月份不正确';
 			return false;
 		}
-		$existing = $this->getCompanyPeriodByMonth($companyId, $commissionMonth);
+		$existing = $this->getEditableCompanyPeriodByMonth($companyId, $commissionMonth);
 		if ($existing) {
-			$this->_lastError = 'The commission sheet for this month already exists. Restore the archived record before recalculating.';
+			$this->_lastError = '该月份的提成核算表已经存在';
+			return false;
+		}
+		if (CommissionArchiveModel::factory()->getActiveArchiveByMonth($companyId, $commissionMonth)) {
+			$this->_lastError = '该月份提成表已归档，请到归档记录查看或恢复后再核算';
 			return false;
 		}
 		$employees = EmployeeSalaryStructureModel::factory()->getCompanyEmployees($companyId);
@@ -74,16 +85,26 @@ class CommissionPeriodModel extends BaseModel
 			return false;
 		}
 		$projects = CommissionProjectModel::factory()->getCompanyProjects($companyId);
-		$employees = EmployeeSalaryStructureModel::factory()->getCompanyEmployees($companyId);
-		$employeeMap = array();
-		foreach ($employees as $employee) {
-			$employeeMap[intval($employee['id'])] = $employee;
+		$projectMap = array();
+		foreach ($projects as $project) {
+			if ($project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$projectMap[intval($project['id'])] = $project;
+			}
 		}
+		$currentRows = $this->getCommissionMatrix($companyId, $periodId);
 		$inputs = isset($postData['input']) && is_array($postData['input']) ? $postData['input'] : array();
 		$remarks = isset($postData['remark']) && is_array($postData['remark']) ? $postData['remark'] : array();
 		$rows = array();
-		foreach ($employeeMap as $employeeId => $employee) {
-			$items = $this->matchEmployeeProjects($employee, $projects);
+		foreach ($currentRows as $currentRow) {
+			$employeeId = intval($currentRow['employee_id']);
+			$employee = $this->buildEmployeeFromCommissionRow($currentRow);
+			$items = array();
+			foreach ($currentRow['items'] as $currentItem) {
+				$projectId = intval($currentItem['commission_project_id']);
+				if (isset($projectMap[$projectId])) {
+					$items[] = $projectMap[$projectId];
+				}
+			}
 			$rows[] = array(
 				'employee' => $employee,
 				'items' => $items,
@@ -92,6 +113,99 @@ class CommissionPeriodModel extends BaseModel
 			);
 		}
 		return $this->saveCommissionMatrix($companyId, $period['commission_month'], $rows, $operatorId, intval($period['id']));
+	}
+
+	public function saveEmployeeProjectSelection($companyId, $periodId, $employeeId, $projectIds, $operatorId)
+	{
+		$period = $this->getCompanyPeriod($companyId, $periodId);
+		if (!$period || !in_array($period['status'], array('draft', 'calculated'))) {
+			$this->_lastError = '当前提成核算表不能修改员工项目';
+			return false;
+		}
+		$employeeId = intval($employeeId);
+		$selected = array();
+		if (is_array($projectIds)) {
+			foreach ($projectIds as $projectId) {
+				$projectId = intval($projectId);
+				if ($projectId > 0) {
+					$selected[$projectId] = 1;
+				}
+			}
+		}
+		$projects = CommissionProjectModel::factory()->getCompanyProjects($companyId);
+		$projectMap = array();
+		foreach ($projects as $project) {
+			if ($project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$projectMap[intval($project['id'])] = $project;
+			}
+		}
+		$currentRows = $this->getCommissionMatrix($companyId, $periodId);
+		$rows = array();
+		$found = false;
+		foreach ($currentRows as $currentRow) {
+			$currentEmployeeId = intval($currentRow['employee_id']);
+			$currentValues = array();
+			foreach ($currentRow['items'] as $currentItem) {
+				$currentValues[intval($currentItem['commission_project_id'])] = $currentItem['input_value'];
+			}
+			$items = array();
+			if ($currentEmployeeId == $employeeId) {
+				$found = true;
+				foreach ($selected as $projectId => $unused) {
+					if (isset($projectMap[$projectId])) {
+						$items[] = $projectMap[$projectId];
+					}
+				}
+			} else {
+				foreach ($currentRow['items'] as $currentItem) {
+					$projectId = intval($currentItem['commission_project_id']);
+					if (isset($projectMap[$projectId])) {
+						$items[] = $projectMap[$projectId];
+					}
+				}
+			}
+			$rows[] = array(
+				'employee' => $this->buildEmployeeFromCommissionRow($currentRow),
+				'items' => $items,
+				'values' => $currentValues,
+				'remark' => $currentRow['remark'],
+			);
+		}
+		if (!$found) {
+			$this->_lastError = '员工不在当前提成核算表中';
+			return false;
+		}
+		return $this->saveCommissionMatrix($companyId, $period['commission_month'], $rows, $operatorId, intval($period['id']));
+	}
+
+	public function deleteEmployeeRow($companyId, $periodId, $employeeId)
+	{
+		$period = $this->getCompanyPeriod($companyId, $periodId);
+		if (!$period || !in_array($period['status'], array('draft', 'calculated'))) {
+			$this->_lastError = '当前提成核算表不能删除员工';
+			return false;
+		}
+		$rowTable = $this->getTableName('salary_commission_rows');
+		$valueTable = $this->getTableName('salary_commission_item_values');
+		$employeeId = intval($employeeId);
+		$row = $this->getDB()->query('select id from `' . $rowTable . '` where company_id=' . intval($companyId) . ' and commission_period_id=' . intval($periodId) . ' and employee_id=' . $employeeId . ' limit 1')->fetch();
+		if (!$row) {
+			$this->_lastError = '员工不在当前提成核算表中';
+			return false;
+		}
+		$db = $this->getDB();
+		$db->begin();
+		try {
+			$db->execute('delete from `' . $valueTable . '` where company_id=' . intval($companyId) . ' and commission_period_id=' . intval($periodId) . ' and commission_row_id=' . intval($row['id']));
+			$db->execute('delete from `' . $rowTable . '` where company_id=' . intval($companyId) . ' and commission_period_id=' . intval($periodId) . ' and id=' . intval($row['id']));
+			$db->commit();
+			$this->refreshPeriodSummary($companyId, $periodId);
+			return true;
+		} catch (\Exception $e) {
+			$db->rollback();
+			$this->_lastError = '删除提成核算员工失败：' . $e->getMessage();
+			return false;
+		}
 	}
 
 	public function saveCommissionMatrix($companyId, $commissionMonth, $rows, $operatorId, $periodId = 0)
@@ -251,6 +365,26 @@ class CommissionPeriodModel extends BaseModel
 			return $positionName !== '' && ($positionName == $value || $positionName == $label);
 		}
 		return false;
+	}
+
+	protected function buildEmployeeFromCommissionRow($row)
+	{
+		return array(
+			'id' => intval($row['employee_id']),
+			'name' => $row['employee_name'],
+			'mobile' => $row['employee_no'],
+			'department_id' => $row['department_id'],
+			'department_name' => $row['department_name'],
+			'position_name' => $row['position_name'],
+		);
+	}
+
+	protected function refreshPeriodSummary($companyId, $periodId)
+	{
+		$rowTable = $this->getTableName('salary_commission_rows');
+		$summary = $this->getDB()->query('select count(*) as employee_count,sum(case when matched_project_count>0 then 1 else 0 end) as matched_count,sum(total_amount) as total_amount from `' . $rowTable . '` where company_id=' . intval($companyId) . ' and commission_period_id=' . intval($periodId))->fetch();
+		$sql = 'update `' . $this->getSource() . '` set employee_count=' . intval($summary['employee_count']) . ',matched_count=' . intval($summary['matched_count']) . ',total_amount=' . $this->formatMoney($summary['total_amount']) . ',updated_at=' . time() . ' where company_id=' . intval($companyId) . ' and id=' . intval($periodId);
+		return $this->getDB()->execute($sql);
 	}
 
 	protected function formatMoney($value)

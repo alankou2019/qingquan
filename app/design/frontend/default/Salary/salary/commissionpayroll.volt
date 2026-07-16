@@ -4,7 +4,7 @@
 .commission_btn{display:inline-block;background:#4560e6;color:#fff;padding:0 14px;line-height:30px;height:30px;text-decoration:none;margin-right:8px;border:0;cursor:pointer;}
 .commission_btn_gray{background:#64748b;}
 .commission_filter{border:1px solid #d9e2ef;background:#fbfdff;padding:12px 14px;margin-bottom:12px;color:#475569;}
-.commission_filter input[type=text]{height:28px;line-height:28px;border:1px solid #cbd5e1;padding:0 8px;width:90px;}
+.commission_filter input[type=month]{height:28px;line-height:28px;border:1px solid #cbd5e1;padding:0 8px;width:130px;}
 .commission_tip{color:#64748b;line-height:24px;margin:0 0 12px 0;}
 .commission_status{display:inline-block;padding:0 8px;height:24px;line-height:24px;background:#eef2ff;color:#3949ab;}
 .commission_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff;}
@@ -21,6 +21,9 @@
 .commission_total_col{background:#fbfdff;font-weight:bold;color:#1f2937;}
 .commission_empty{border:1px solid #d9e2ef;background:#fbfdff;padding:18px;color:#64748b;}
 .commission_unmatched{color:#e11d48;background:#fff1f2;padding:2px 6px;}
+.commission_edit_box{border:1px solid #cbd5e1;background:#f8fafc;padding:14px;margin:0 0 12px 0;}
+.commission_project_choices label{display:inline-block;min-width:180px;margin:6px 12px 6px 0;color:#334155;}
+.commission_link{color:#3157d5;background:none;border:0;padding:0;cursor:pointer;text-decoration:none;font-size:14px;}
 .inline_form{display:inline-block;margin:0 8px 4px 0;}
 </style>
 <div class="full_box">
@@ -39,18 +42,18 @@
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a>
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a>
 		</div>
-		<form class="commission_filter" method="get" action="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">
-			<input type="hidden" name="p" value="salary/commissionpayroll" />
-			提成月份 <input type="text" name="commission_month" value="{{commissionMonth}}" placeholder="2026-07" />
-			<button class="commission_btn" type="submit">查看</button>
+		<form class="commission_filter" method="post" action="{{helper.createUrl(['p':'salary/generatecommission'])}}">
+			提成月份 <input type="month" name="commission_month" value="{{commissionMonth}}" />
+			<button class="commission_btn" type="submit">生成此月提成核算表</button>
 		</form>
 		{% if !period %}
 			<div class="commission_empty">
-				当前月份还没有提成核算表。请先在提成项目设置中维护项目和规则，然后生成本月提成表。
-				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/generatecommission'])}}" style="margin-left:10px;">
-					<input type="hidden" name="commission_month" value="{{commissionMonth}}" />
-					<button class="commission_btn" type="submit">生成本月提成表</button>
-				</form>
+				{% if archivedPeriod %}
+				该月份提成表已归档，请到提成归档记录查看，或恢复后再核算。
+				<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionarchive','commission_month':commissionMonth])}}" style="margin-left:10px;">查看归档记录</a>
+				{% else %}
+				当前月份还没有提成核算表。请先在提成项目设置中维护项目和规则，再点击上方按钮生成。
+				{% endif %}
 			</div>
 		{% else %}
 			<div class="commission_tip">
@@ -58,6 +61,24 @@
 				状态：<span class="commission_status">{{period['status_name']}}</span>
 				　参与人数：{{period['employee_count']}}　匹配人数：{{period['matched_count']}}　提成合计：{{period['total_amount']}}
 			</div>
+			{% if editRow and period['can_edit'] %}
+			<div class="commission_edit_box">
+				<strong>修改员工适配提成项目：{{editRow['employee_name']}}</strong>
+				<form method="post" action="{{helper.createUrl(['p':'salary/savecommissionemployeeprojects'])}}" style="margin-top:8px;">
+					<input type="hidden" name="id" value="{{period['id']}}" />
+					<input type="hidden" name="employee_id" value="{{editRow['employee_id']}}" />
+					<div class="commission_project_choices">
+					{% for project in commissionProjects %}
+						{% if project['status']=='active' and project['deleted_at']==0 %}
+						<label><input type="checkbox" name="project_ids[]" value="{{project['id']}}" {% if selectedProjectMap[project['id']] is defined %}checked="checked"{% endif %} /> {{project['name']}}</label>
+						{% endif %}
+					{% endfor %}
+					</div>
+					<button class="commission_btn" type="submit">保存修改</button>
+					<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionpayroll','commission_month':commissionMonth])}}">取消</a>
+				</form>
+			</div>
+			{% endif %}
 			<form method="post" action="{{helper.createUrl(['p':'salary/savecommissionpayroll'])}}">
 				<input type="hidden" name="id" value="{{period['id']}}" />
 				<div class="commission_scroll">
@@ -74,6 +95,7 @@
 							{% endfor %}
 							<th class="commission_total_col">提成合计</th>
 							<th>备注</th>
+							<th>操作</th>
 						</tr>
 						{% for row in commissionRows %}
 						<tr>
@@ -93,6 +115,12 @@
 							{% endfor %}
 							<td class="commission_total_col">{{row['total_amount']}}</td>
 							<td><input type="text" class="commission_remark" name="remark[{{row['employee_id']}}]" value="{{row['remark']}}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} /></td>
+							<td>
+								{% if period['can_edit'] %}
+								<a class="commission_link" href="{{helper.createUrl(['p':'salary/commissionpayroll','commission_month':commissionMonth,'edit_employee_id':row['employee_id']])}}">编辑</a>　
+								<button class="commission_link" type="submit" formaction="{{helper.createUrl(['p':'salary/deletecommissionemployee'])}}" name="employee_id" value="{{row['employee_id']}}" onclick="return confirm('只会从当前月提成核算表删除该员工，不影响人事档案。确认删除吗？');">删除</button>
+								{% else %}-{% endif %}
+							</td>
 						</tr>
 						{% elsefor %}
 						<tr><td colspan="50" class="commission_empty">当前提成表暂无员工数据。</td></tr>

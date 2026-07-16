@@ -28,10 +28,12 @@ class EmployeeSalaryStructureModel extends BaseModel
 	{
 		$companyId = intval($companyId);
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
-		$employees = $this->getCompanyEmployees($companyId);
+		$employees = $this->getInitialSalaryEmployees($companyId);
 		$values = $this->getInitialValueMap($companyId);
 		foreach ($employees as $key => $employee) {
 			$rowValues = array();
+			$earningTotal = 0;
+			$deductionTotal = 0;
 			foreach ($projects as $project) {
 				if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
 					continue;
@@ -46,10 +48,24 @@ class EmployeeSalaryStructureModel extends BaseModel
 				} else {
 					$rowValues[$projectId] = isset($project['default_number']) ? sprintf('%.2f', floatval($project['default_number'])) : '0.00';
 				}
+				if (!SalaryProjectModel::isTextProject($project)) {
+					if ($project['direction'] == 'earning') {
+						$earningTotal += floatval($rowValues[$projectId]);
+					} elseif ($project['direction'] == 'deduction') {
+						$deductionTotal += floatval($rowValues[$projectId]);
+					}
+				}
 			}
+			$rowValues['summary_earning_total'] = $this->formatMoney($earningTotal);
+			$rowValues['summary_deduction_total'] = $this->formatMoney($deductionTotal);
+			$rowValues['summary_net_total'] = $this->formatMoney($earningTotal - $deductionTotal);
 			$employees[$key]['values'] = $rowValues;
 		}
-		return array('projects' => $projects, 'employees' => $employees);
+		return array(
+			'projects' => $this->buildInitialDisplayProjects($projects),
+			'employees' => $employees,
+			'excluded_employees' => $this->getExcludedInitialSalaryEmployees($companyId),
+		);
 	}
 
 	public function saveInitialSalaryTable($companyId, $postData, $operatorId = 0)
@@ -60,6 +76,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 			return false;
 		}
 		$amounts = isset($postData['amount']) && is_array($postData['amount']) ? $postData['amount'] : array();
+		$onlyEmployeeId = isset($postData['initial_salary_employee_id']) ? intval($postData['initial_salary_employee_id']) : 0;
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
 		$projectMap = array();
 		foreach ($projects as $project) {
@@ -77,6 +94,9 @@ class EmployeeSalaryStructureModel extends BaseModel
 		try {
 			foreach ($amounts as $employeeId => $projectAmounts) {
 				$employeeId = intval($employeeId);
+				if ($onlyEmployeeId > 0 && $employeeId != $onlyEmployeeId) {
+					continue;
+				}
 				if ($employeeId <= 0 || !is_array($projectAmounts)) {
 					continue;
 				}
@@ -147,6 +167,74 @@ class EmployeeSalaryStructureModel extends BaseModel
 		return SalaryEmployeeDepartmentModel::factory()->getCompanyEmployees($companyId, 'mobile');
 	}
 
+	public function getInitialSalaryEmployees($companyId)
+	{
+		$employees = $this->getCompanyEmployees($companyId);
+		$excluded = $this->getExcludedEmployeeIdMap($companyId);
+		$return = array();
+		foreach ($employees as $employee) {
+			if (!isset($excluded[intval($employee['id'])])) {
+				$return[] = $employee;
+			}
+		}
+		return $return;
+	}
+
+	public function getExcludedInitialSalaryEmployees($companyId)
+	{
+		$employees = $this->getCompanyEmployees($companyId);
+		$excluded = $this->getExcludedEmployeeIdMap($companyId);
+		$return = array();
+		foreach ($employees as $employee) {
+			if (isset($excluded[intval($employee['id'])])) {
+				$return[] = $employee;
+			}
+		}
+		return $return;
+	}
+
+	public function deleteInitialSalaryEmployee($companyId, $employeeId, $operatorId = 0)
+	{
+		$companyId = intval($companyId);
+		$employeeId = intval($employeeId);
+		if ($companyId <= 0 || $employeeId <= 0) {
+			$this->_lastError = '员工参数不正确';
+			return false;
+		}
+		$item = self::factory()->findFirst('company_id=' . $companyId . ' and employee_id=' . $employeeId . ' and status="active"');
+		if ($item) {
+			return $item->save(array('status' => 'inactive', 'updated_at' => time()));
+		}
+		$existing = $this->getLatestStructure($companyId, $employeeId);
+		if ($existing) {
+			return true;
+		}
+		$now = time();
+		$model = new EmployeeSalaryStructureModel();
+		return $model->save(array(
+			'company_id' => $companyId,
+			'employee_id' => $employeeId,
+			'version_no' => 1,
+			'effective_date' => date('Y-m-d'),
+			'status' => 'inactive',
+			'created_by' => intval($operatorId),
+			'created_at' => $now,
+			'updated_at' => $now,
+		));
+	}
+
+	public function restoreInitialSalaryEmployee($companyId, $employeeId)
+	{
+		$companyId = intval($companyId);
+		$employeeId = intval($employeeId);
+		$item = $this->getLatestStructure($companyId, $employeeId);
+		if (!$item || $item->status != 'inactive') {
+			$this->_lastError = '未找到已移出的员工';
+			return false;
+		}
+		return $item->save(array('status' => 'active', 'updated_at' => time()));
+	}
+
 	protected function getOrCreateInitialStructure($companyId, $employeeId, $operatorId = 0)
 	{
 		$companyId = intval($companyId);
@@ -154,6 +242,11 @@ class EmployeeSalaryStructureModel extends BaseModel
 		$item = self::factory()->findFirst('company_id=' . $companyId . ' and employee_id=' . $employeeId . ' and status="active"');
 		if ($item) {
 			return intval($item->id);
+		}
+		$inactive = $this->getLatestStructure($companyId, $employeeId);
+		if ($inactive) {
+			$inactive->save(array('status' => 'active', 'updated_at' => time()));
+			return intval($inactive->id);
 		}
 		$now = time();
 		$model = new EmployeeSalaryStructureModel();
@@ -168,6 +261,64 @@ class EmployeeSalaryStructureModel extends BaseModel
 			'updated_at' => $now,
 		));
 		return intval($model->id);
+	}
+
+	protected function getExcludedEmployeeIdMap($companyId)
+	{
+		$return = array();
+		$sql = 'select employee_id,max(case when status="active" then 1 else 0 end) as has_active,max(case when status="inactive" then 1 else 0 end) as has_inactive from `' . $this->getSource() . '` where company_id=' . intval($companyId) . ' group by employee_id';
+		$items = $this->getDB()->query($sql)->fetchAll();
+		foreach ($items as $item) {
+			if (intval($item['has_active']) == 0 && intval($item['has_inactive']) == 1) {
+				$return[intval($item['employee_id'])] = 1;
+			}
+		}
+		return $return;
+	}
+
+	protected function getLatestStructure($companyId, $employeeId)
+	{
+		return self::factory()->findFirst(array(
+			'conditions' => 'company_id=' . intval($companyId) . ' and employee_id=' . intval($employeeId),
+			'order' => 'version_no desc,id desc',
+		));
+	}
+
+	protected function buildInitialDisplayProjects($projects)
+	{
+		$groups = array('earning' => array(), 'deduction' => array(), 'statistic' => array(), 'data' => array(), 'note' => array(), 'other' => array());
+		foreach ($projects as $project) {
+			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
+				continue;
+			}
+			$group = isset($groups[$project['direction']]) ? $project['direction'] : 'other';
+			$project['initial_group'] = $group;
+			$project['value_key'] = intval($project['id']);
+			$project['is_summary_project'] = 0;
+			$groups[$group][] = $project;
+		}
+		$return = array($this->buildSummaryProject('summary_earning_total', '应发总额'));
+		$return = array_merge($return, $groups['earning']);
+		$return[] = $this->buildSummaryProject('summary_deduction_total', '应扣总额');
+		$return = array_merge($return, $groups['deduction']);
+		$return[] = $this->buildSummaryProject('summary_net_total', '实发总额');
+		return array_merge($return, $groups['statistic'], $groups['data'], $groups['note'], $groups['other']);
+	}
+
+	protected function buildSummaryProject($key, $name)
+	{
+		return array(
+			'id' => 0,
+			'value_key' => $key,
+			'name' => $name,
+			'status' => 'active',
+			'deleted_at' => 0,
+			'calculation_mode_label' => '系统计算',
+			'is_text_project' => 0,
+			'is_formula_project' => 1,
+			'is_summary_project' => 1,
+			'initial_group' => 'summary',
+		);
 	}
 
 	protected function saveStructureValue($structureId, $projectId, $amount, $textValue = '')

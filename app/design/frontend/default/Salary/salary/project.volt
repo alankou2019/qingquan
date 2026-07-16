@@ -21,6 +21,16 @@
 .salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
 .salary_sheet input.salary_text_input{text-align:left;width:120px;}
 .salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
+.salary_sheet .initial_summary{background:#eaf3ff;}
+.salary_sheet .initial_earning{background:#edf9f1;}
+.salary_sheet .initial_deduction{background:#fff4e8;}
+.salary_sheet .initial_statistic{background:#f3f0ff;}
+.salary_sheet .initial_data{background:#edf7f8;}
+.salary_sheet .initial_note{background:#fffbe8;}
+.salary_sheet .initial_other{background:#f8fafc;}
+.salary_row_actions{min-width:105px;white-space:nowrap;}
+.salary_row_edit_actions{display:none;}
+.salary_removed_box{margin-top:10px;padding:10px 12px;border:1px solid #d9e2ef;background:#fbfdff;color:#64748b;}
 .salary_formula_area{display:inline-block;vertical-align:top;}
 .salary_formula_tools{display:inline-block;vertical-align:top;width:520px;margin-left:8px;color:#64748b;}
 .salary_formula_tools .formula_hint{line-height:22px;margin-bottom:6px;}
@@ -223,7 +233,8 @@
 					<button class="salary_btn" type="submit">Excel导入初始工资表</button>
 				</form>
 			</div>
-			<form method="post" action="{{helper.createUrl(['p':'salary/saveinitialsalary'])}}">
+			<form id="initial_salary_form" method="post" action="{{helper.createUrl(['p':'salary/saveinitialsalary'])}}">
+				<input type="hidden" id="initial_salary_employee_id" name="initial_salary_employee_id" value="0" />
 				<div class="salary_scroll">
 					<table class="salary_table salary_sheet">
 						<tr>
@@ -232,36 +243,55 @@
 							<th width="140">部门</th>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
+								<th class="initial_{{project['initial_group']}}">{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
 								{% endif %}
 							{% endfor %}
+							<th>操作</th>
 						</tr>
 						{% for employee in initialEmployees %}
-						<tr>
+						<tr id="initial_salary_row_{{employee['id']}}">
 							<td>{{employee['name']}}</td>
 							<td>{{employee['mobile']}}</td>
 							<td>{{employee['department_name']}}</td>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<td>
+								<td class="initial_{{project['initial_group']}}">
 									{% if project['is_text_project'] %}
-									<input type="text" class="salary_text_input" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['id']] is defined %}{{employee['values'][project['id']]}}{% endif %}" />
+									<input type="text" class="salary_text_input" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% endif %}" readonly="readonly" />
 									{% else %}
-									<input type="text" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['id']] is defined %}{{employee['values'][project['id']]}}{% else %}0.00{% endif %}" {% if project['is_formula_project'] %}readonly="readonly"{% endif %} />
+									<input type="text" {% if !project['is_summary_project'] %}name="amount[{{employee['id']}}][{{project['id']}}]"{% endif %} value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% else %}0.00{% endif %}" readonly="readonly" {% if project['is_formula_project'] or project['is_summary_project'] %}data-always-readonly="1"{% endif %} />
 									{% endif %}
 								</td>
 								{% endif %}
 							{% endfor %}
+							<td class="salary_row_actions">
+								<span class="salary_row_default_actions">
+									<button class="salary_link_btn" type="button" onclick="editInitialSalaryRow({{employee['id']}});">编辑</button>　
+									<button class="salary_link_btn" type="submit" formaction="{{helper.createUrl(['p':'salary/deleteinitialsalaryemployee'])}}" onclick="return prepareInitialSalaryDelete({{employee['id']}});">删除</button>
+								</span>
+								<span class="salary_row_edit_actions">
+									<button class="salary_link_btn" type="submit" onclick="return prepareInitialSalarySave({{employee['id']}});">保存</button>　
+									<button class="salary_link_btn" type="button" onclick="cancelInitialSalaryRow({{employee['id']}});">取消</button>
+								</span>
+							</td>
 						</tr>
 						{% elsefor %}
 						<tr><td colspan="20" class="salary_empty">暂无员工数据</td></tr>
 						{% endfor %}
 					</table>
 				</div>
-				<div style="margin-top:10px;">
-					<button class="salary_btn" type="submit">保存初始工资表</button>
-				</div>
 			</form>
+			{% if excludedInitialEmployees %}
+			<div class="salary_removed_box">
+				已移出初始工资表：
+				{% for employee in excludedInitialEmployees %}
+				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/restoreinitialsalaryemployee'])}}">
+					<input type="hidden" name="employee_id" value="{{employee['id']}}" />
+					{{employee['name']}} <button class="salary_link_btn" type="submit">恢复</button>
+				</form>　
+				{% endfor %}
+			</div>
+			{% endif %}
 		</div>
 	</div>
 </div>
@@ -303,6 +333,47 @@ function toggleSalaryFormulaBox() {
 	formulaRow.style.display = sourceType.value == 'calculated' ? 'block' : 'none';
 	numberField.style.display = sourceType.value == 'number' ? 'inline-block' : 'none';
 	textField.style.display = sourceType.value == 'text' ? 'inline-block' : 'none';
+}
+function getInitialSalaryRow(employeeId) {
+	return document.getElementById('initial_salary_row_' + employeeId);
+}
+function editInitialSalaryRow(employeeId) {
+	var row = getInitialSalaryRow(employeeId);
+	if (!row) {
+		return;
+	}
+	var inputs = row.getElementsByTagName('input');
+	for (var i = 0; i < inputs.length; i++) {
+		inputs[i].setAttribute('data-original-value', inputs[i].value);
+		if (inputs[i].getAttribute('data-always-readonly') != '1') {
+			inputs[i].removeAttribute('readonly');
+		}
+	}
+	row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'none';
+	row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'inline';
+}
+function cancelInitialSalaryRow(employeeId) {
+	var row = getInitialSalaryRow(employeeId);
+	if (!row) {
+		return;
+	}
+	var inputs = row.getElementsByTagName('input');
+	for (var i = 0; i < inputs.length; i++) {
+		if (inputs[i].getAttribute('data-original-value') !== null) {
+			inputs[i].value = inputs[i].getAttribute('data-original-value');
+		}
+		inputs[i].setAttribute('readonly', 'readonly');
+	}
+	row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'inline';
+	row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'none';
+}
+function prepareInitialSalarySave(employeeId) {
+	document.getElementById('initial_salary_employee_id').value = employeeId;
+	return true;
+}
+function prepareInitialSalaryDelete(employeeId) {
+	document.getElementById('initial_salary_employee_id').value = employeeId;
+	return confirm('只会从初始工资表移出该员工，不影响人事档案、部门和历史工资记录。确认删除吗？');
 }
 toggleSalaryFormulaBox();
 </script>
