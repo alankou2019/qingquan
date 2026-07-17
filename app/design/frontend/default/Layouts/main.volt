@@ -11,6 +11,7 @@
         <link rel="stylesheet" href="/skin/adminhtml/default/fonts/iconfont.css" />
         <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/ljk.min.css"/>
         <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/color.css"/>
+		<link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/salary-table-hover.css?v=20260717"/>
         
         <!--页面样式 end-->
         

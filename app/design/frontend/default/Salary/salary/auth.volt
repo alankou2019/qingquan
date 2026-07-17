@@ -21,7 +21,7 @@
 		<div class="salary_auth_block">
 			<h3>工资表审核授权</h3>
 			<form method="post" action="{{helper.createUrl(['p':'salary/saveauditreviewers'])}}">
-				<table class="table_box">
+				<table class="table_box salary_table">
 					<tr class="table_head">
 						<th width="10%"><span>选择</span></th>
 						<th width="18%"><span>ID</span></th>
@@ -50,7 +50,7 @@
 
 		<div class="salary_auth_block">
 			<h3>薪酬查询授权</h3>
-			<table class="table_box">
+			<table class="table_box salary_table">
 				<tr class="table_head">
 					<th width="12%"><span>ID</span></th>
 					<th width="24%"><span>姓名</span></th>

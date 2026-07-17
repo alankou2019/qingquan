@@ -1,0 +1,11 @@
+/* Salary tables keep their original category colors until the current row is hovered. */
+table.salary_table tr:hover > td:not(.salary_empty),
+table.commission_table tr:hover > td:not(.commission_empty) {
+	background-color: #eef0f3 !important;
+	color: #334155;
+}
+
+table.salary_table tr > td,
+table.commission_table tr > td {
+	transition: background-color .12s ease;
+}
