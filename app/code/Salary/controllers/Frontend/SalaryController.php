@@ -82,15 +82,15 @@ class SalaryController extends FrontendBaseController
 		$this->checkFeature('commission');
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commission'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
 		$projectId = intval($this->request->getPost('id'));
 		$model = CommissionProjectModel::factory();
 		if (!$model->deleteProject($this->companyId, $projectId)) {
-			Utils::showMsg($model->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('commission_project_delete', 'commission_project', $projectId, '', '删除提成项目规则');
-		Utils::showMsg('提成项目已删除', $backUrl);
+		$this->respondSalaryDeleteSuccess('提成项目已删除', $backUrl, array('project_id' => $projectId));
 	}
 
 	public function commissionestimateAction()
@@ -138,15 +138,15 @@ class SalaryController extends FrontendBaseController
 		$this->checkFeature('commission');
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionestimate'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
 		$recordId = intval($this->request->getPost('id'));
 		$model = CommissionEstimateModel::factory();
 		if (!$model->deleteRecord($this->companyId, $recordId, $this->getOperatorId())) {
-			Utils::showMsg($model->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('commission_estimate_delete', 'commission_estimate', $recordId, '', '删除员工月收入提成测算');
-		Utils::showMsg('提成测算记录已删除', $backUrl);
+		$this->respondSalaryDeleteSuccess('提成测算记录已删除', $backUrl, array('record_id' => $recordId));
 	}
 
 	public function commissionpayrollAction()
@@ -254,14 +254,20 @@ class SalaryController extends FrontendBaseController
 		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
 		$model = CommissionPeriodModel::factory();
 		if (!$model->deleteEmployeeRow($this->companyId, $periodId, $employeeId)) {
-			Utils::showMsg($model->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('commission_employee_delete', 'commission_period', $periodId, $period ? $period['commission_month'] : '', '从月提成核算表删除员工，员工ID：' . $employeeId);
-		Utils::showMsg('员工已从当前月提成核算表删除，不影响人事档案', $backUrl);
+		$period = $model->getCompanyPeriod($this->companyId, $periodId);
+		$this->respondSalaryDeleteSuccess('员工已从当前月提成核算表删除，不影响人事档案', $backUrl, array(
+			'employee_id' => $employeeId,
+			'employee_count' => $period ? intval($period['employee_count']) : 0,
+			'matched_count' => $period ? intval($period['matched_count']) : 0,
+			'total_amount' => $period ? $period['total_amount'] : '0.00',
+		));
 	}
 
 	public function commissionarchiveAction()
@@ -332,15 +338,15 @@ class SalaryController extends FrontendBaseController
 		$archiveId = intval($this->request->getPost('id'));
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionarchive'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('Unsupported request method', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
 		$model = CommissionArchiveModel::factory();
 		$archive = $model->getArchive($this->companyId, $archiveId);
 		if (!$model->deleteArchive($this->companyId, $archiveId, $this->getOperatorId())) {
-			Utils::showMsg($model->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('commission_archive_delete', 'commission_archive', $archiveId, $archive ? $archive['commission_month'] : '', 'Delete commission archive record');
-		Utils::showMsg('Commission archive removed; its server backup will be retained for six months', $backUrl);
+		$this->respondSalaryDeleteSuccess('归档记录已删除，服务器备份保留六个月', $backUrl, array('archive_id' => $archiveId));
 	}
 
 	public function logAction()
@@ -524,20 +530,20 @@ class SalaryController extends FrontendBaseController
 		$this->checkModule();
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
-		$projectId = intval($this->request->get('id'));
-		$templateId = intval($this->request->get('template_id'));
+		$projectId = intval($this->request->getPost('id'));
+		$templateId = intval($this->request->getPost('template_id'));
 		if ($templateId > 0) {
 			$result = SalaryProjectModel::factory()->deleteCompanyTemplateProject($this->companyId, $templateId);
 		} else {
 			$result = SalaryProjectModel::factory()->deleteCompanyProject($this->companyId, $projectId);
 		}
 		if (!$result) {
-			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError(SalaryProjectModel::factory()->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('project_delete', 'salary_project', $projectId, '', $templateId > 0 ? '删除当前企业通用工资项目' : '删除工资项目');
-		Utils::showMsg('工资项目已删除', $backUrl);
+		$this->respondSalaryDeleteSuccess('工资项目已删除', $backUrl, array('project_id' => $projectId, 'template_id' => $templateId));
 	}
 
 	public function projectdisableAction()
@@ -577,15 +583,15 @@ class SalaryController extends FrontendBaseController
 		$this->checkModule();
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
 		$employeeId = intval($this->request->getPost('initial_salary_employee_id'));
 		$model = EmployeeSalaryStructureModel::factory();
 		if (!$model->deleteInitialSalaryEmployee($this->companyId, $employeeId, $this->getOperatorId())) {
-			Utils::showMsg($model->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('initial_salary_employee_delete', 'employee_salary_structure', $employeeId, '', '从初始工资表移出员工');
-		Utils::showMsg('员工已从初始工资表移出，不影响人事档案和历史工资记录', $backUrl);
+		$this->respondSalaryDeleteSuccess('员工已从初始工资表移出，不影响人事档案和历史工资记录', $backUrl, array('employee_id' => $employeeId));
 	}
 
 	public function restoreinitialsalaryemployeeAction()
@@ -1219,6 +1225,28 @@ class SalaryController extends FrontendBaseController
 	protected function addSalaryLog($actionCode, $objectType = '', $objectId = 0, $payrollMonth = '', $summary = '')
 	{
 		SalaryOperationLogModel::factory()->addLog($this->companyId, $this->getOperatorId(), $actionCode, $objectType, $objectId, $payrollMonth, $summary);
+	}
+
+	protected function isSalaryAjaxRequest()
+	{
+		return $this->request->isAjax() || intval($this->request->getPost('salary_ajax')) == 1;
+	}
+
+	protected function respondSalaryDeleteError($message, $backUrl)
+	{
+		if ($this->isSalaryAjaxRequest()) {
+			$this->sendErrorResult($message);
+		}
+		Utils::showMsg($message, $backUrl);
+	}
+
+	protected function respondSalaryDeleteSuccess($message, $backUrl, $data = array())
+	{
+		if ($this->isSalaryAjaxRequest()) {
+			$data['message'] = $message;
+			$this->sendSuccessResult($data);
+		}
+		Utils::showMsg($message, $backUrl);
 	}
 
 	protected function buildSalaryReportFilter($reportModel)

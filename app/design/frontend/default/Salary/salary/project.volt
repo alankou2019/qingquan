@@ -50,6 +50,7 @@
 		</ul>
 	</div>
 	<div class="salary_page">
+		<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 		<div class="salary_tip">工资项目分为通用项目和自定义项目。项目类别决定是否计入应发、应扣和实发；项目属性分为数字项、文本项和核算项，核算项按公式自动计算。</div>
 
 		<div class="salary_block">
@@ -78,7 +79,7 @@
 			<h3>通用项目</h3>
 			<form method="post" action="{{helper.createUrl(['p':'salary/projectsavetemplates'])}}">
 				<table class="salary_table">
-					<tr>
+					<tr id="salary_template_row_{{item['id']}}" data-salary-template-id="{{item['id']}}">
 						<th width="8%">启用</th>
 						<th width="22%">项目名称</th>
 						<th width="14%">项目类别</th>
@@ -95,7 +96,7 @@
 						<td>{% if item['linked_module']!='none' %}关联 {{item['linked_module']}}{% else %}-{% endif %}</td>
 						<td>
 							<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','template_id':item['id']])}}">编辑</a>
-							<button class="salary_link_btn" type="submit" name="template_id" value="{{item['id']}}" formaction="{{helper.createUrl(['p':'salary/projectdelete'])}}" formmethod="post" onclick="return confirm('确定删除当前企业的这个通用工资项目吗？删除不会影响平台模板、其他企业和历史归档记录。');">删除</button>
+							<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/projectdelete'])}}" data-delete-row-id="salary_template_row_{{item['id']}}" data-delete-template-id="{{item['id']}}" data-delete-confirm="确定删除当前企业的这个通用工资项目吗？删除不会影响平台模板、其他企业和历史归档记录。" onclick="return salaryInlineDelete(this, {template_id:{{item['id']}}});">删除</button>
 						</td>
 					</tr>
 					{% elsefor %}
@@ -185,7 +186,7 @@
 		<div class="salary_block">
 			<h3>企业工资项目</h3>
 			<table class="salary_table">
-				<tr>
+				<tr id="salary_project_row_{{item['id']}}" {% if item['template_id'] %}data-salary-template-id="{{item['template_id']}}"{% endif %}>
 					<th width="12%">来源</th>
 					<th width="18%">项目名称</th>
 					<th width="12%">项目类别</th>
@@ -212,10 +213,7 @@
 							<input type="hidden" name="id" value="{{item['id']}}" />
 							<button class="salary_link_btn" type="submit">停用</button>
 						</form>
-						<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectdelete'])}}" onsubmit="return confirm('确定删除这个工资项目吗？删除后不会影响历史工资表和归档记录。');">
-							<input type="hidden" name="id" value="{{item['id']}}" />
-							<button class="salary_link_btn" type="submit">删除</button>
-						</form>
+						<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/projectdelete'])}}" data-delete-row-id="salary_project_row_{{item['id']}}" data-delete-confirm="确定删除这个工资项目吗？删除后不会影响历史工资表和归档记录。" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button>
 					</td>
 				</tr>
 				{% elsefor %}
@@ -267,7 +265,7 @@
 							<td class="salary_row_actions">
 								<span class="salary_row_default_actions">
 									<button class="salary_link_btn" type="button" onclick="editInitialSalaryRow({{employee['id']}});">编辑</button>　
-									<button class="salary_link_btn" type="submit" formaction="{{helper.createUrl(['p':'salary/deleteinitialsalaryemployee'])}}" onclick="return prepareInitialSalaryDelete({{employee['id']}});">删除</button>
+					<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deleteinitialsalaryemployee'])}}" data-delete-row-id="initial_salary_row_{{employee['id']}}" data-delete-confirm="只会从初始工资表移出该员工，不影响人事档案、部门和历史工资记录。确认删除吗？" onclick="return salaryInlineDelete(this, {initial_salary_employee_id:{{employee['id']}}});">删除</button>
 								</span>
 								<span class="salary_row_edit_actions">
 									<button class="salary_link_btn" type="submit" onclick="return prepareInitialSalarySave({{employee['id']}});">保存</button>　
@@ -295,6 +293,7 @@
 		</div>
 	</div>
 </div>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
 <script type="text/javascript">
 function insertSalaryFormulaProject(button) {
 	if (!button) {

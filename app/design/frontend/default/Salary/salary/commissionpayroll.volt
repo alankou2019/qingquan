@@ -37,6 +37,7 @@
 		</ul>
 	</div>
 	<div class="commission_payroll_page">
+		<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 		<div class="commission_toolbar">
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a>
 			<a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a>
@@ -59,7 +60,7 @@
 			<div class="commission_tip">
 				当前提成表：{{period['commission_month']}}　
 				状态：<span class="commission_status">{{period['status_name']}}</span>
-				　参与人数：{{period['employee_count']}}　匹配人数：{{period['matched_count']}}　提成合计：{{period['total_amount']}}
+				参与人数：<span id="commission_employee_count">{{period['employee_count']}}</span>　匹配人数：<span id="commission_matched_count">{{period['matched_count']}}</span>　提成合计：<span id="commission_total_amount">{{period['total_amount']}}</span>
 			</div>
 			{% if editRow and period['can_edit'] %}
 			<div class="commission_edit_box">
@@ -83,7 +84,7 @@
 				<input type="hidden" name="id" value="{{period['id']}}" />
 				<div class="commission_scroll">
 					<table class="commission_table">
-						<tr>
+						<tr id="commission_employee_row_{{row['employee_id']}}">
 							<th>员工</th>
 							<th>部门</th>
 							<th>手机号</th>
@@ -118,7 +119,7 @@
 							<td>
 								{% if period['can_edit'] %}
 								<a class="commission_link" href="{{helper.createUrl(['p':'salary/commissionpayroll','commission_month':commissionMonth,'edit_employee_id':row['employee_id']])}}">编辑</a>　
-								<button class="commission_link" type="submit" formaction="{{helper.createUrl(['p':'salary/deletecommissionemployee'])}}" name="employee_id" value="{{row['employee_id']}}" onclick="return confirm('只会从当前月提成核算表删除该员工，不影响人事档案。确认删除吗？');">删除</button>
+								<button class="commission_link" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deletecommissionemployee'])}}" data-delete-row-id="commission_employee_row_{{row['employee_id']}}" data-delete-confirm="只会从当前月提成核算表删除该员工，不影响人事档案。确认删除吗？" onclick="return salaryInlineDelete(this, {id:{{period['id']}},employee_id:{{row['employee_id']}}}, updateCommissionPayrollSummary);">删除</button>
 								{% else %}-{% endif %}
 							</td>
 						</tr>
@@ -142,3 +143,14 @@
 		{% endif %}
 	</div>
 </div>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
+<script type="text/javascript">
+function updateCommissionPayrollSummary(data) {
+	var employeeCount = document.getElementById('commission_employee_count');
+	var matchedCount = document.getElementById('commission_matched_count');
+	var totalAmount = document.getElementById('commission_total_amount');
+	if (employeeCount && typeof data.employee_count != 'undefined') { employeeCount.innerHTML = data.employee_count; }
+	if (matchedCount && typeof data.matched_count != 'undefined') { matchedCount.innerHTML = data.matched_count; }
+	if (totalAmount && typeof data.total_amount != 'undefined') { totalAmount.innerHTML = data.total_amount; }
+}
+</script>

@@ -22,6 +22,7 @@
 		</ul>
 	</div>
 	<div class="commission_archive_page">
+		<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 		<form class="commission_filter" method="get" action="{{helper.createUrl(['p':'salary/commissionarchive'])}}">
 			<input type="hidden" name="p" value="salary/commissionarchive" />
 			归档月份 <input type="text" name="commission_month" value="{{filter['commission_month']}}" placeholder="2026-07" />
@@ -33,7 +34,7 @@
 		<table class="commission_table">
 			<tr><th>归档月份</th><th>归档时间</th><th>参与人数</th><th>规则匹配人数</th><th>提成合计</th><th>操作</th></tr>
 			{% for item in archives %}
-			<tr>
+			<tr id="commission_archive_row_{{item['id']}}">
 				<td>{{item['commission_month']}}</td>
 				<td>{{item['archived_time']}}</td>
 				<td>{{item['employee_count']}}</td>
@@ -42,7 +43,7 @@
 				<td>
 					<a class="commission_link" href="{{helper.createUrl(['p':'salary/commissionarchiveview','id':item['id']])}}">查看</a>
 					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/restorecommissionarchive'])}}" onsubmit="return confirm('恢复后将回到月提成核算，当前归档记录会移除。确认恢复吗？');"><input type="hidden" name="id" value="{{item['id']}}" /><button class="commission_link" type="submit">恢复</button></form>
-					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/deletecommissionarchive'])}}" onsubmit="return confirm('删除后归档记录不再显示，服务器保留备份六个月。确认删除吗？');"><input type="hidden" name="id" value="{{item['id']}}" /><button class="commission_link" type="submit">删除</button></form>
+					<button class="commission_link" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deletecommissionarchive'])}}" data-delete-row-id="commission_archive_row_{{item['id']}}" data-delete-confirm="删除后归档记录不再显示，服务器保留备份六个月。确认删除吗？" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button>
 				</td>
 			</tr>
 			{% elsefor %}
@@ -51,3 +52,4 @@
 		</table>
 	</div>
 </div>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>

@@ -34,6 +34,7 @@
 		</ul>
 	</div>
 	<div class="commission_page">
+		<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 		<div class="commission_tip">每个提成项目独立设置业绩口径、计算方式和适用范围。月提成核算会按员工命中的项目分别计算，再汇总到员工月提成合计。</div>
 
 		<div class="commission_block">
@@ -89,7 +90,7 @@
 			<table class="commission_table">
 				<tr><th>项目名称</th><th>业绩口径</th><th>提成方式</th><th>计算规则</th><th>适用范围</th><th>优先级</th><th>状态</th><th>操作</th></tr>
 				{% for item in projects %}
-				<tr>
+				<tr id="commission_project_row_{{item['id']}}">
 					<td>{{item['name']}}</td>
 					<td>{{item['metric_name']}}</td>
 					<td>{{item['mode_label']}}</td>
@@ -97,13 +98,14 @@
 					<td>{{item['scope_type_label']}}{% if item['scope_label']!='全公司默认' %}：{{item['scope_label']}}{% endif %}</td>
 					<td>{{item['priority']}}</td>
 					<td><span class="commission_badge {% if item['status']!='active' %}off{% endif %}">{{item['status_label']}}</span></td>
-					<td><a class="commission_link" href="{{helper.createUrl(['p':'salary/commission','id':item['id']])}}">编辑</a>　<form class="commission_inline" method="post" action="{{helper.createUrl(['p':'salary/commissiondelete'])}}" onsubmit="return confirm('确认删除该提成项目吗？');"><input type="hidden" name="id" value="{{item['id']}}" /><button class="commission_link" type="submit">删除</button></form></td>
+					<td><a class="commission_link" href="{{helper.createUrl(['p':'salary/commission','id':item['id']])}}">编辑</a>　<button class="commission_link" type="button" data-delete-url="{{helper.createUrl(['p':'salary/commissiondelete'])}}" data-delete-row-id="commission_project_row_{{item['id']}}" data-delete-confirm="确认删除该提成项目吗？" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button></td>
 				</tr>
 				{% elsefor %}<tr><td colspan="8" class="commission_empty">暂无提成项目，请先新增提成规则。</td></tr>{% endfor %}
 			</table>
 		</div>
 	</div>
 </div>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
 <script>
 function toggleCustomMetric(){
 	var isCustom=document.getElementById('commission_metric_type').value==='custom';

@@ -46,6 +46,7 @@
 		</ul>
 	</div>
 	<div class="commission_estimate_page">
+	<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 
 	<form class="estimate_toolbar" method="get" action="{{helper.createUrl(['p':'salary/commissionestimate'])}}">
 		<input type="hidden" name="p" value="salary/commissionestimate" />
@@ -104,9 +105,10 @@
 		<table class="estimate_record_table">
 			<tr><th>测算对象</th><th>保存时间</th><th class="estimate_low">月收入（低位）</th><th class="estimate_mid">月收入（中位）</th><th class="estimate_high">月收入（高位）</th><th>操作</th></tr>
 			{% for item in estimateRecords %}
-			<tr><td>{{item['employee_name']}} / {% if item['position_name'] %}{{item['position_name']}}{% else %}未设置岗位{% endif %}</td><td>{{item['created_time']}}</td><td class="estimate_low">{{item['low_income']}}</td><td class="estimate_mid">{{item['mid_income']}}</td><td class="estimate_high">{{item['high_income']}}</td><td><a class="estimate_link" href="{{helper.createUrl(['p':'salary/commissionestimate','record_id':item['id']])}}">查看</a><form class="estimate_inline" method="post" action="{{helper.createUrl(['p':'salary/deletecommissionestimate'])}}" onsubmit="return confirm('确认删除这条提成测算记录吗？');"><input type="hidden" name="id" value="{{item['id']}}" /><button class="estimate_link" type="submit">删除</button></form></td></tr>
+			<tr id="commission_estimate_row_{{item['id']}}"><td>{{item['employee_name']}} / {% if item['position_name'] %}{{item['position_name']}}{% else %}未设置岗位{% endif %}</td><td>{{item['created_time']}}</td><td class="estimate_low">{{item['low_income']}}</td><td class="estimate_mid">{{item['mid_income']}}</td><td class="estimate_high">{{item['high_income']}}</td><td><a class="estimate_link" href="{{helper.createUrl(['p':'salary/commissionestimate','record_id':item['id']])}}">查看</a><button class="estimate_link" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deletecommissionestimate'])}}" data-delete-row-id="commission_estimate_row_{{item['id']}}" data-delete-confirm="确认删除这条提成测算记录吗？" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button></td></tr>
 			{% elsefor %}<tr><td colspan="6" class="estimate_empty">暂无已保存的测算记录。</td></tr>{% endfor %}
 		</table>
 	</div>
 </div>
 </div>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
