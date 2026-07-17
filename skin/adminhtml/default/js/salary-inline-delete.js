@@ -46,11 +46,12 @@ function salaryInlineDelete(button, requestData, afterDelete) {
 			return;
 		}
 		var rowId = button.getAttribute('data-delete-row-id');
-		if (rowId) {
-			var row = document.getElementById(rowId);
-			if (row && row.parentNode) {
-				row.parentNode.removeChild(row);
-			}
+		var row = rowId ? document.getElementById(rowId) : null;
+		if (!row) {
+			row = salaryInlineDeleteClosestRow(button);
+		}
+		if (row && row.parentNode) {
+			row.parentNode.removeChild(row);
 		}
 		var templateId = button.getAttribute('data-delete-template-id');
 		if (templateId) {
@@ -68,6 +69,13 @@ function salaryInlineDelete(button, requestData, afterDelete) {
 	};
 	xhr.send(pairs.join('&'));
 	return false;
+}
+
+function salaryInlineDeleteClosestRow(element) {
+	while (element && element.tagName && element.tagName.toLowerCase() != 'tr') {
+		element = element.parentNode;
+	}
+	return element;
 }
 
 function salaryInlineDeleteMessage(message) {

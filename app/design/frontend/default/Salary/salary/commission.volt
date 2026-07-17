@@ -105,7 +105,7 @@
 		</div>
 	</div>
 </div>
-<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js?v=20260717-2"></script>
 <script>
 function toggleCustomMetric(){
 	var isCustom=document.getElementById('commission_metric_type').value==='custom';

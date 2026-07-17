@@ -84,7 +84,7 @@
 				<input type="hidden" name="id" value="{{period['id']}}" />
 				<div class="commission_scroll">
 					<table class="commission_table">
-						<tr id="commission_employee_row_{{row['employee_id']}}">
+						<tr>
 							<th>员工</th>
 							<th>部门</th>
 							<th>手机号</th>
@@ -99,7 +99,7 @@
 							<th>操作</th>
 						</tr>
 						{% for row in commissionRows %}
-						<tr>
+						<tr id="commission_employee_row_{{row['employee_id']}}">
 							<td>{{row['employee_name']}}</td>
 							<td>{{row['department_name']}}</td>
 							<td>{{row['employee_no']}}</td>
@@ -143,7 +143,7 @@
 		{% endif %}
 	</div>
 </div>
-<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js?v=20260717-2"></script>
 <script type="text/javascript">
 function updateCommissionPayrollSummary(data) {
 	var employeeCount = document.getElementById('commission_employee_count');

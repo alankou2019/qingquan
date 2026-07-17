@@ -52,4 +52,4 @@
 		</table>
 	</div>
 </div>
-<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js?v=20260717-2"></script>

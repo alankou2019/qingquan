@@ -79,7 +79,7 @@
 			<h3>通用项目</h3>
 			<form method="post" action="{{helper.createUrl(['p':'salary/projectsavetemplates'])}}">
 				<table class="salary_table">
-					<tr id="salary_template_row_{{item['id']}}" data-salary-template-id="{{item['id']}}">
+					<tr>
 						<th width="8%">启用</th>
 						<th width="22%">项目名称</th>
 						<th width="14%">项目类别</th>
@@ -88,7 +88,7 @@
 						<th>操作</th>
 					</tr>
 					{% for item in templates %}
-					<tr>
+					<tr id="salary_template_row_{{item['id']}}" data-salary-template-id="{{item['id']}}">
 						<td><input type="checkbox" name="template_ids[]" value="{{item['id']}}" {% if item['is_selected'] %}checked="checked"{% endif %} /></td>
 						<td>{{item['name']}}</td>
 						<td>{{item['direction_label']}}</td>
@@ -186,7 +186,7 @@
 		<div class="salary_block">
 			<h3>企业工资项目</h3>
 			<table class="salary_table">
-				<tr id="salary_project_row_{{item['id']}}" {% if item['template_id'] %}data-salary-template-id="{{item['template_id']}}"{% endif %}>
+				<tr>
 					<th width="12%">来源</th>
 					<th width="18%">项目名称</th>
 					<th width="12%">项目类别</th>
@@ -198,7 +198,7 @@
 					<th>操作</th>
 				</tr>
 				{% for item in projects %}
-				<tr>
+				<tr id="salary_project_row_{{item['id']}}" {% if item['template_id'] %}data-salary-template-id="{{item['template_id']}}"{% endif %}>
 					<td><span class="salary_badge">{{item['project_kind_label']}}</span></td>
 					<td>{{item['name']}}</td>
 					<td>{{item['direction_label']}}</td>
@@ -293,7 +293,7 @@
 		</div>
 	</div>
 </div>
-<script src="/skin/adminhtml/default/js/salary-inline-delete.js"></script>
+<script src="/skin/adminhtml/default/js/salary-inline-delete.js?v=20260717-2"></script>
 <script type="text/javascript">
 function insertSalaryFormulaProject(button) {
 	if (!button) {
