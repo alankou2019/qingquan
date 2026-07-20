@@ -133,6 +133,25 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('estimateRecords', $model->getCompanyRecords($this->companyId));
 	}
 
+	/**
+	 * Recalculate an estimate without saving a record.
+	 */
+	public function commissionestimatecalculateAction()
+	{
+		$this->checkFeature('commission');
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('Unsupported request method');
+		}
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$inputValues = isset($_POST['estimate']) && is_array($_POST['estimate']) ? $_POST['estimate'] : array();
+		$model = CommissionEstimateModel::factory();
+		$estimate = $model->calculateEstimate($this->companyId, $employeeId, $inputValues);
+		if (!$estimate) {
+			$this->sendErrorResult($model->getLastError());
+		}
+		$this->sendSuccessResult($estimate);
+	}
+
 	public function deletecommissionestimateAction()
 	{
 		$this->checkFeature('commission');

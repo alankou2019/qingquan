@@ -5,10 +5,13 @@
 namespace ScshuxCms\Salary\Model;
 
 use ScshuxCms\Core\Model\BaseModel;
+use ScshuxCms\Core\Helper;
 
 class SalaryEmployeeDepartmentModel extends BaseModel
 {
 	protected static $_instance = null;
+	protected static $_tableColumnMap = array();
+	protected static $_tableMap = null;
 
 	public function getSource()
 	{
@@ -96,13 +99,48 @@ class SalaryEmployeeDepartmentModel extends BaseModel
 
 	protected function hasColumn($table, $column)
 	{
-		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE '" . addslashes($column) . "'")->fetch();
-		return $item ? true : false;
+		if (!isset(self::$_tableColumnMap[$table])) {
+			self::$_tableColumnMap[$table] = $this->getTableColumnMap($table);
+		}
+		return isset(self::$_tableColumnMap[$table][strtolower($column)]);
 	}
 
 	protected function hasTable($table)
 	{
-		$item = $this->getDB()->query("SHOW TABLES LIKE '" . addslashes($table) . "'")->fetch();
-		return $item ? true : false;
+		if (self::$_tableMap === null) {
+			$cache = Helper::factory()->getCache();
+			$cacheKey = 'salary_schema_tables_v1';
+			self::$_tableMap = $cache->get($cacheKey);
+			if (!is_array(self::$_tableMap)) {
+				$tables = $this->getDB()->query('SHOW TABLES')->fetchAll();
+				self::$_tableMap = array();
+				foreach ($tables as $item) {
+					foreach ($item as $name) {
+						self::$_tableMap[strtolower($name)] = 1;
+					}
+				}
+				$cache->save($cacheKey, self::$_tableMap, 3600);
+			}
+		}
+		return isset(self::$_tableMap[strtolower($table)]);
+	}
+
+	protected function getTableColumnMap($table)
+	{
+		$cache = Helper::factory()->getCache();
+		$cacheKey = 'salary_schema_columns_v1_' . md5($table);
+		$columnMap = $cache->get($cacheKey);
+		if (is_array($columnMap)) {
+			return $columnMap;
+		}
+		$columns = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "`")->fetchAll();
+		$columnMap = array();
+		foreach ($columns as $item) {
+			if (!empty($item['Field'])) {
+				$columnMap[strtolower($item['Field'])] = 1;
+			}
+		}
+		$cache->save($cacheKey, $columnMap, 3600);
+		return $columnMap;
 	}
 }

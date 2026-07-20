@@ -5,10 +5,12 @@
 namespace ScshuxCms\Salary\Model;
 
 use ScshuxCms\Core\Model\BaseModel;
+use ScshuxCms\Core\Helper;
 
 class CommissionEstimateModel extends BaseModel
 {
 	protected static $_instance = null;
+	protected static $_tableColumnMap = array();
 
 	public function getSource()
 	{
@@ -155,8 +157,7 @@ class CommissionEstimateModel extends BaseModel
 	{
 		$userTable = $this->getTableName('company_user');
 		foreach (array('monthly_salary', 'month_salary', 'base_salary', 'salary') as $column) {
-			$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $userTable . "` LIKE '" . addslashes($column) . "'")->fetch();
-			if ($item) {
+			if ($this->hasColumn($userTable, $column)) {
 				$employee = $this->getDB()->query('select `' . $column . '` as amount from `' . $userTable . '` where id=' . intval($employeeId) . ' and company_id=' . intval($companyId) . ' limit 1')->fetch();
 				return array('amount' => $this->money($employee && isset($employee['amount']) ? $employee['amount'] : 0), 'source' => '人事档案');
 			}
@@ -172,6 +173,26 @@ class CommissionEstimateModel extends BaseModel
 			'where v.structure_id=' . intval($structure['id']) . ' and p.company_id=' . intval($companyId) . ' and p.status="active" and p.deleted_at=0 and p.direction="earning" and p.linked_module!="commission"';
 		$item = $this->getDB()->query($sql)->fetch();
 		return array('amount' => $this->money($item && isset($item['amount']) ? $item['amount'] : 0), 'source' => '初始工资表应发类');
+	}
+
+	protected function hasColumn($table, $column)
+	{
+		if (!isset(self::$_tableColumnMap[$table])) {
+			$cache = Helper::factory()->getCache();
+			$cacheKey = 'salary_schema_columns_v1_' . md5($table);
+			self::$_tableColumnMap[$table] = $cache->get($cacheKey);
+			if (!is_array(self::$_tableColumnMap[$table])) {
+				$columns = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "`")->fetchAll();
+				self::$_tableColumnMap[$table] = array();
+				foreach ($columns as $item) {
+					if (!empty($item['Field'])) {
+						self::$_tableColumnMap[$table][strtolower($item['Field'])] = 1;
+					}
+				}
+				$cache->save($cacheKey, self::$_tableColumnMap[$table], 3600);
+			}
+		}
+		return isset(self::$_tableColumnMap[$table][strtolower($column)]);
 	}
 
 	protected function money($value)

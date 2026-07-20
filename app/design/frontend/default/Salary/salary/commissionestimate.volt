@@ -32,6 +32,7 @@
 .estimate_record_table th{background:#f8fafc;font-weight:normal;}
 .estimate_link{color:#4560e6;text-decoration:none;background:none;border:0;padding:0;cursor:pointer;font-size:12px;}
 .estimate_inline{display:inline-block;margin-left:10px;}
+.estimate_live_status{display:inline-block;margin-left:8px;color:#64748b;font-size:12px;}
 @media(max-width:760px){.estimate_toolbar select{min-width:180px;width:100%;margin-bottom:8px}.income_row{grid-template-columns:110px 1fr 90px}.annual_value{grid-column:3}.estimate_btn{margin-left:0;margin-right:6px}}
 </style>
 
@@ -61,11 +62,11 @@
 	</form>
 
 	{% if estimate %}
-	<form method="post" action="{{helper.createUrl(['p':'salary/commissionestimate'])}}">
+	<form id="commission_estimate_form" method="post" action="{{helper.createUrl(['p':'salary/commissionestimate'])}}" data-calculate-url="{{helper.createUrl(['p':'salary/commissionestimatecalculate'])}}">
 		<input type="hidden" name="employee_id" value="{{employeeId}}" />
 		<div class="estimate_section">
 			<h3>提成测算</h3>
-			<p class="estimate_tip">系统已加载该员工适用的全部启用提成项目。填写各项目低位、中位、高位业绩值后测算。</p>
+			<p class="estimate_tip">系统已加载该员工适用的全部启用提成项目。填写各项目低位、中位、高位业绩值后自动测算。<span id="commission_estimate_status" class="estimate_live_status"></span></p>
 			{% if estimate['rows'] %}
 			<div class="estimate_scroll">
 				<table class="estimate_table">
@@ -73,26 +74,25 @@
 					{% for row in estimate['rows'] %}
 					<tr>
 						<td>{{row['position_name']}}</td><td>{{row['project_name']}}</td><td>{{row['mode_label']}}</td>
-						<td><input type="text" name="estimate[{{row['project_id']}}][low]" value="{{row['low_value']}}" {% if estimateRecord %}readonly="readonly"{% endif %} /></td>
-						<td><input type="text" name="estimate[{{row['project_id']}}][mid]" value="{{row['mid_value']}}" {% if estimateRecord %}readonly="readonly"{% endif %} /></td>
-						<td><input type="text" name="estimate[{{row['project_id']}}][high]" value="{{row['high_value']}}" {% if estimateRecord %}readonly="readonly"{% endif %} /></td>
-						<td class="estimate_low">{{row['low_amount']}}</td><td class="estimate_mid">{{row['mid_amount']}}</td><td class="estimate_high">{{row['high_amount']}}</td>
+						<td><input class="commission_estimate_input" type="text" name="estimate[{{row['project_id']}}][low]" value="{{row['low_value']}}" {% if estimateRecord %}readonly="readonly"{% endif %} /></td>
+						<td><input class="commission_estimate_input" type="text" name="estimate[{{row['project_id']}}][mid]" value="{{row['mid_value']}}" {% if estimateRecord %}readonly="readonly"{% endif %} /></td>
+						<td><input class="commission_estimate_input" type="text" name="estimate[{{row['project_id']}}][high]" value="{{row['high_value']}}" {% if estimateRecord %}readonly="readonly"{% endif %} /></td>
+						<td id="commission_estimate_row_{{row['project_id']}}_low" class="estimate_low">{{row['low_amount']}}</td><td id="commission_estimate_row_{{row['project_id']}}_mid" class="estimate_mid">{{row['mid_amount']}}</td><td id="commission_estimate_row_{{row['project_id']}}_high" class="estimate_high">{{row['high_amount']}}</td>
 					</tr>
 					{% endfor %}
-					<tr class="estimate_total"><td colspan="6">提成测算</td><td class="estimate_low">{{estimate['commission']['low']}}</td><td class="estimate_mid">{{estimate['commission']['mid']}}</td><td class="estimate_high">{{estimate['commission']['high']}}</td></tr>
+					<tr class="estimate_total"><td colspan="6">提成测算</td><td id="commission_estimate_total_low" class="estimate_low">{{estimate['commission']['low']}}</td><td id="commission_estimate_total_mid" class="estimate_mid">{{estimate['commission']['mid']}}</td><td id="commission_estimate_total_high" class="estimate_high">{{estimate['commission']['high']}}</td></tr>
 				</table>
 			</div>
 			<div class="income_formula">月收入 = 月薪 <strong>{{estimate['base_salary']}}</strong> + 月提成　<span class="estimate_tip">月薪来源：{{estimate['base_salary_source']}}</span></div>
 			<div class="income_grid">
 				<div class="income_row"><span></span><span></span><span></span><span>年收入（万）</span></div>
-				<div class="income_row"><span>月收入（低位）</span><div class="income_track"><div class="income_bar low" style="width:{{estimate['bar_width']['low']}}%"></div></div><span class="income_value estimate_low">{{estimate['income']['low']}}</span><span class="annual_value estimate_low">{{estimate['annual']['low']}}</span></div>
-				<div class="income_row"><span>月收入（中位）</span><div class="income_track"><div class="income_bar mid" style="width:{{estimate['bar_width']['mid']}}%"></div></div><span class="income_value estimate_mid">{{estimate['income']['mid']}}</span><span class="annual_value estimate_mid">{{estimate['annual']['mid']}}</span></div>
-				<div class="income_row"><span>月收入（高位）</span><div class="income_track"><div class="income_bar high" style="width:{{estimate['bar_width']['high']}}%"></div></div><span class="income_value estimate_high">{{estimate['income']['high']}}</span><span class="annual_value estimate_high">{{estimate['annual']['high']}}</span></div>
+				<div class="income_row"><span>月收入（低位）</span><div class="income_track"><div id="commission_estimate_bar_low" class="income_bar low" style="width:{{estimate['bar_width']['low']}}%"></div></div><span id="commission_estimate_income_low" class="income_value estimate_low">{{estimate['income']['low']}}</span><span id="commission_estimate_annual_low" class="annual_value estimate_low">{{estimate['annual']['low']}}</span></div>
+				<div class="income_row"><span>月收入（中位）</span><div class="income_track"><div id="commission_estimate_bar_mid" class="income_bar mid" style="width:{{estimate['bar_width']['mid']}}%"></div></div><span id="commission_estimate_income_mid" class="income_value estimate_mid">{{estimate['income']['mid']}}</span><span id="commission_estimate_annual_mid" class="annual_value estimate_mid">{{estimate['annual']['mid']}}</span></div>
+				<div class="income_row"><span>月收入（高位）</span><div class="income_track"><div id="commission_estimate_bar_high" class="income_bar high" style="width:{{estimate['bar_width']['high']}}%"></div></div><span id="commission_estimate_income_high" class="income_value estimate_high">{{estimate['income']['high']}}</span><span id="commission_estimate_annual_high" class="annual_value estimate_high">{{estimate['annual']['high']}}</span></div>
 			</div>
 			{% if estimateRecord %}
 			<a class="estimate_btn" style="margin:12px 0 0 0" href="{{helper.createUrl(['p':'salary/commissionestimate','employee_id':employeeId])}}">重新测算</a>
 			{% else %}
-			<button class="estimate_btn" style="margin:12px 6px 0 0" type="submit" name="estimate_action" value="calculate">测算</button>
 			<button class="estimate_btn gray" style="margin:12px 0 0 0" type="submit" name="estimate_action" value="save">保存测算</button>
 			{% endif %}
 			{% else %}<div class="estimate_empty">该员工尚未匹配任何启用的提成项目，请先检查提成项目的适用岗位、部门或人员设置。</div>{% endif %}
@@ -112,3 +112,4 @@
 </div>
 </div>
 <script src="/skin/adminhtml/default/js/salary-inline-delete.js?v=20260717-2"></script>
+{% if not estimateRecord %}<script src="/skin/adminhtml/default/js/commission-estimate-live.js?v=20260720-1"></script>{% endif %}
