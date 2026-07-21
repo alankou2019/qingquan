@@ -1,29 +1,47 @@
-# A computer handoff: commission estimate project toggle
+# A电脑交接：提成测算项目启用/停用及规则展示
 
-## Scope
+## 本次范围
 
-Salary module commission estimate page only. Operations-admin code and production were not changed.
+本次只修改企业薪酬模块的月收入提成测算页面，不修改营运后台、数据库结构和生产服务器。
 
-## Behavior
+## 已完成内容
 
-- The employee income estimate table displays each commission project's rule summary.
-- Each applicable commission project can be temporarily disabled or enabled for the current estimate.
-- A disabled project remains visible, but its low, middle, and high commission amounts are calculated as zero.
-- The total commission, monthly income, annual income, and chart update immediately after a project is toggled.
-- Saved estimate records retain the enabled state and show it as read-only text.
-- Repeated unchanged requests are skipped and an unfinished calculation request is cancelled before the next one is sent.
+1. 在“提成项目”名称后新增“提成规则”列，显示现有项目的比例、固定单价或阶梯规则摘要。
+2. 每个适用项目最后新增“启用/停用”按钮：
+   - 只影响当前员工本次测算，不删除提成项目，也不改变项目的全局启用状态。
+   - 停用后项目仍保留在表格中，低位、中位、高位提成均按 `0.00` 计算。
+   - 总提成、月收入、年收入和图表随服务端测算结果同步更新。
+   - 重新启用后保留原业绩输入值并恢复计算。
+3. 保存测算记录时保留各项目启停状态；查看历史测算时只读显示“已启用/已停用”。
+4. 实时测算优化：相同数据不重复请求，发起新请求前取消尚未完成的旧请求，请求失败后允许重试。
 
-## Verification completed on B computer
+## 性能排查结论
 
-- PHP 7.3 syntax check passed.
-- JavaScript syntax check passed.
-- Local page `/salary/commissionestimate` loaded without a fatal error.
-- Local calculation API test: project values 1000/2000/3000 returned commission 100/200/300; a disabled project returned zero for all three levels.
-- No estimate record was saved by the calculation-only test.
+本地使用 `127.0.0.1` 仍能复现等待，因此不是外网网络问题。B电脑检查到：
 
-## A computer actions
+- 8101端口残留多个前一天启动的 PHP 开发服务，容易造成请求排队或命中失去响应的进程。
+- 本地 MariaDB 首次表结构查询明显偏慢；旧框架页面初始化会触发多次元数据检查。
+- 本次已处理页面连续输入产生重复 AJAX 请求的问题，但本地开发环境仍应先关闭旧 PHP 服务，只保留一个新服务再测试。
 
-1. Pull and review this commit before adding related commission estimate changes.
-2. Test changing three estimate values and toggling one project in isolated staging.
-3. Confirm saved estimate records retain the selected project state.
-4. Do not deploy to production until the user completes manual testing and explicitly approves it.
+## 主要文件
+
+- `app/code/Salary/Model/CommissionEstimateModel.php`
+- `app/design/frontend/default/Salary/salary/commissionestimate.volt`
+- `skin/adminhtml/default/js/commission-estimate-live.js`
+
+## B电脑已验证
+
+- PHP 7.3语法检查通过。
+- JavaScript语法检查通过。
+- `/salary/commissionestimate` 页面可正常渲染，无 Fatal error。
+- 启用项目时，测试业绩 `100/200/300` 正常返回提成金额。
+- 停用后低、中、高三档均返回 `0.00`；重新启用后恢复原计算结果。
+- 本次计算接口测试未保存正式测算记录，没有数据库迁移。
+
+## A电脑操作要求
+
+1. 同步提交后先关闭旧的本地 PHP 测试服务，只启动一个新服务。
+2. 打开 `/salary/commissionestimate`，使用 `Ctrl+F5` 强制刷新前端脚本。
+3. 分别验证快速连续输入、停用、重新启用、总额联动和保存测算记录。
+4. 确认停用只影响当前员工测算，不影响其他员工及全局提成项目。
+5. 用户完成手工测试并明确批准前，不得部署或覆盖生产环境。
