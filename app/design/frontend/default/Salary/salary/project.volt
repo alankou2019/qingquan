@@ -21,6 +21,14 @@
 .salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
 .salary_sheet input.salary_text_input{text-align:left;width:120px;}
 .salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
+.salary_sheet .initial_name_col{width:110px;min-width:110px;max-width:110px;}
+.salary_sheet .initial_mobile_col{width:120px;min-width:120px;max-width:120px;}
+.salary_sheet .initial_department_col{width:160px;min-width:160px;max-width:160px;}
+.salary_sheet .initial_project_col{width:116px;min-width:116px;max-width:116px;}
+.salary_two_line{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:36px;line-height:18px;white-space:normal;word-break:break-all;}
+.initial_mobile_col .salary_two_line{display:block;white-space:nowrap;text-overflow:ellipsis;}
+.salary_status_enabled{color:#15803d;}
+.salary_status_disabled{color:#94a3b8;}
 .salary_sheet .initial_summary{background:#eaf3ff;}
 .salary_sheet .initial_earning{background:#edf9f1;}
 .salary_sheet .initial_deduction{background:#fff4e8;}
@@ -77,10 +85,9 @@
 
 		<div class="salary_block">
 			<h3>通用项目</h3>
-			<form method="post" action="{{helper.createUrl(['p':'salary/projectsavetemplates'])}}">
-				<table class="salary_table">
+			<table class="salary_table">
 					<tr>
-						<th width="8%">启用</th>
+						<th width="8%">状态</th>
 						<th width="22%">项目名称</th>
 						<th width="14%">项目类别</th>
 						<th width="14%">项目属性</th>
@@ -89,24 +96,25 @@
 					</tr>
 					{% for item in templates %}
 					<tr id="salary_template_row_{{item['id']}}" data-salary-template-id="{{item['id']}}">
-						<td><input type="checkbox" name="template_ids[]" value="{{item['id']}}" {% if item['is_selected'] %}checked="checked"{% endif %} /></td>
+						<td>{% if item['is_selected'] %}<span class="salary_status_enabled">已启用</span>{% else %}<span class="salary_status_disabled">未启用</span>{% endif %}</td>
 						<td>{{item['name']}}</td>
 						<td>{{item['direction_label']}}</td>
 						<td>{{item['source_type_label']}}</td>
 						<td>{% if item['linked_module']!='none' %}关联 {{item['linked_module']}}{% else %}-{% endif %}</td>
 						<td>
 							<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','template_id':item['id']])}}">编辑</a>
-							<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/projectdelete'])}}" data-delete-row-id="salary_template_row_{{item['id']}}" data-delete-template-id="{{item['id']}}" data-delete-confirm="确定删除当前企业的这个通用工资项目吗？删除不会影响平台模板、其他企业和历史归档记录。" onclick="return salaryInlineDelete(this, {template_id:{{item['id']}}});">删除</button>
+							{% if !item['is_selected'] %}
+							<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectenabletemplate'])}}">
+								<input type="hidden" name="template_id" value="{{item['id']}}" />
+								<button class="salary_link_btn" type="submit">启用</button>
+							</form>
+							{% endif %}
 						</td>
 					</tr>
 					{% elsefor %}
 					<tr><td colspan="6" class="salary_empty">暂无平台通用项目</td></tr>
 					{% endfor %}
-				</table>
-				<div style="margin-top:10px;">
-					<button class="salary_btn" type="submit">保存通用项目选择</button>
-				</div>
-			</form>
+			</table>
 		</div>
 
 		<div class="salary_block">
@@ -213,7 +221,7 @@
 							<input type="hidden" name="id" value="{{item['id']}}" />
 							<button class="salary_link_btn" type="submit">停用</button>
 						</form>
-						<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/projectdelete'])}}" data-delete-row-id="salary_project_row_{{item['id']}}" data-delete-confirm="确定删除这个工资项目吗？删除后不会影响历史工资表和归档记录。" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button>
+						{% if !item['template_id'] %}<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/projectdelete'])}}" data-delete-row-id="salary_project_row_{{item['id']}}" data-delete-confirm="确定删除这个工资项目吗？删除后不会影响历史工资表和归档记录。" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button>{% endif %}
 					</td>
 				</tr>
 				{% elsefor %}
@@ -236,21 +244,21 @@
 				<div class="salary_scroll">
 					<table class="salary_table salary_sheet">
 						<tr>
-							<th width="120">员工</th>
-							<th width="120">手机号</th>
-							<th width="140">部门</th>
+							<th class="initial_name_col">员工</th>
+							<th class="initial_mobile_col">手机号</th>
+							<th class="initial_department_col">部门</th>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th class="initial_{{project['initial_group']}}">{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
+								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}} {{project['calculation_mode_label']}}"><span class="salary_two_line">{{project['name']}}<br />{{project['calculation_mode_label']}}</span></th>
 								{% endif %}
 							{% endfor %}
 							<th>操作</th>
 						</tr>
 						{% for employee in initialEmployees %}
 						<tr id="initial_salary_row_{{employee['id']}}">
-							<td>{{employee['name']}}</td>
-							<td>{{employee['mobile']}}</td>
-							<td>{{employee['department_name']}}</td>
+							<td class="initial_name_col" title="{{employee['name']}}"><span class="salary_two_line">{{employee['name']}}</span></td>
+							<td class="initial_mobile_col" title="{{employee['mobile']}}"><span class="salary_two_line">{{employee['mobile']}}</span></td>
+							<td class="initial_department_col" title="{{employee['department_name']}}"><span class="salary_two_line">{{employee['department_name']}}</span></td>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
 								<td class="initial_{{project['initial_group']}}">

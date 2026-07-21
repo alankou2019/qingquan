@@ -441,10 +441,6 @@ class SalaryController extends FrontendBaseController
 		foreach ($templates as $key => $template) {
 			$templateId = intval($template['id']);
 			$companyProject = isset($templateProjectMap[$templateId]) ? $templateProjectMap[$templateId] : false;
-			if ($companyProject && intval($companyProject['deleted_at']) > 0) {
-				unset($templates[$key]);
-				continue;
-			}
 			if ($companyProject) {
 				foreach (array('name', 'source_type', 'direction', 'calculation_mode', 'linked_module', 'formula_text', 'default_number', 'default_text', 'sort_order', 'status') as $field) {
 					if (isset($companyProject[$field])) {
@@ -486,9 +482,13 @@ class SalaryController extends FrontendBaseController
 		}
 
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
+		$companyProjectsForView = array();
 		$formulaProjects = array();
 		$editProjectId = $editItem ? intval($editItem->id) : 0;
 		foreach ($projects as $project) {
+			if (empty($project['template_id']) || $project['status'] == 'active') {
+				$companyProjectsForView[] = $project;
+			}
 			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
 				continue;
 			}
@@ -503,7 +503,7 @@ class SalaryController extends FrontendBaseController
 
 		$this->view->setVar('templates', $templates);
 		$this->view->setVar('fixedProjects', SalaryProjectModel::getFixedSummaryProjects());
-		$this->view->setVar('projects', $projects);
+		$this->view->setVar('projects', $companyProjectsForView);
 		$this->view->setVar('formulaProjects', $formulaProjects);
 		$this->view->setVar('editItem', $editItem);
 		$this->view->setVar('sourceTypes', $sourceTypes);
@@ -527,6 +527,22 @@ class SalaryController extends FrontendBaseController
 		SalaryProjectModel::factory()->saveTemplateSelection($this->companyId, $templateIds);
 		$this->addSalaryLog('project_template_save', 'salary_project', 0, '', '保存通用工资项目选择');
 		Utils::showMsg('通用工资项目已保存', $backUrl);
+	}
+
+	public function projectenabletemplateAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$templateId = intval($this->request->getPost('template_id'));
+		$model = SalaryProjectModel::factory();
+		if (!$model->enableCompanyTemplateProject($this->companyId, $templateId)) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('project_template_enable', 'salary_project', $templateId, '', '启用通用工资项目');
+		Utils::showMsg('通用工资项目已启用，并已纳入企业工资项目', $backUrl);
 	}
 
 	public function projectsaveAction()

@@ -123,6 +123,7 @@ class SalaryOperationLogModel extends BaseModel
 	{
 		return array(
 			'project_template_save' => '保存通用工资项目',
+			'project_template_enable' => '启用通用工资项目',
 			'project_custom_save' => '保存自定义工资项目',
 			'project_save' => '保存工资项目',
 			'project_delete' => '删除工资项目',

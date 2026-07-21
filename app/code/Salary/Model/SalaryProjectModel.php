@@ -232,6 +232,29 @@ class SalaryProjectModel extends BaseModel
 		);
 	}
 
+	public function enableCompanyTemplateProject($companyId, $templateId)
+	{
+		$companyId = intval($companyId);
+		$templateId = intval($templateId);
+		$template = $this->getDB()->query('select * from `' . $this->getTableName('salary_project_templates') . '` where id=' . $templateId . ' and status="active" limit 1')->fetch();
+		if ($companyId <= 0 || !$template) {
+			$this->_lastError = '通用工资项目不存在';
+			return false;
+		}
+
+		$now = time();
+		$item = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
+		if ($item) {
+			return $item->save(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
+		}
+
+		$data = $this->buildTemplateProjectData($companyId, $template, $now);
+		$data['status'] = 'active';
+		$data['created_at'] = $now;
+		$model = new SalaryProjectModel();
+		return $model->save($data);
+	}
+
 	public function saveCustomProject($companyId, $postData)
 	{
 		$companyId = intval($companyId);
