@@ -2,7 +2,7 @@
 <config>
 	<modules>
 		<Salary>
-			<version>1.0.0.14</version>
+			<version>1.0.0.15</version>
 			<label>Salary</label>
 			<description>Salary management module</description>
 		</Salary>
