@@ -257,7 +257,7 @@
 							<th class="initial_department_col">部门</th>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}} {{project['calculation_mode_label']}}"><span class="salary_two_line">{{project['name']}}<br />{{project['calculation_mode_label']}}</span>{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">全部复制</button>{% endif %}</th>
+								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}}"><span class="salary_two_line">{{project['name']}}</span>{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">全部复制</button>{% endif %}</th>
 								{% endif %}
 							{% endfor %}
 							<th>操作</th>
