@@ -25,6 +25,7 @@
 .salary_sheet .initial_mobile_col{width:120px;min-width:120px;max-width:120px;}
 .salary_sheet .initial_department_col{width:160px;min-width:160px;max-width:160px;}
 .salary_sheet .initial_project_col{width:116px;min-width:116px;max-width:116px;}
+.salary_sheet .initial_project_col .salary_bulk_copy{display:block;margin-top:4px;white-space:nowrap;}
 .salary_two_line{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:36px;line-height:18px;white-space:normal;word-break:break-all;}
 .initial_mobile_col .salary_two_line{display:block;white-space:nowrap;text-overflow:ellipsis;}
 .salary_status_enabled{color:#15803d;}
@@ -49,6 +50,13 @@
 .salary_formula_ops button{border:1px solid #cbd5e1;background:#fff;color:#334155;width:26px;height:24px;line-height:22px;margin-right:4px;cursor:pointer;}
 .salary_default_field{display:inline-block;}
 .salary_default_field input{width:180px;}
+.salary_bulk_copy{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:11px;}
+.salary_bulk_dialog{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(15,23,42,.28);}
+.salary_bulk_dialog_box{width:320px;margin:16vh auto 0;background:#fff;border:1px solid #cbd5e1;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.18);}
+.salary_bulk_dialog_title{color:#1f2937;font-size:15px;margin-bottom:10px;}
+.salary_bulk_dialog input{box-sizing:border-box;width:100%;height:32px;border:1px solid #cbd5e1;padding:0 8px;}
+.salary_bulk_dialog_actions{margin-top:14px;text-align:right;}
+.salary_bulk_dialog_actions .salary_btn{margin-left:8px;}
 </style>
 <div class="full_box">
 	<div class="head_tab clear">
@@ -249,7 +257,7 @@
 							<th class="initial_department_col">部门</th>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}} {{project['calculation_mode_label']}}"><span class="salary_two_line">{{project['name']}}<br />{{project['calculation_mode_label']}}</span></th>
+								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}} {{project['calculation_mode_label']}}"><span class="salary_two_line">{{project['name']}}<br />{{project['calculation_mode_label']}}</span>{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">全部复制</button>{% endif %}</th>
 								{% endif %}
 							{% endfor %}
 							<th>操作</th>
@@ -287,6 +295,17 @@
 					</table>
 				</div>
 			</form>
+			<div id="initial_salary_bulk_dialog" class="salary_bulk_dialog" role="dialog" aria-modal="true" aria-labelledby="initial_salary_bulk_title">
+				<div class="salary_bulk_dialog_box">
+					<div id="initial_salary_bulk_title" class="salary_bulk_dialog_title">批量填写</div>
+					<div>请输入要复制到所有员工的数字：</div>
+					<input id="initial_salary_bulk_value" type="number" step="0.01" inputmode="decimal" value="0.00" />
+					<div class="salary_bulk_dialog_actions">
+						<button class="salary_btn salary_btn_gray" type="button" onclick="closeInitialSalaryBulkCopy();">取消</button>
+						<button class="salary_btn" type="button" onclick="applyInitialSalaryBulkCopy();">确定</button>
+					</div>
+				</div>
+			</div>
 			{% if excludedInitialEmployees %}
 			<div class="salary_removed_box">
 				已移出初始工资表：
@@ -377,6 +396,55 @@ function cancelInitialSalaryRow(employeeId) {
 function prepareInitialSalarySave(employeeId) {
 	document.getElementById('initial_salary_employee_id').value = employeeId;
 	return true;
+}
+var initialSalaryBulkProjectId = 0;
+var initialSalaryBulkProjectName = '';
+function openInitialSalaryBulkCopy(button) {
+	if (!button) {
+		return;
+	}
+	initialSalaryBulkProjectId = parseInt(button.getAttribute('data-project-id'), 10) || 0;
+	initialSalaryBulkProjectName = button.getAttribute('data-project-name') || '工资项目';
+	if (!initialSalaryBulkProjectId) {
+		return;
+	}
+	document.getElementById('initial_salary_bulk_title').innerHTML = '全部复制：' + initialSalaryBulkProjectName;
+	document.getElementById('initial_salary_bulk_value').value = '0.00';
+	document.getElementById('initial_salary_bulk_dialog').style.display = 'block';
+	document.getElementById('initial_salary_bulk_value').focus();
+}
+function closeInitialSalaryBulkCopy() {
+	document.getElementById('initial_salary_bulk_dialog').style.display = 'none';
+}
+function applyInitialSalaryBulkCopy() {
+	var input = document.getElementById('initial_salary_bulk_value');
+	var value = parseFloat(input.value);
+	if (isNaN(value) || !isFinite(value)) {
+		alert('请输入有效数字');
+		input.focus();
+		return;
+	}
+	value = (Math.round(value * 100) / 100).toFixed(2);
+	var fields = document.getElementById('initial_salary_form').getElementsByTagName('input');
+	var suffix = '][' + initialSalaryBulkProjectId + ']';
+	var count = 0;
+	for (var i = 0; i < fields.length; i++) {
+		var name = fields[i].getAttribute('name') || '';
+		if (name.indexOf('amount[') === 0 && name.slice(-suffix.length) === suffix) {
+			fields[i].value = value;
+			count++;
+		}
+	}
+	if (!count) {
+		alert('没有找到可填写的员工数据');
+		return;
+	}
+	if (!confirm('确定将“' + initialSalaryBulkProjectName + '”统一设置为 ' + value + '，并保存所有员工吗？')) {
+		return;
+	}
+	document.getElementById('initial_salary_employee_id').value = '0';
+	closeInitialSalaryBulkCopy();
+	document.getElementById('initial_salary_form').submit();
 }
 function prepareInitialSalaryDelete(employeeId) {
 	document.getElementById('initial_salary_employee_id').value = employeeId;
