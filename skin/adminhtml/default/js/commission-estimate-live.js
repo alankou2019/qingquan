@@ -7,6 +7,8 @@
 	var status = document.getElementById('commission_estimate_status');
 	var timer = null;
 	var requestNo = 0;
+	var activeRequest = null;
+	var lastPayload = '';
 	var levels = ['low', 'mid', 'high'];
 
 	function setStatus(message) {
@@ -59,8 +61,16 @@
 	}
 
 	function calculate() {
+		var payload = buildPostData();
+		if (payload === lastPayload) {
+			return;
+		}
+		lastPayload = payload;
+		if (activeRequest && activeRequest.readyState !== 4) {
+			activeRequest.abort();
+		}
 		var currentRequest = ++requestNo;
-		var xhr = new XMLHttpRequest();
+		var xhr = activeRequest = new XMLHttpRequest();
 		setStatus('正在计算...');
 		xhr.open('POST', form.getAttribute('data-calculate-url'), true);
 		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
@@ -77,15 +87,18 @@
 						setStatus('已按当前规则计算');
 						return;
 					}
+					lastPayload = '';
 					setStatus(result.error || '计算失败');
 				} catch (error) {
+					lastPayload = '';
 					setStatus('计算结果读取失败');
 				}
 			} else {
+				lastPayload = '';
 				setStatus('计算失败，请稍后重试');
 			}
 		};
-		xhr.send(buildPostData());
+		xhr.send(payload);
 	}
 
 	function scheduleCalculate() {
@@ -99,5 +112,25 @@
 	for (var i = 0; i < fields.length; i++) {
 		fields[i].addEventListener('input', scheduleCalculate, false);
 		fields[i].addEventListener('change', scheduleCalculate, false);
+	}
+
+	var toggles = form.getElementsByClassName ? form.getElementsByClassName('commission_project_toggle') : [];
+	for (var j = 0; j < toggles.length; j++) {
+		toggles[j].addEventListener('click', function () {
+			var projectId = this.getAttribute('data-project-id');
+			var enabledInput = document.getElementById('commission_estimate_enabled_' + projectId);
+			var row = document.getElementById('commission_estimate_project_' + projectId);
+			if (!enabledInput) {
+				return;
+			}
+			var enabled = enabledInput.value !== '1';
+			enabledInput.value = enabled ? '1' : '0';
+			this.textContent = enabled ? '停用' : '启用';
+			this.className = 'estimate_toggle commission_project_toggle' + (enabled ? '' : ' is_disabled');
+			if (row) {
+				row.className = enabled ? '' : 'commission_project_disabled';
+			}
+			scheduleCalculate();
+		}, false);
 	}
 }());
