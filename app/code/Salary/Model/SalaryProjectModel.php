@@ -456,6 +456,10 @@ class SalaryProjectModel extends BaseModel
 			$this->_lastError = '工资项目不存在';
 			return false;
 		}
+		if (intval($item->template_id) <= 0) {
+			$this->_lastError = '自定义项目不能停用，如不再使用请删除';
+			return false;
+		}
 		return $item->save(array(
 			'status' => 'inactive',
 			'updated_at' => time(),

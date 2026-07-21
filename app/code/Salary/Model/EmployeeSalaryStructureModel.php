@@ -49,9 +49,10 @@ class EmployeeSalaryStructureModel extends BaseModel
 					$rowValues[$projectId] = isset($project['default_number']) ? sprintf('%.2f', floatval($project['default_number'])) : '0.00';
 				}
 				if (!SalaryProjectModel::isTextProject($project)) {
-					if ($project['direction'] == 'earning') {
+					if (intval($project['include_earning'])) {
 						$earningTotal += floatval($rowValues[$projectId]);
-					} elseif ($project['direction'] == 'deduction') {
+					}
+					if (intval($project['include_deduction'])) {
 						$deductionTotal += floatval($rowValues[$projectId]);
 					}
 				}
