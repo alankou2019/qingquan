@@ -1,5 +1,12 @@
 <script src="/skin/adminhtml/default/js/form.js"></script>
 <script type="text/javascript" src="/skin/adminhtml/default/libs/laydate/laydate.js" ></script>
+<style>
+.miniapp-summary { margin: 10px 0 18px; padding: 14px 18px; border: 1px solid #cddcff; background: #f5f8ff; color: #34527a; line-height: 26px; }
+.miniapp-modules { display: flex; flex-wrap: wrap; gap: 12px; max-width: 820px; }
+.miniapp-module { width: 220px; padding: 14px 16px; border: 1px solid #d7e1f2; background: #fff; }
+.miniapp-module strong { display: block; margin-bottom: 5px; color: #183153; }
+.miniapp-module small { color: #718096; }
+</style>
 <!--滚动条-->
 <script
 	src="/skin/adminhtml/default/libs/nicescroll/jquery.nicescroll.js"></script>
@@ -8,7 +15,7 @@
 
 		<span style="float: right; cursor: pointer;"
 			onclick="window.location=window.location;"><i
-			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% else %}新增钉钉公司{% endif %}</span> <a
+			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% elseif platform == 'miniapp' %}新增小程序客户{% else %}新增钉钉公司{% endif %}</span> <a
 			class="go_back" onclick="window.location='{{helper.createUrl(['p':'company/index'])}}';"> <i
 			class="iconfont icon-fanhui"></i> <span>返回公司列表</span>
 		</a>
@@ -20,6 +27,7 @@
 		<form action="{{helper.createUrl(['p':'company/save'])}}" method="post" class="form_full" id="dataForm" name="dataForm" enctype="multipart/form-data">
 		     <input type="hidden" name="id" value="">
 		     <input type="hidden" name="platform" value="{{platform}}">
+		     <input type="hidden" name="application_id" value="{% if registrationApplication %}{{registrationApplication.id}}{% endif %}">
 			<div class="sub_title">公司信息</div>
 			<ul class="list_form_full">
 
@@ -44,7 +52,7 @@
                     </li>
                 {% endif %}
                 
-                               {%if item %}
+                               {% if item and platform == 'dingding' %}
                   <li class="posi_lm">
                         <div class="left posi_l ">前台访问地址:</div>
                         <div class="right posi_m">
@@ -57,7 +65,7 @@
                     </li>
                 {% endif %}
                 
-                 {%if item %}
+                 {% if item and platform == 'dingding' %}
                   <li class="posi_lm">
                         <div class="left posi_l ">后台地址:</div>
                         <div class="right posi_m">
@@ -88,7 +96,7 @@
 				<li class="posi_lm"><div class="left posi_l">EncodingAESKey:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_encoding_aes_key" maxlength="255" autocomplete="off"/></div></div></li>
 				{% endif %}
                     
-				{% if platform != 'wecom' or item %}
+				{% if platform == 'dingding' %}
                  <li class="posi_lm">
 					<div class="left posi_l ">appKey:</div>
 					<div class="right posi_m">
@@ -131,25 +139,19 @@
 				<input type="hidden" name="ssosecret" value="">
 				<input type="hidden" name="agentid" value="0">
 				{% endif %}
-				
-				<li class="posi_lm">
-					<div class="left posi_l ">联系人:</div>
-					<div class="right posi_m">
-						<div class="input_clear">
-							<input type="text" name="contact" ignore="ignore"  datatype="*"  value="" errormsg="联系人不能为空！" maxlength="16" autocomplete="off"/>
-						</div>
-					</div>
-				</li>
-				
-				<li class="posi_lm">
-					<div class="left posi_l">联系电话:</div>
-					<div class="right posi_m">
-						<div class="input_clear">
-							<input type="text" name="phone"  ignore="ignore" datatype="*"  value="" errormsg="联系电话不能为空！" autocomplete="off"/>
-							<small style="" class="help-block prompt_box"><i class="fa fa-times-circle-o"></i>请填写11位手机号码！</small>
-						</div>
-					</div>
-				</li>
+				{% if platform == 'miniapp' %}
+				<div class="miniapp-summary">总管理员手机号将作为企业小程序登录账号。新企业自动生成企业字母编码，总管理员工号为“企业编码001”，初始密码为 dc123456。</div>
+				{% if item %}
+				<li class="posi_lm"><div class="left posi_l">企业编码:</div><div class="right posi_m"><div class="input_clear"><input type="text" value="{{item.company_code}}" readonly="readonly"/></div></div></li>
+				{% endif %}
+				<li class="posi_lm"><div class="left posi_l must">总管理员姓名:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="miniapp_admin_name" datatype="*" value="{% if item %}{{item.miniapp_admin_name}}{% endif %}" maxlength="64" autocomplete="off"/></div></div></li>
+				<li class="posi_lm"><div class="left posi_l must">总管理员手机号:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="miniapp_admin_mobile" datatype="m" value="{% if item %}{{item.miniapp_admin_mobile}}{% endif %}" maxlength="11" autocomplete="off"/><small class="help-block prompt_box">请填写11位手机号，手机号不能绑定其他企业。</small></div></div></li>
+				<input type="hidden" name="contact" value="">
+				<input type="hidden" name="phone" value="">
+				{% else %}
+				<li class="posi_lm"><div class="left posi_l">联系人:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="contact" ignore="ignore" datatype="*" value="" errormsg="联系人不能为空！" maxlength="16" autocomplete="off"/></div></div></li>
+				<li class="posi_lm"><div class="left posi_l">联系电话:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="phone" ignore="ignore" datatype="*" value="" errormsg="联系电话不能为空！" autocomplete="off"/><small class="help-block prompt_box">请填写11位手机号码！</small></div></div></li>
+				{% endif %}
                 
                <li class="posi_lm">
 					<div class="left posi_l">公司地址:</div>
@@ -164,22 +166,33 @@
 					<div class="left posi_l">状态:</div>
 					<div class="right">
 						<div class="txt">
-						<input type="radio" name="status" checked="checked" value="0">未激活&nbsp;&nbsp;
-                        <input type="radio" name="status" value="1">试用期&nbsp;&nbsp;
+						<input type="radio" name="status" {% if platform != 'miniapp' %}checked="checked"{% endif %} value="0">未激活&nbsp;&nbsp;
+                        <input type="radio" name="status" {% if platform == 'miniapp' %}checked="checked"{% endif %} value="1">试用期&nbsp;&nbsp;
                         <input type="radio" name="status" value="2">正常&nbsp;&nbsp;
 						</div>
 					</div>
 				</li>
-				
+				{% if platform == 'miniapp' %}
+				<li class="posi_lm">
+					<div class="left posi_l">开放模块:</div>
+					<div class="right posi_m">
+						<div class="miniapp-modules">
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="salary" {% if 'salary' in miniappModules %}checked="checked"{% endif %}><strong>薪酬管理</strong><small>工资项目、核算、工资条和归档</small></label>
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="points" {% if 'points' in miniappModules %}checked="checked"{% endif %}><strong>积分考核</strong><small>规则、加扣分、审批、排行和申诉</small></label>
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="kpi" {% if 'kpi' in miniappModules %}checked="checked"{% endif %}><strong>KPI考核</strong><small>沿用旧系统KPI考核表和评分结果</small></label>
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="commission" {% if 'commission' in miniappModules %}checked="checked"{% endif %}><strong>提成管理</strong><small>提成规则、核算和归档记录</small></label>
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="promotion" {% if 'promotion' in miniappModules %}checked="checked"{% endif %}><strong>晋升管理</strong><small>晋升规则和员工晋升记录</small></label>
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="annual" {% if 'annual' in miniappModules %}checked="checked"{% endif %}><strong>年度考核（预留）</strong><small>仅保存开通状态，暂不显示入口</small></label>
+							<label class="miniapp-module"><input type="checkbox" name="miniapp_modules[]" value="training" {% if 'training' in miniappModules %}checked="checked"{% endif %}><strong>培训管理（预留）</strong><small>仅保存开通状态，暂不显示入口</small></label>
+						</div>
+					</div>
+				</li>
+				{% else %}
 				<li class="posi_lm">
                     <div class="left posi_l">积分考核:</div>
-                    <div class="right">
-                        <div class="txt">
-                        <input type="radio" name="pointstatus" checked="checked" value="0">不启用
-                        <input type="radio" name="pointstatus" value="1">启用&nbsp;&nbsp;
-                        </div>
-                    </div>
+                    <div class="right"><div class="txt"><input type="radio" name="pointstatus" checked="checked" value="0">不启用 <input type="radio" name="pointstatus" value="1">启用</div></div>
                 </li>
+				{% endif %}
                 
                 <li class="posi_lm">
 
@@ -195,29 +208,20 @@
 					<div class="left posi_l">人数限制:</div>
 					<div class="right posi_m">
 						<div class="input_clear">
-							<input type="text" name="personlimit"   datatype="*"  value="" errormsg="人数限制不能为空！" autocomplete="off"/>
+							<input type="text" name="personlimit" datatype="*" value="{% if platform == 'miniapp' and not item %}20{% endif %}" errormsg="人数限制不能为空！" autocomplete="off"/>
 						</div>
 					</div>
 				</li>
-				<li class="posi_lm">
-					<div class="left posi_l">单人考评表数目限制:</div>
-					<div class="right posi_m">
-						<div class="input_clear">
-							<input type="text" name="reportlimit"   datatype="*"  value="" errormsg="单人考评表数目限制不能唯恐！" autocomplete="off"/>
-						</div>
-					</div>
-				</li>
-				<li class="posi_lm">
-					<div class="left posi_l">考评表模版数限制:</div>
-					<div class="right posi_m">
-						<div class="input_clear">
-							<input type="text" name="reporttpllimit"  datatype="*"  value="" errormsg="考评表模版数限制不能为空！" autocomplete="off"/>
-						</div>
-					</div>
-				</li>
+				{% if platform != 'miniapp' %}
+				<li class="posi_lm"><div class="left posi_l">单人考评表数目限制:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="reportlimit" datatype="*" value="" errormsg="单人考评表数目限制不能为空！" autocomplete="off"/></div></div></li>
+				<li class="posi_lm"><div class="left posi_l">考评表模版数限制:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="reporttpllimit" datatype="*" value="" errormsg="考评表模版数限制不能为空！" autocomplete="off"/></div></div></li>
+				{% else %}
+				<input type="hidden" name="reportlimit" value="0">
+				<input type="hidden" name="reporttpllimit" value="0">
+				{% endif %}
 				<li class="posi_lm">
 
-					<div class="left posi_l ">corpId:</div>
+					<div class="left posi_l ">备注:</div>
 					<div class="right posi_m">
 						<div class="input_clear">
 							<textarea name="remark"></textarea>
@@ -268,5 +272,9 @@
 		formObj.init({{item|json_encode}});
 		{% endif %}
 
+		{% if applicationDraft %}
+		var applicationFormObj = new Form('dataForm');
+		applicationFormObj.init({{applicationDraft|json_encode}});
+		{% endif %}
 	});
 </script>

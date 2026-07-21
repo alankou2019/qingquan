@@ -12,6 +12,8 @@ use ScshuxCms\Dacang\Helper\Dingding;
 use ScshuxCms\Common\Model\ConfigModel;
 use ScshuxCms\Core\Constants;
 use ScshuxCms\Dacang\Model\CompanyModel;
+use ScshuxCms\Dacang\Model\MiniappRegistrationModel;
+use ScshuxCms\User\Model\UserModel;
 class  ApiController  extends FrontendBaseController
 {
 	
@@ -113,4 +115,79 @@ class  ApiController  extends FrontendBaseController
 	    }
 	}
 	
+
+	/**
+	 * 企业自主提交小程序开通申请，审核通过前不创建企业和账号。
+	 */
+	public function miniappregisterAction()
+	{
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('仅支持 POST 请求');
+		}
+
+		$data = $_POST;
+		$raw = file_get_contents('php://input');
+		if ($raw) {
+			$json = json_decode($raw, true);
+			if (is_array($json)) {
+				$data = array_merge($data, $json);
+			}
+		}
+
+		$companyName = isset($data['company_name']) ? trim($data['company_name']) : '';
+		$contactName = isset($data['contact_name']) ? trim($data['contact_name']) : '';
+		$adminMobile = isset($data['admin_mobile']) ? trim($data['admin_mobile']) : '';
+		$industry = isset($data['industry']) ? trim($data['industry']) : '';
+		$address = isset($data['address']) ? trim($data['address']) : '';
+
+		if ($companyName === '' || $contactName === '') {
+			$this->sendErrorResult('请填写企业名称和联系人姓名');
+		}
+		if (!preg_match('/^1[3-9]\d{9}$/', $adminMobile)) {
+			$this->sendErrorResult('请填写正确的11位手机号');
+		}
+		if (CompanyModel::factory()->findFirst('name="' . addslashes($companyName) . '"')) {
+			$this->sendErrorResult('该企业已经开通，请直接登录或联系运营人员');
+		}
+		if (UserModel::factory()->findFirst(
+			'(user_name="' . addslashes($adminMobile) . '" or phone="' . addslashes($adminMobile) . '") and company_id>0'
+		)) {
+			$this->sendErrorResult('该手机号已经绑定企业，请直接登录或联系运营人员');
+		}
+
+		$pending = MiniappRegistrationModel::factory()->findFirst(
+			'status="pending" and (admin_mobile="' . addslashes($adminMobile)
+			. '" or company_name="' . addslashes($companyName) . '")'
+		);
+		if ($pending) {
+			$this->sendSuccessResult(array(
+				'application_id' => intval($pending->id),
+				'status' => 'pending',
+				'message' => '申请已提交，请等待运营人员审核'
+			));
+		}
+
+		$now = time();
+		$application = new MiniappRegistrationModel();
+		$result = $application->save(array(
+			'company_name' => $companyName,
+			'industry' => $industry,
+			'contact_name' => $contactName,
+			'admin_mobile' => $adminMobile,
+			'address' => $address,
+			'person_limit' => 20,
+			'status' => 'pending',
+			'created_at' => $now,
+			'updated_at' => $now
+		));
+		if (!$result) {
+			$this->sendErrorResult('申请提交失败，请稍后重试');
+		}
+
+		$this->sendSuccessResult(array(
+			'application_id' => intval($application->id),
+			'status' => 'pending',
+			'message' => '申请已提交，请等待运营人员审核'
+		));
+	}
 }

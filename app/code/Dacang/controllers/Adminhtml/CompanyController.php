@@ -14,6 +14,10 @@ use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\PlatformIntegrationModel;
 use ScshuxCms\Dacang\Helper\WecomCredential;
+use ScshuxCms\Dacang\Helper\MiniappProvisioningService;
+use ScshuxCms\Dacang\Helper\MiniappBackendSync;
+use ScshuxCms\Dacang\Model\MiniappRegistrationModel;
+use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 class  CompanyController extends AdminBaseController
 {
     /**
@@ -66,31 +70,57 @@ class  CompanyController extends AdminBaseController
 	 */
 	public function editAction()
 	{
-	    $itemId  = isset($_REQUEST['id'])?intval($_REQUEST['id']):'';
-	    $platform = isset($_REQUEST['platform'])?trim($_REQUEST['platform']):'dingding';
-	    if(!in_array($platform, array('dingding', 'wecom'))){
+	    $itemId = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
+	    $platform = isset($_REQUEST['platform']) ? trim($_REQUEST['platform']) : 'dingding';
+	    if (!in_array($platform, array('dingding', 'wecom', 'miniapp'))) {
 	        $platform = 'dingding';
 	    }
-	    $this->view->setVar('platform', $platform);
-	    $backUrl = $this->getHelper()->createUrl(array('p'=>'company/index'));
-	    if($itemId>0){
-	        $item = CompanyModel::factory()->findFirst('id='.$itemId);
-	        
-	        if(empty($item))
-	        {
-	            Utils::showMsg('修改的记录不存在!',$backUrl);
-	        }
-	        $item->expire_time = $item->expire_time!=-1?$this->getHelper()->getTime()->localDate('Y-m-d H:i:s',$item->expire_time):'';
 
+	    $backUrl = $this->getHelper()->createUrl(array('p' => 'company/index'));
+	    $miniappModules = array();
+	    $applicationDraft = null;
+	    $applicationId = isset($_REQUEST['application_id']) ? intval($_REQUEST['application_id']) : 0;
+	    if ($itemId <= 0 && $platform == 'miniapp' && $applicationId > 0) {
+	        $application = MiniappRegistrationModel::factory()->findFirst(
+	            'id=' . $applicationId . ' and status="pending"'
+	        );
+	        if (empty($application)) {
+	            Utils::showMsg('注册申请不存在或已处理！', $backUrl);
+	        }
+	        $applicationDraft = array(
+	            'name' => $application->company_name,
+	            'industry' => $application->industry,
+	            'miniapp_admin_name' => $application->contact_name,
+	            'miniapp_admin_mobile' => $application->admin_mobile,
+	            'address' => $application->address,
+	            'personlimit' => intval($application->person_limit)
+	        );
+	        $this->view->setVar('registrationApplication', $application);
+	    }
+	    if ($itemId > 0) {
+	        $item = CompanyModel::factory()->findFirst('id=' . $itemId);
+	        if (empty($item)) {
+	            Utils::showMsg('修改的记录不存在！', $backUrl);
+	        }
+	        if ($item->app_platform == 'miniapp') {
+	            $platform = 'miniapp';
+	        }
+	        $item->expire_time = $item->expire_time != -1
+	            ? $this->getHelper()->getTime()->localDate('Y-m-d H:i:s', $item->expire_time)
+	            : '';
+	        if ($platform == 'miniapp') {
+	            $miniappModules = $this->getEnabledMiniappModules($itemId);
+	        }
 	        $this->view->setVar('item', $item);
 	    }
-	    
+
+	    $this->view->setVar('platform', $platform);
+	    $this->view->setVar('miniappModules', $miniappModules);
+	    $this->view->setVar('applicationDraft', $applicationDraft);
 	}
+
 	/**
-	 *
-	|+----------------------------------------
-	| 更新公司  添加公司 自动生成一个管理员
-	|+----------------------------------------
+	 * 更新公司；小程序客户会同步创建总管理员账号与员工档案。
 	 */
 	public function saveAction()
 	{
@@ -99,12 +129,17 @@ class  CompanyController extends AdminBaseController
 	    {
 	        $postData = $_POST;
 	        $platform = isset($postData['platform'])?trim($postData['platform']):'dingding';
-	        if(!in_array($platform, array('dingding', 'wecom'))){
+	        if(!in_array($platform, array('dingding', 'wecom', 'miniapp'))){
 	            $platform = 'dingding';
 	        }
 	        if(empty($postData['name']))
 	        {
 	            Utils::showMsg('请填写公司名称!',$backUrl);
+	        }
+	        if($platform == 'miniapp'){
+	            $itemId = !empty($postData['id']) ? intval($postData['id']) : 0;
+	            $this->saveMiniappCompany($postData, $itemId, $backUrl);
+	            return;
 	        }
 	        if($platform == 'wecom'){
 	            if(empty($postData['wecom_corp_id']) || empty($postData['wecom_agent_id']) || empty($postData['wecom_secret'])){
@@ -211,6 +246,210 @@ class  CompanyController extends AdminBaseController
 	
 	
 	
+	protected function saveMiniappCompany($postData, $itemId, $backUrl)
+	{
+	    $adminName = isset($postData['miniapp_admin_name']) ? trim($postData['miniapp_admin_name']) : '';
+	    $adminMobile = isset($postData['miniapp_admin_mobile']) ? trim($postData['miniapp_admin_mobile']) : '';
+	    if ($adminName === '') {
+	        Utils::showMsg('请填写总管理员姓名！', $backUrl);
+	    }
+	    if (!preg_match('/^1[3-9]\d{9}$/', $adminMobile)) {
+	        Utils::showMsg('请填写正确的11位总管理员手机号！', $backUrl);
+	    }
+
+	    $companyName = isset($postData['name']) ? trim($postData['name']) : '';
+	    $companyWhere = 'name="' . addslashes($companyName) . '"';
+	    if ($itemId > 0) {
+	        $companyWhere .= ' and id!=' . $itemId;
+	    }
+	    if (CompanyModel::factory()->findFirst($companyWhere)) {
+	        Utils::showMsg('公司已存在，请重新填写！', $backUrl);
+	    }
+
+	    $personLimit = isset($postData['personlimit']) ? intval($postData['personlimit']) : 20;
+	    if ($personLimit < 1 || $personLimit > 50) {
+	        Utils::showMsg('小程序企业人数限制必须在1至50人之间！', $backUrl);
+	    }
+
+	    $duplicateWhere = '(user_name="' . addslashes($adminMobile) . '" or phone="' . addslashes($adminMobile) . '") and company_id>0';
+	    if ($itemId > 0) {
+	        $duplicateWhere .= ' and company_id!=' . $itemId;
+	    }
+	    if (UserModel::factory()->findFirst($duplicateWhere)) {
+	        Utils::showMsg('该手机号已经绑定其他企业，请更换手机号！', $backUrl);
+	    }
+
+	    $nowtime = $this->getHelper()->getTime()->gmtime();
+	    if (!empty($postData['expire_time'])) {
+	        $expireTime = $this->getHelper()->getTime()->localStrtotime($postData['expire_time']);
+	    } else {
+	        $expireTime = $itemId > 0 ? -1 : $nowtime + 2592000;
+	    }
+	    $modules = $this->normalizeMiniappModules(
+	        isset($postData['miniapp_modules']) ? $postData['miniapp_modules'] : array()
+	    );
+
+	    $data = array(
+	        'name' => trim($postData['name']),
+	        'contact' => $adminName,
+	        'phone' => $adminMobile,
+	        'address' => isset($postData['address']) ? trim($postData['address']) : '',
+	        'remark' => isset($postData['remark']) ? trim($postData['remark']) : '',
+	        'status' => isset($postData['status']) ? intval($postData['status']) : 1,
+	        'expire_time' => $expireTime,
+	        'industry' => isset($postData['industry']) ? trim($postData['industry']) : '',
+	        'user_id' => isset($postData['user_id']) ? intval($postData['user_id']) : 0,
+	        'personlimit' => $personLimit,
+	        'reportlimit' => 0,
+	        'reporttpllimit' => 0,
+	        'app_platform' => 'miniapp'
+	    );
+
+	    $db = FactoryDefault::getDefault()->getdb();
+	    $db->begin();
+	    try {
+	        if ($itemId > 0) {
+	            $company = CompanyModel::factory()->findFirst('id=' . $itemId);
+	            if (empty($company)) {
+	                throw new \RuntimeException('修改的小程序企业不存在！');
+	            }
+	            if (!$company->save($data)) {
+	                throw new \RuntimeException('保存小程序企业失败！');
+	            }
+	        } else {
+	            $data['created'] = $nowtime;
+	            $data['hash_key'] = md5(microtime(true));
+	            $company = new CompanyModel();
+	            if (!$company->save($data)) {
+	                throw new \RuntimeException('创建小程序企业失败！');
+	            }
+	        }
+
+	        $operatorId = $this->getAdminOperatorId();
+	        $service = new MiniappProvisioningService();
+	        $credentials = $service->provision($company, array(
+	            'admin_name' => $adminName,
+	            'admin_mobile' => $adminMobile,
+	            'modules' => $modules,
+	            'registration_source' => !empty($postData['application_id']) ? 'self_registration' : 'admin'
+	        ), $operatorId);
+
+	        $applicationId = !empty($postData['application_id']) ? intval($postData['application_id']) : 0;
+	        if ($applicationId > 0) {
+	            $application = MiniappRegistrationModel::factory()->findFirst(
+	                'id=' . $applicationId . ' and status="pending"'
+	            );
+	            if (empty($application)) {
+	                throw new \RuntimeException('注册申请不存在或已处理！');
+	            }
+	            if (!$application->save(array(
+	                'status' => 'approved',
+	                'company_id' => intval($company->id),
+	                'updated_at' => $nowtime,
+	                'reviewed_at' => $nowtime,
+	                'reviewed_by' => $operatorId
+	            ))) {
+	                throw new \RuntimeException('更新注册申请状态失败！');
+	            }
+	        }
+	        $db->commit();
+	    } catch (\Exception $exception) {
+	        $db->rollback();
+	        Utils::showMsg('操作失败：' . $exception->getMessage(), $backUrl);
+	        return;
+	    }
+
+	    try {
+	        $syncResult = (new MiniappBackendSync())->sync($company, $modules);
+	    } catch (\Exception $syncException) {
+	        $syncResult = array(
+	            'success' => false,
+	            'skipped' => false,
+	            'error' => '同步请求异常：' . $syncException->getMessage()
+	        );
+	    }
+	    $company->miniapp_sync_status = $syncResult['success'] ? 'synced' : ($syncResult['skipped'] ? 'pending' : 'failed');
+	    $company->miniapp_sync_error = $syncResult['success'] ? '' : substr($syncResult['error'], 0, 255);
+	    $company->miniapp_synced_at = $syncResult['success'] ? $nowtime : 0;
+	    $company->save();
+
+	    $message = '小程序企业保存成功！企业编码：' . $credentials['company_code']
+	        . '，总管理员工号：' . $credentials['admin_employee_no'];
+	    if ($itemId <= 0) {
+	        $message .= '，初始密码：' . $credentials['initial_password'];
+	    }
+	    if (!$syncResult['success']) {
+	        $message .= '；小程序后端尚未同步：' . $syncResult['error'] . '。保存后可再次编辑提交重试。';
+	    }
+	    Utils::showMsg($message, $backUrl);
+	}
+
+	protected function normalizeMiniappModules($modules)
+	{
+	    $allowed = array('salary', 'points', 'kpi', 'commission', 'annual', 'promotion', 'training');
+	    if (!is_array($modules)) {
+	        $modules = array();
+	    }
+	    $return = array();
+	    foreach ($modules as $module) {
+	        $module = trim($module);
+	        if (in_array($module, $allowed) && !in_array($module, $return)) {
+	            $return[] = $module;
+	        }
+	    }
+	    return $return;
+	}
+
+	protected function getEnabledMiniappModules($companyId)
+	{
+	    $return = array();
+	    $authMap = CompanyModuleAuthModel::getCompanyAuthMap($companyId);
+	    foreach ($authMap as $moduleCode => $features) {
+	        if (isset($features['_module']) && intval($features['_module']) === 1) {
+	            $return[] = $moduleCode;
+	        }
+	    }
+	    return $return;
+	}
+
+	protected function getAdminOperatorId()
+	{
+	    $adminUser = AdminUserModel::getLoginUser();
+	    return $adminUser && isset($adminUser->user_id) ? intval($adminUser->user_id) : 0;
+	}
+
+	public function miniappapplicationsAction()
+	{
+	    $applications = MiniappRegistrationModel::factory()->find(array(
+	        'order' => 'created_at desc',
+	        'limit' => 200
+	    ));
+	    $this->view->setVar('applications', $applications);
+	}
+
+	public function rejectminiappapplicationAction()
+	{
+	    $backUrl = $this->getHelper()->createUrl(array('p' => 'company/miniappapplications'));
+	    if (!$this->request->isPost()) {
+	        Utils::showMsg('不支持的请求方式！', $backUrl);
+	    }
+	    $applicationId = isset($_POST['id']) ? intval($_POST['id']) : 0;
+	    $application = MiniappRegistrationModel::factory()->findFirst(
+	        'id=' . $applicationId . ' and status="pending"'
+	    );
+	    if (empty($application)) {
+	        Utils::showMsg('注册申请不存在或已处理！', $backUrl);
+	    }
+	    $now = time();
+	    $result = $application->save(array(
+	        'status' => 'rejected',
+	        'review_remark' => '运营后台拒绝',
+	        'updated_at' => $now,
+	        'reviewed_at' => $now,
+	        'reviewed_by' => $this->getAdminOperatorId()
+	    ));
+	    Utils::showMsg($result ? '申请已拒绝！' : '操作失败！', $backUrl);
+	}
 	protected function _getDataList()
 	{
 	    /*条件*/
@@ -250,7 +489,7 @@ class  CompanyController extends AdminBaseController
 	    /*加载数据*/
 	    $offset = ($page-1)*$pagesize;    
 	    
-	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum,max(pi.platform) as platform';
+	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,c.app_platform,c.company_code,c.miniapp_admin_name,c.miniapp_admin_mobile,c.personlimit,c.miniapp_sync_status,c.miniapp_sync_error,c.miniapp_synced_at,sum(u.login_num) as loginnum,coalesce(max(pi.platform),c.app_platform,\'dingding\') as platform';
 	    $items = $this->modelsManager->createBuilder()
 									    ->columns($columns)
 									    ->addFrom('ScshuxCms\Dacang\Model\CompanyModel','c')

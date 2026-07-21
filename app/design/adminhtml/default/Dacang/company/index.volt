@@ -23,6 +23,11 @@
     border-color: #bee6d4;
     background: #f2fbf7;
 }
+.company-platform-label.miniapp {
+    color: #1d4ed8;
+    border-color: #bfd3ff;
+    background: #f1f6ff;
+}
 .company-platform-label.feishu {
     color: #6254a7;
     border-color: #d9d3f4;
@@ -72,6 +77,8 @@
         <!--搜索按钮-->
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'dingding'])}}';"><i class="iconfont icon-tianjia"></i>添加钉钉公司</button>
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'wecom'])}}';"><i class="iconfont icon-tianjia"></i>添加企业微信公司</button>
+        <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'miniapp'])}}';"><i class="iconfont icon-tianjia"></i>添加小程序客户</button>
+        <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/miniappapplications'])}}';"><i class="iconfont icon-caozuo"></i>小程序注册申请</button>
         <button class="operate company-platform-button" type="button" onclick="layer.msg('飞书接入暂未开放');"><i class="iconfont icon-tianjia"></i>添加飞书公司（暂未开放）</button>
         <!--右侧配置-->
         <div class="search_right">
@@ -109,6 +116,9 @@
                     {% if item.platform == 'wecom' %}
                     <span class="company-platform-label wecom">企业微信</span>
                     <button class="btn" onclick="window.location='{{helper.createUrl(['p':'wecom/index','company_id':item.id])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
+                    {% elseif item.platform == 'miniapp' %}
+                    <span class="company-platform-label miniapp">小程序</span>
+                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id,'platform':'miniapp'])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
                     {% elseif item.platform == 'feishu' %}
                     <span class="company-platform-label feishu">飞书</span>
                     <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id,'platform':'feishu'])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
@@ -125,10 +135,10 @@
                     <span class="txt">{{item.industry}}</span>
                 </td> 
                 <td class="name">
-                    <span class="txt">{{item.phone}}</span>
+                    <span class="txt">{% if item.platform == 'miniapp' %}{{item.miniapp_admin_mobile}}{% else %}{{item.phone}}{% endif %}</span>
                 </td> 
                 <td class="name">
-                    <span class="txt">{{helper.createUrl(['p':'bs/index','id':item.hash_key,'m':'front','_f':'1'])}}</span>
+                    <span class="txt">{% if item.platform == 'miniapp' %}企业编码：{{item.company_code}} / 人数：{{item.personlimit}}<br>同步：{% if item.miniapp_sync_status == 'synced' %}已同步{% elseif item.miniapp_sync_status == 'failed' %}失败{% else %}待同步{% endif %}{% else %}{{helper.createUrl(['p':'bs/index','id':item.hash_key,'m':'front','_f':'1'])}}{% endif %}</span>
                 </td> 
                 <td class="name">
                     <span class="txt">{{item.status}}</span>
