@@ -64,6 +64,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 		}
 		return array(
 			'projects' => $this->buildInitialDisplayProjects($projects),
+			'payroll_projects' => $projects,
 			'employees' => $employees,
 			'excluded_employees' => $this->getExcludedInitialSalaryEmployees($companyId),
 		);

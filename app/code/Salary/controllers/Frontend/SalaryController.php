@@ -713,6 +713,7 @@ class SalaryController extends FrontendBaseController
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
 		$rows = array();
 		if ($period) {
+			$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($this->companyId, intval($period['id']));
 			$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, intval($period['id']));
 			$period['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
 			$period['can_edit'] = in_array($period['status'], array('draft', 'calculated', 'rejected')) ? 1 : 0;

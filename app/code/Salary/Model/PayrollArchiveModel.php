@@ -55,10 +55,16 @@ class PayrollArchiveModel extends BaseModel
 			return false;
 		}
 		$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($companyId, $periodId);
+		$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($companyId, $periodId);
+		$snapshot = array(
+			'version' => 2,
+			'projects' => $projects,
+			'rows' => $rows,
+		);
 		$sourceLabel = PayrollPeriodModel::getSourceName($period['source_type'], $period['source_name']);
 		$now = time();
 		$sql = 'insert into `' . $this->getSource() . '` (`company_id`,`payroll_period_id`,`payroll_month`,`source_label`,`employee_count`,`earning_total`,`deduction_total`,`net_total`,`snapshot_data`,`archived_by`,`archived_at`,`created_at`) values ' .
-			'(' . intval($companyId) . ',' . intval($periodId) . ',"' . addslashes($period['payroll_month']) . '","' . addslashes($sourceLabel) . '",' . intval($period['employee_count']) . ',' . $this->money($period['earning_total']) . ',' . $this->money($period['deduction_total']) . ',' . $this->money($period['net_total']) . ',"' . addslashes(serialize($rows)) . '",' . intval($operatorId) . ',' . $now . ',' . $now . ')';
+			'(' . intval($companyId) . ',' . intval($periodId) . ',"' . addslashes($period['payroll_month']) . '","' . addslashes($sourceLabel) . '",' . intval($period['employee_count']) . ',' . $this->money($period['earning_total']) . ',' . $this->money($period['deduction_total']) . ',' . $this->money($period['net_total']) . ',"' . addslashes(serialize($snapshot)) . '",' . intval($operatorId) . ',' . $now . ',' . $now . ')';
 		if (!$this->getDB()->execute($sql)) {
 			$this->_lastError = '保存归档记录失败';
 			return false;
@@ -114,8 +120,14 @@ class PayrollArchiveModel extends BaseModel
 			$this->_lastError = 'Archive payroll data is incomplete';
 			return false;
 		}
+		$projects = array();
+		$snapshotRows = $snapshot;
+		if (isset($snapshot['version']) && intval($snapshot['version']) >= 2) {
+			$projects = isset($snapshot['projects']) && is_array($snapshot['projects']) ? $snapshot['projects'] : array();
+			$snapshotRows = isset($snapshot['rows']) && is_array($snapshot['rows']) ? $snapshot['rows'] : array();
+		}
 		$rows = array();
-		foreach ($snapshot as $item) {
+		foreach ($snapshotRows as $item) {
 			$employeeId = isset($item['employee_id']) ? intval($item['employee_id']) : 0;
 			if ($employeeId <= 0) {
 				continue;
@@ -126,6 +138,7 @@ class PayrollArchiveModel extends BaseModel
 					'name' => isset($item['employee_name']) ? $item['employee_name'] : '',
 					'mobile' => isset($item['employee_no']) ? $item['employee_no'] : '',
 					'department_name' => isset($item['department_name']) ? $item['department_name'] : '',
+					'position_name' => isset($item['position_name']) ? $item['position_name'] : '',
 				),
 				'values' => isset($item['values']) && is_array($item['values']) ? $item['values'] : array(),
 			);
@@ -134,7 +147,13 @@ class PayrollArchiveModel extends BaseModel
 			$this->_lastError = 'Archive payroll has no employee rows to restore';
 			return false;
 		}
-		$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
+		if (empty($projects)) {
+			$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($companyId, intval($archive['payroll_period_id']));
+		}
+		if (empty($projects)) {
+			// Last-resort compatibility for very old archives without item metadata.
+			$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
+		}
 		$periodId = PayrollPeriodModel::factory()->savePayrollMatrix($companyId, $archive['payroll_month'], $projects, $rows, $operatorId, 'manual', 'archive restore', intval($archive['payroll_period_id']));
 		if (!$periodId) {
 			$this->_lastError = PayrollPeriodModel::factory()->getLastError();

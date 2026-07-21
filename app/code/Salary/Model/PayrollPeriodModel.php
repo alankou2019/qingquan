@@ -135,7 +135,8 @@ class PayrollPeriodModel extends BaseModel
 		foreach ($initial['employees'] as $employee) {
 			$rows[] = array('employee' => $employee, 'values' => $employee['values']);
 		}
-		return $this->savePayrollMatrix($companyId, $payrollMonth, $initial['projects'], $rows, $operatorId, 'initial', '初始工资表生成');
+		$projects = isset($initial['payroll_projects']) ? $initial['payroll_projects'] : SalaryProjectModel::factory()->getCompanyProjects($companyId);
+		return $this->savePayrollMatrix($companyId, $payrollMonth, $projects, $rows, $operatorId, 'initial', '初始工资表生成');
 	}
 
 	public function savePayrollMatrixFromPost($companyId, $periodId, $postData, $operatorId)
@@ -150,18 +151,22 @@ class PayrollPeriodModel extends BaseModel
 			return false;
 		}
 		$amounts = isset($postData['amount']) && is_array($postData['amount']) ? $postData['amount'] : array();
-		$projects = SalaryProjectModel::factory()->getCompanyProjects($companyId);
-		$employees = EmployeeSalaryStructureModel::factory()->getCompanyEmployees($companyId);
-		$employeeMap = array();
-		foreach ($employees as $employee) {
-			$employeeMap[intval($employee['id'])] = $employee;
-		}
+		$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($companyId, $periodId);
+		$payrollRows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($companyId, $periodId);
 		$rows = array();
-		foreach ($amounts as $employeeId => $values) {
-			$employeeId = intval($employeeId);
-			if (isset($employeeMap[$employeeId])) {
-				$rows[] = array('employee' => $employeeMap[$employeeId], 'values' => $values);
-			}
+		foreach ($payrollRows as $payrollRow) {
+			$employeeId = intval($payrollRow['employee_id']);
+			$values = isset($amounts[$employeeId]) && is_array($amounts[$employeeId]) ? $amounts[$employeeId] : $payrollRow['values'];
+			$rows[] = array(
+				'employee' => array(
+					'id' => $employeeId,
+					'name' => $payrollRow['employee_name'],
+					'mobile' => $payrollRow['employee_no'],
+					'department_name' => $payrollRow['department_name'],
+					'position_name' => $payrollRow['position_name'],
+				),
+				'values' => $values,
+			);
 		}
 		return $this->savePayrollMatrix($companyId, $period['payroll_month'], $projects, $rows, $operatorId, $period['source_type'], $period['source_name'], intval($period['id']));
 	}
@@ -183,6 +188,16 @@ class PayrollPeriodModel extends BaseModel
 		if (empty($projectMap)) {
 			$this->_lastError = '请先设置工资项目';
 			return false;
+		}
+		$projectSnapshotSql = '';
+		$projectSnapshotColumn = '';
+		$projectSnapshotValue = '';
+		$hasTextValueColumn = $this->hasTextValueColumn($valueTable);
+		if ($this->hasProjectSnapshotColumn($periodTable)) {
+			$serializedProjects = addslashes(serialize(array_values($projectMap)));
+			$projectSnapshotSql = 'project_snapshot="' . $serializedProjects . '",';
+			$projectSnapshotColumn = ',`project_snapshot`';
+			$projectSnapshotValue = ',"' . $serializedProjects . '"';
 		}
 		$preparedRows = array();
 		$employeeCount = 0;
@@ -249,37 +264,57 @@ class PayrollPeriodModel extends BaseModel
 				$db->execute('delete from `' . $valueTable . '` where company_id=' . intval($companyId) . ' and payroll_period_id=' . $periodId);
 				$db->execute('delete from `' . $rowTable . '` where company_id=' . intval($companyId) . ' and payroll_period_id=' . $periodId);
 				$db->execute('delete from `' . $auditTable . '` where company_id=' . intval($companyId) . ' and payroll_period_id=' . $periodId);
-				$sql = 'update `' . $periodTable . '` set status="calculated",source_type="' . addslashes($sourceType) . '",source_name="' . addslashes($sourceName) . '",' .
+				$sql = 'update `' . $periodTable . '` set status="calculated",source_type="' . addslashes($sourceType) . '",source_name="' . addslashes($sourceName) . '",' . $projectSnapshotSql .
 					'employee_count=' . intval($employeeCount) . ',earning_total=' . $this->formatMoney($earningTotal) . ',deduction_total=' . $this->formatMoney($deductionTotal) . ',net_total=' . $this->formatMoney($netTotal) . ',' .
 					'generated_by=' . intval($operatorId) . ',submitted_by=NULL,approved_by=NULL,rejected_by=NULL,published_by=NULL,archived_by=NULL,' .
 					'generated_at=' . $now . ',calculated_at=' . $now . ',submitted_at=NULL,approved_at=NULL,rejected_at=NULL,published_at=NULL,archived_at=NULL,rejected_reason="",updated_at=' . $now .
 					' where id=' . $periodId . ' and company_id=' . intval($companyId);
 				$db->execute($sql);
 			} else {
-				$sql = 'insert into `' . $periodTable . '` (`company_id`,`payroll_month`,`source_type`,`source_name`,`status`,`employee_count`,`earning_total`,`deduction_total`,`net_total`,`generated_by`,`generated_at`,`calculated_at`,`created_at`,`updated_at`) values ' .
-					'(' . intval($companyId) . ',"' . addslashes($payrollMonth) . '","' . addslashes($sourceType) . '","' . addslashes($sourceName) . '","calculated",' . intval($employeeCount) . ',' . $this->formatMoney($earningTotal) . ',' . $this->formatMoney($deductionTotal) . ',' . $this->formatMoney($netTotal) . ',' . intval($operatorId) . ',' . $now . ',' . $now . ',' . $now . ',' . $now . ')';
+				$sql = 'insert into `' . $periodTable . '` (`company_id`,`payroll_month`,`source_type`,`source_name`' . $projectSnapshotColumn . ',`status`,`employee_count`,`earning_total`,`deduction_total`,`net_total`,`generated_by`,`generated_at`,`calculated_at`,`created_at`,`updated_at`) values ' .
+					'(' . intval($companyId) . ',"' . addslashes($payrollMonth) . '","' . addslashes($sourceType) . '","' . addslashes($sourceName) . '"' . $projectSnapshotValue . ',"calculated",' . intval($employeeCount) . ',' . $this->formatMoney($earningTotal) . ',' . $this->formatMoney($deductionTotal) . ',' . $this->formatMoney($netTotal) . ',' . intval($operatorId) . ',' . $now . ',' . $now . ',' . $now . ',' . $now . ')';
 				$db->execute($sql);
 				$periodId = intval($db->lastInsertId());
 			}
+			$valueColumns = $hasTextValueColumn ?
+				'(`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`text_value`,`entry_source`,`remark`,`created_at`,`updated_at`)' :
+				'(`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`entry_source`,`remark`,`created_at`,`updated_at`)';
+			$rowTuples = array();
 			foreach ($preparedRows as $row) {
 				$employee = $row['employee'];
-				$rowSql = 'insert into `' . $rowTable . '` (`company_id`,`payroll_period_id`,`employee_id`,`employee_name`,`employee_no`,`department_name`,`position_name`,`salary_structure_id`,`earning_total`,`deduction_total`,`net_amount`,`remark`,`created_at`,`updated_at`) values ' .
-					'(' . intval($companyId) . ',' . $periodId . ',' . intval($employee['id']) . ',"' . addslashes($employee['name']) . '","' . addslashes(isset($employee['mobile']) ? $employee['mobile'] : '') . '","' . addslashes(isset($employee['department_name']) ? $employee['department_name'] : '') . '","",NULL,' . $this->formatMoney($row['earning_total']) . ',' . $this->formatMoney($row['deduction_total']) . ',' . $this->formatMoney($row['net_amount']) . ',"",' . $now . ',' . $now . ')';
-				$db->execute($rowSql);
-				$rowId = intval($db->lastInsertId());
+				$rowTuples[] = '(' . intval($companyId) . ',' . $periodId . ',' . intval($employee['id']) . ',"' . addslashes($employee['name']) . '","' . addslashes(isset($employee['mobile']) ? $employee['mobile'] : '') . '","' . addslashes(isset($employee['department_name']) ? $employee['department_name'] : '') . '","' . addslashes(isset($employee['position_name']) ? $employee['position_name'] : '') . '",NULL,' . $this->formatMoney($row['earning_total']) . ',' . $this->formatMoney($row['deduction_total']) . ',' . $this->formatMoney($row['net_amount']) . ',"",' . $now . ',' . $now . ')';
+			}
+			$db->execute('insert into `' . $rowTable . '` (`company_id`,`payroll_period_id`,`employee_id`,`employee_name`,`employee_no`,`department_name`,`position_name`,`salary_structure_id`,`earning_total`,`deduction_total`,`net_amount`,`remark`,`created_at`,`updated_at`) values ' . implode(',', $rowTuples));
+			$savedRows = $db->query('select id,employee_id from `' . $rowTable . '` where company_id=' . intval($companyId) . ' and payroll_period_id=' . $periodId)->fetchAll();
+			$rowIdMap = array();
+			foreach ($savedRows as $savedRow) {
+				$rowIdMap[intval($savedRow['employee_id'])] = intval($savedRow['id']);
+			}
+			$valueTuples = array();
+			foreach ($preparedRows as $row) {
+				$employee = $row['employee'];
+				$employeeId = intval($employee['id']);
+				if (!isset($rowIdMap[$employeeId])) {
+					throw new \Exception('Payroll employee row was not saved');
+				}
+				$rowId = $rowIdMap[$employeeId];
 				foreach ($projectMap as $projectId => $project) {
 					$value = isset($row['items'][$projectId]) ? $row['items'][$projectId] : array('amount' => '0.00', 'text' => '');
 					$amount = isset($value['amount']) ? $value['amount'] : '0.00';
 					$textValue = isset($value['text']) ? $value['text'] : '';
-					if ($this->hasTextValueColumn($valueTable)) {
-						$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`text_value`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
-							'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($projectId) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->formatMoney($amount) . ',' . $this->formatMoney($amount) . ',"' . addslashes(trim((string)$textValue)) . '","manual","",' . $now . ',' . $now . ')';
-					} else {
-						$valueSql = 'insert into `' . $valueTable . '` (`company_id`,`payroll_period_id`,`payroll_employee_row_id`,`employee_id`,`salary_project_id`,`project_name`,`source_type`,`direction`,`calculation_mode`,`linked_module`,`include_earning`,`include_deduction`,`include_net`,`initial_amount`,`final_amount`,`entry_source`,`remark`,`created_at`,`updated_at`) values ' .
-							'(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . intval($employee['id']) . ',' . intval($projectId) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->formatMoney($amount) . ',' . $this->formatMoney($amount) . ',"manual","",' . $now . ',' . $now . ')';
+					$valueTuple = '(' . intval($companyId) . ',' . $periodId . ',' . $rowId . ',' . $employeeId . ',' . intval($projectId) . ',"' . addslashes($project['name']) . '","' . addslashes($project['source_type']) . '","' . addslashes($project['direction']) . '","' . addslashes($project['calculation_mode']) . '","' . addslashes($project['linked_module']) . '",' . intval($project['include_earning']) . ',' . intval($project['include_deduction']) . ',' . intval($project['include_net']) . ',' . $this->formatMoney($amount) . ',' . $this->formatMoney($amount);
+					if ($hasTextValueColumn) {
+						$valueTuple .= ',"' . addslashes(trim((string)$textValue)) . '"';
 					}
-					$db->execute($valueSql);
+					$valueTuples[] = $valueTuple . ',"manual","",' . $now . ',' . $now . ')';
+					if (count($valueTuples) >= 200) {
+						$db->execute('insert into `' . $valueTable . '` ' . $valueColumns . ' values ' . implode(',', $valueTuples));
+						$valueTuples = array();
+					}
 				}
+			}
+			if (!empty($valueTuples)) {
+				$db->execute('insert into `' . $valueTable . '` ' . $valueColumns . ' values ' . implode(',', $valueTuples));
 			}
 			$db->commit();
 			return $periodId;
@@ -302,6 +337,12 @@ class PayrollPeriodModel extends BaseModel
 	protected function hasTextValueColumn($table)
 	{
 		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'text_value'")->fetch();
+		return $item ? true : false;
+	}
+
+	protected function hasProjectSnapshotColumn($table)
+	{
+		$item = $this->getDB()->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'project_snapshot'")->fetch();
 		return $item ? true : false;
 	}
 
