@@ -1,5 +1,7 @@
 # 小程序客户接入说明
 
+B 电脑测试部署请先阅读：docs/B-computer-handoff-20260721-miniapp-customer.md。
+
 ## 目标
 
 旧运营管理后台作为企业主数据入口，支持：
