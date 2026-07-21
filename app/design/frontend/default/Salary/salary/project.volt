@@ -104,17 +104,17 @@
 					</tr>
 					{% for item in templates %}
 					<tr id="salary_template_row_{{item['id']}}" data-salary-template-id="{{item['id']}}">
-						<td>{% if item['is_selected'] %}<span class="salary_status_enabled">已启用</span>{% else %}<span class="salary_status_disabled">未启用</span>{% endif %}</td>
+						<td class="salary_template_status">{% if item['is_selected'] %}<span class="salary_status_enabled">已启用</span>{% else %}<span class="salary_status_disabled">未启用</span>{% endif %}</td>
 						<td>{{item['name']}}</td>
 						<td>{{item['direction_label']}}</td>
 						<td>{{item['source_type_label']}}</td>
 						<td>{% if item['linked_module']!='none' %}关联 {{item['linked_module']}}{% else %}-{% endif %}</td>
-						<td>
+						<td class="salary_template_action">
 							<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','template_id':item['id']])}}">编辑</a>
 							{% if !item['is_selected'] %}
-							<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectenabletemplate'])}}">
+							<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectenabletemplate'])}}" onsubmit="return enableSalaryTemplate(this);">
 								<input type="hidden" name="template_id" value="{{item['id']}}" />
-								<button class="salary_link_btn" type="submit">启用</button>
+								<button class="salary_link_btn" type="submit" data-enable-url="{{helper.createUrl(['p':'salary/projectenabletemplate'])}}">启用</button>
 							</form>
 							{% endif %}
 						</td>
@@ -201,7 +201,7 @@
 
 		<div class="salary_block">
 			<h3>企业工资项目</h3>
-			<table class="salary_table">
+			<table id="salary_company_projects_table" class="salary_table">
 				<tr>
 					<th width="12%">来源</th>
 					<th width="18%">项目名称</th>
@@ -233,7 +233,7 @@
 					</td>
 				</tr>
 				{% elsefor %}
-				<tr><td colspan="9" class="salary_empty">暂无工资项目</td></tr>
+				<tr class="salary_project_empty"><td colspan="9" class="salary_empty">暂无工资项目</td></tr>
 				{% endfor %}
 			</table>
 		</div>
@@ -359,6 +359,135 @@ function toggleSalaryFormulaBox() {
 	formulaRow.style.display = sourceType.value == 'calculated' ? 'block' : 'none';
 	numberField.style.display = sourceType.value == 'number' ? 'inline-block' : 'none';
 	textField.style.display = sourceType.value == 'text' ? 'inline-block' : 'none';
+}
+function showSalaryTemplateMessage(message, isError) {
+	var box = document.getElementById('salary_inline_delete_message');
+	if (!box) {
+		return;
+	}
+	box.innerHTML = message || '';
+	box.style.display = 'block';
+	box.style.borderColor = isError ? '#fecaca' : '#bbf7d0';
+	box.style.background = isError ? '#fef2f2' : '#f0fdf4';
+	box.style.color = isError ? '#b91c1c' : '#166534';
+}
+function getSalaryTemplateActionCell(row) {
+	var cells = row ? row.getElementsByTagName('td') : [];
+	return cells.length ? cells[cells.length - 1] : null;
+}
+function updateSalaryTemplateRow(templateId, project) {
+	var row = document.getElementById('salary_template_row_' + templateId);
+	if (!row) {
+		return;
+	}
+	var status = row.getElementsByClassName('salary_template_status')[0];
+	if (status) {
+		status.innerHTML = '<span class="salary_status_enabled">已启用</span>';
+	}
+	var action = row.getElementsByClassName('salary_template_action')[0];
+	if (action) {
+		var forms = action.getElementsByTagName('form');
+		for (var i = forms.length - 1; i >= 0; i--) {
+			forms[i].parentNode.removeChild(forms[i]);
+		}
+	}
+	appendSalaryProjectRow(project);
+}
+function appendSalaryProjectRow(project) {
+	if (!project || !project.id) {
+		return;
+	}
+	var table = document.getElementById('salary_company_projects_table');
+	if (!table) {
+		return;
+	}
+	var existing = document.getElementById('salary_project_row_' + project.id);
+	if (existing) {
+		return;
+	}
+	var empty = table.getElementsByClassName('salary_project_empty');
+	for (var i = empty.length - 1; i >= 0; i--) {
+		empty[i].parentNode.removeChild(empty[i]);
+	}
+	var row = table.insertRow(-1);
+	row.id = 'salary_project_row_' + project.id;
+	row.setAttribute('data-salary-template-id', project.template_id || '');
+	var values = [project.project_kind_label, project.name, project.direction_label, project.source_type_label, project.calculation_mode_label];
+	for (var j = 0; j < values.length; j++) {
+		var cell = row.insertCell(-1);
+		if (j === 0) {
+			var badge = document.createElement('span');
+			badge.className = 'salary_badge';
+			badge.appendChild(document.createTextNode(values[j] || '通用项目'));
+			cell.appendChild(badge);
+		} else {
+			cell.appendChild(document.createTextNode(values[j] || ''));
+		}
+	}
+	var flags = ['include_earning', 'include_deduction', 'include_net'];
+	for (var k = 0; k < flags.length; k++) {
+		var flagCell = row.insertCell(-1);
+		flagCell.appendChild(document.createTextNode(parseInt(project[flags[k]], 10) ? '是' : '否'));
+	}
+	var action = row.insertCell(-1);
+	var edit = document.createElement('a');
+	edit.className = 'salary_link_btn';
+	edit.href = project.edit_url || '#';
+	edit.appendChild(document.createTextNode('编辑'));
+	action.appendChild(edit);
+	action.appendChild(document.createTextNode(' '));
+	var disableForm = document.createElement('form');
+	disableForm.className = 'inline_form';
+	disableForm.method = 'post';
+	disableForm.action = project.disable_url || '';
+	disableForm.onsubmit = function() { return confirm('确定停用这个工资项目吗？'); };
+	var hidden = document.createElement('input');
+	hidden.type = 'hidden';
+	hidden.name = 'id';
+	hidden.value = project.id;
+	disableForm.appendChild(hidden);
+	var disableButton = document.createElement('button');
+	disableButton.className = 'salary_link_btn';
+	disableButton.type = 'submit';
+	disableButton.appendChild(document.createTextNode('停用'));
+	disableForm.appendChild(disableButton);
+	action.appendChild(disableForm);
+}
+function enableSalaryTemplate(form) {
+	if (!form) {
+		return false;
+	}
+	var button = form.getElementsByTagName('button')[0];
+	var templateInput = form.getElementsByTagName('input')[0];
+	if (!button || !templateInput) {
+		return false;
+	}
+	button.disabled = true;
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', form.action, true);
+	xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState !== 4) {
+			return;
+		}
+		button.disabled = false;
+		var result = null;
+		try {
+			result = JSON.parse(xhr.responseText);
+		} catch (e) {
+			showSalaryTemplateMessage('启用失败，请稍后重试', true);
+			return;
+		}
+		if (result && result.status == 'y' && result.data && result.data.project) {
+			updateSalaryTemplateRow(templateInput.value, result.data.project);
+			showSalaryTemplateMessage(result.data.message || '通用工资项目已启用', false);
+		} else {
+			showSalaryTemplateMessage(result && result.error ? result.error : '启用失败，请稍后重试', true);
+		}
+	};
+	xhr.send('template_id=' + encodeURIComponent(templateInput.value) + '&salary_ajax=1');
+	return false;
 }
 function getInitialSalaryRow(employeeId) {
 	return document.getElementById('initial_salary_row_' + employeeId);

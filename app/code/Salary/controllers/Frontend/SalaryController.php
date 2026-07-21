@@ -539,9 +539,28 @@ class SalaryController extends FrontendBaseController
 		$templateId = intval($this->request->getPost('template_id'));
 		$model = SalaryProjectModel::factory();
 		if (!$model->enableCompanyTemplateProject($this->companyId, $templateId)) {
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult($model->getLastError());
+			}
 			Utils::showMsg($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('project_template_enable', 'salary_project', $templateId, '', '启用通用工资项目');
+		if ($this->isSalaryAjaxRequest()) {
+			$project = false;
+			$projects = $model->getCompanyProjects($this->companyId);
+			foreach ($projects as $item) {
+				if (intval($item['template_id']) == $templateId && $item['status'] == 'active') {
+					$project = $item;
+					break;
+				}
+			}
+			if (!$project) {
+				$this->sendErrorResult('通用工资项目已启用，但页面数据获取失败，请刷新后查看');
+			}
+			$project['edit_url'] = Helper::factory()->createUrl(array('p' => 'salary/project', 'id' => intval($project['id'])));
+			$project['disable_url'] = Helper::factory()->createUrl(array('p' => 'salary/projectdisable'));
+			$this->sendSuccessResult(array('message' => '通用工资项目已启用', 'project' => $project));
+		}
 		Utils::showMsg('通用工资项目已启用，并已纳入企业工资项目', $backUrl);
 	}
 
