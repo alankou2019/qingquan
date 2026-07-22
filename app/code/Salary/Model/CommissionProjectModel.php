@@ -54,6 +54,17 @@ class CommissionProjectModel extends BaseModel
 		return $this->formatItems($this->getDB()->query($sql)->fetchAll());
 	}
 
+	public function getCompanyProject($companyId, $projectId)
+	{
+		$sql = 'select * from `' . $this->getSource() . '` where id=' . intval($projectId) . ' and company_id=' . intval($companyId) . ' and deleted_at=0 limit 1';
+		$item = $this->getDB()->query($sql)->fetch();
+		if (!$item) {
+			return false;
+		}
+		$items = $this->formatItems(array($item));
+		return $items[0];
+	}
+
 	public function getScopeOptions($companyId)
 	{
 		$companyId = intval($companyId);
@@ -154,6 +165,51 @@ class CommissionProjectModel extends BaseModel
 		return $item->save($data);
 	}
 
+	/**
+	 * Update calculation fields only. Project name, scope and status remain unchanged.
+	 */
+	public function saveCalculationRule($companyId, $projectId, $postData)
+	{
+		$companyId = intval($companyId);
+		$projectId = intval($projectId);
+		$project = $this->getCompanyProject($companyId, $projectId);
+		if (!$project) {
+			$this->_lastError = '提成项目不存在';
+			return false;
+		}
+
+		$data = array('updated_at' => time());
+		if ($project['commission_mode'] == 'simple') {
+			$rateTypes = self::getRateTypeLabels();
+			$rateType = isset($postData['rate_type']) ? trim($postData['rate_type']) : '';
+			$rateValue = isset($postData['rate_value']) ? trim($postData['rate_value']) : '';
+			if (!isset($rateTypes[$rateType]) || $rateValue === '' || !is_numeric($rateValue) || floatval($rateValue) < 0) {
+				$this->_lastError = '请填写正确的提成比例或固定金额';
+				return false;
+			}
+			$data['rate_type'] = $rateType;
+			$data['rate_value'] = round(floatval($rateValue), 4);
+			$data['tier_config'] = '[]';
+		} else {
+			if (!$this->validateTierRuleData($postData)) {
+				return false;
+			}
+			$tierConfig = $this->buildTierConfig($postData);
+			if (empty($tierConfig)) {
+				$this->_lastError = '阶梯提成请至少填写一档规则';
+				return false;
+			}
+			$data['tier_config'] = json_encode($tierConfig, JSON_UNESCAPED_UNICODE);
+		}
+
+		$item = self::factory()->findFirst('id=' . $projectId . ' and company_id=' . $companyId . ' and deleted_at=0');
+		if (!$item || !$item->save($data)) {
+			$this->_lastError = '提成规则保存失败，请稍后重试';
+			return false;
+		}
+		return $this->getCompanyProject($companyId, $projectId);
+	}
+
 	public function deleteProject($companyId, $projectId)
 	{
 		$item = self::factory()->findFirst('id=' . intval($projectId) . ' and company_id=' . intval($companyId) . ' and deleted_at=0');
@@ -247,6 +303,32 @@ class CommissionProjectModel extends BaseModel
 			return $a['min'] < $b['min'] ? -1 : 1;
 		});
 		return $return;
+	}
+
+	protected function validateTierRuleData($postData)
+	{
+		$mins = isset($postData['tier_min']) && is_array($postData['tier_min']) ? $postData['tier_min'] : array();
+		$maxs = isset($postData['tier_max']) && is_array($postData['tier_max']) ? $postData['tier_max'] : array();
+		$rates = isset($postData['tier_rate']) && is_array($postData['tier_rate']) ? $postData['tier_rate'] : array();
+		for ($i = 0; $i < 6; $i++) {
+			$min = isset($mins[$i]) ? trim($mins[$i]) : '';
+			$max = isset($maxs[$i]) ? trim($maxs[$i]) : '';
+			$rate = isset($rates[$i]) ? trim($rates[$i]) : '';
+			if ($min === '' && $max === '' && $rate === '') {
+				continue;
+			}
+			if (($min !== '' && !is_numeric($min)) || ($max !== '' && !is_numeric($max)) || $rate === '' || !is_numeric($rate)) {
+				$this->_lastError = '阶梯规则中的业绩值和提成比例必须为数字';
+				return false;
+			}
+			$minValue = $min === '' ? 0 : floatval($min);
+			$maxValue = $max === '' ? 0 : floatval($max);
+			if ($minValue < 0 || $maxValue < 0 || floatval($rate) < 0 || ($maxValue > 0 && $maxValue <= $minValue)) {
+				$this->_lastError = '阶梯规则数值不能为负数，封顶值应大于起始值';
+				return false;
+			}
+		}
+		return true;
 	}
 
 	protected function decodeTierConfig($value)

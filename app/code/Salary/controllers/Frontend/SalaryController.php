@@ -152,6 +152,43 @@ class SalaryController extends FrontendBaseController
 		$this->sendSuccessResult($estimate);
 	}
 
+	/**
+	 * Update a project's calculation rule from the live estimate and recalculate it.
+	 */
+	public function commissionestimatesaveruleAction()
+	{
+		$this->checkFeature('commission');
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('Unsupported request method');
+		}
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$estimateModel = CommissionEstimateModel::factory();
+		if (!$estimateModel->getEmployee($this->companyId, $employeeId)) {
+			$this->sendErrorResult('员工不存在或不属于当前企业');
+		}
+
+		$projectId = intval($this->request->getPost('project_id'));
+		$projectModel = CommissionProjectModel::factory();
+		$project = $projectModel->saveCalculationRule($this->companyId, $projectId, $_POST);
+		if (!$project) {
+			$this->sendErrorResult($projectModel->getLastError());
+		}
+
+		$inputValues = isset($_POST['estimate']) && is_array($_POST['estimate']) ? $_POST['estimate'] : array();
+		$estimate = $estimateModel->calculateEstimate($this->companyId, $employeeId, $inputValues);
+		if (!$estimate) {
+			$this->sendErrorResult($estimateModel->getLastError());
+		}
+		$this->addSalaryLog('commission_project_rule_save', 'commission_project', $projectId, '', '在提成测算中修改提成项目规则：' . $project['name'] . '，新规则：' . $project['rule_summary']);
+		$this->sendSuccessResult(array(
+			'estimate' => $estimate,
+			'project' => array(
+				'id' => intval($project['id']),
+				'rule_summary' => $project['rule_summary'],
+			),
+		));
+	}
+
 	public function deletecommissionestimateAction()
 	{
 		$this->checkFeature('commission');

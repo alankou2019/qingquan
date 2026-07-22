@@ -5,10 +5,12 @@
 	}
 
 	var status = document.getElementById('commission_estimate_status');
+	var saveRuleUrl = form.getAttribute('data-save-rule-url');
 	var timer = null;
 	var requestNo = 0;
 	var activeRequest = null;
 	var lastPayload = '';
+	var ruleSaving = false;
 	var levels = ['low', 'mid', 'high'];
 
 	function setStatus(message) {
@@ -61,6 +63,9 @@
 	}
 
 	function calculate() {
+		if (ruleSaving) {
+			return;
+		}
 		var payload = buildPostData();
 		if (payload === lastPayload) {
 			return;
@@ -102,6 +107,9 @@
 	}
 
 	function scheduleCalculate() {
+		if (ruleSaving) {
+			return;
+		}
 		if (timer) {
 			window.clearTimeout(timer);
 		}
@@ -112,6 +120,143 @@
 	for (var i = 0; i < fields.length; i++) {
 		fields[i].addEventListener('input', scheduleCalculate, false);
 		fields[i].addEventListener('change', scheduleCalculate, false);
+	}
+
+	function getRuleFields(editor) {
+		return editor.querySelectorAll ? editor.querySelectorAll('[data-rule-field]') : [];
+	}
+
+	function rememberRuleValues(editor) {
+		var fields = getRuleFields(editor);
+		for (var i = 0; i < fields.length; i++) {
+			fields[i].setAttribute('data-original-value', fields[i].value);
+		}
+	}
+
+	function restoreRuleValues(editor) {
+		var fields = getRuleFields(editor);
+		for (var i = 0; i < fields.length; i++) {
+			var value = fields[i].getAttribute('data-original-value');
+			if (value !== null) {
+				fields[i].value = value;
+			}
+		}
+	}
+
+	function closeRuleEditor(editor, restore) {
+		if (!editor) {
+			return;
+		}
+		if (restore) {
+			restoreRuleValues(editor);
+		}
+		editor.className = 'estimate_rule_editor';
+	}
+
+	function findRuleEditor(element) {
+		while (element && element !== form) {
+			if ((' ' + element.className + ' ').indexOf(' estimate_rule_editor ') !== -1) {
+				return element;
+			}
+			element = element.parentNode;
+		}
+		return null;
+	}
+
+	function buildRulePostData(editor, projectId) {
+		var data = [buildPostData(), 'project_id=' + encodeURIComponent(projectId)];
+		var fields = getRuleFields(editor);
+		for (var i = 0; i < fields.length; i++) {
+			data.push(encodeURIComponent(fields[i].getAttribute('data-rule-field')) + '=' + encodeURIComponent(fields[i].value));
+		}
+		return data.join('&');
+	}
+
+	var ruleEdits = form.getElementsByClassName ? form.getElementsByClassName('commission_rule_edit') : [];
+	for (var editIndex = 0; editIndex < ruleEdits.length; editIndex++) {
+		ruleEdits[editIndex].addEventListener('click', function () {
+			var projectId = this.getAttribute('data-project-id');
+			var editor = document.getElementById('commission_rule_editor_' + projectId);
+			if (!editor) {
+				return;
+			}
+			var editors = form.getElementsByClassName ? form.getElementsByClassName('estimate_rule_editor') : [];
+			for (var i = 0; i < editors.length; i++) {
+				if (editors[i] !== editor && (' ' + editors[i].className + ' ').indexOf(' is_open ') !== -1) {
+					closeRuleEditor(editors[i], true);
+				}
+			}
+			if ((' ' + editor.className + ' ').indexOf(' is_open ') !== -1) {
+				closeRuleEditor(editor, true);
+				return;
+			}
+			rememberRuleValues(editor);
+			editor.className = 'estimate_rule_editor is_open';
+		}, false);
+	}
+
+	var ruleCancels = form.getElementsByClassName ? form.getElementsByClassName('commission_rule_cancel') : [];
+	for (var cancelIndex = 0; cancelIndex < ruleCancels.length; cancelIndex++) {
+		ruleCancels[cancelIndex].addEventListener('click', function () {
+			closeRuleEditor(findRuleEditor(this), true);
+		}, false);
+	}
+
+	var ruleSaves = form.getElementsByClassName ? form.getElementsByClassName('commission_rule_save') : [];
+	for (var saveIndex = 0; saveIndex < ruleSaves.length; saveIndex++) {
+		ruleSaves[saveIndex].addEventListener('click', function () {
+			var button = this;
+			var editor = findRuleEditor(button);
+			var projectId = editor ? editor.getAttribute('data-project-id') : '';
+			if (!editor || !projectId || !saveRuleUrl || ruleSaving) {
+				return;
+			}
+			if (!window.confirm('保存后会同步修改“提成项目设置”中的规则，并影响以后使用该项目的提成测算。确认保存吗？')) {
+				return;
+			}
+			if (timer) {
+				window.clearTimeout(timer);
+				timer = null;
+			}
+			if (activeRequest && activeRequest.readyState !== 4) {
+				activeRequest.abort();
+			}
+			requestNo++;
+			ruleSaving = true;
+			button.disabled = true;
+			setStatus('正在保存规则并重新计算...');
+			var xhr = new XMLHttpRequest();
+			xhr.open('POST', saveRuleUrl, true);
+			xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+			xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState !== 4) {
+					return;
+				}
+				ruleSaving = false;
+				button.disabled = false;
+				if (xhr.status >= 200 && xhr.status < 300) {
+					try {
+						var result = JSON.parse(xhr.responseText);
+						if (result.status === 'y' && result.data && result.data.estimate && result.data.project) {
+							updateEstimate(result.data.estimate);
+							updateText('commission_estimate_rule_summary_' + projectId, result.data.project.rule_summary);
+							rememberRuleValues(editor);
+							closeRuleEditor(editor, false);
+							lastPayload = buildPostData();
+							setStatus('规则已保存，测算结果已更新');
+							return;
+						}
+						setStatus(result.error || '规则保存失败');
+					} catch (error) {
+						setStatus('规则保存结果读取失败');
+					}
+				} else {
+					setStatus('规则保存失败，请稍后重试');
+				}
+			};
+			xhr.send(buildRulePostData(editor, projectId));
+		}, false);
 	}
 
 	var toggles = form.getElementsByClassName ? form.getElementsByClassName('commission_project_toggle') : [];
