@@ -535,6 +535,9 @@ class SalaryController extends FrontendBaseController
 			if (SalaryProjectModel::isTextProject($project)) {
 				continue;
 			}
+			if ($project['direction'] != 'data') {
+				continue;
+			}
 			$formulaProjects[] = $project;
 		}
 
@@ -548,9 +551,25 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('calculationModes', SalaryProjectModel::getCalculationModeLabels());
 		$this->view->setVar('statusLabels', SalaryProjectModel::getStatusLabels());
 		$initialTable = EmployeeSalaryStructureModel::factory()->getInitialSalaryTable($this->companyId);
+		$initialDepartments = array();
+		$initialPositions = array();
+		foreach ($initialTable['employees'] as $employee) {
+			$departmentName = trim($employee['department_name']);
+			$positionName = trim($employee['position_name']);
+			$departmentName = $departmentName == '' ? '未设置部门' : $departmentName;
+			$positionName = $positionName == '' ? '未设置岗位' : $positionName;
+			$initialDepartments[$departmentName] = $departmentName;
+			$initialPositions[$positionName] = $positionName;
+		}
+		$initialDepartments = array_values($initialDepartments);
+		$initialPositions = array_values($initialPositions);
+		sort($initialDepartments);
+		sort($initialPositions);
 		$this->view->setVar('initialProjects', $initialTable['projects']);
 		$this->view->setVar('initialEmployees', $initialTable['employees']);
 		$this->view->setVar('excludedInitialEmployees', $initialTable['excluded_employees']);
+		$this->view->setVar('initialDepartments', $initialDepartments);
+		$this->view->setVar('initialPositions', $initialPositions);
 	}
 
 	public function projectsavetemplatesAction()
@@ -658,15 +677,16 @@ class SalaryController extends FrontendBaseController
 		$this->checkModule();
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
-		$result = EmployeeSalaryStructureModel::factory()->saveInitialSalaryTable($this->companyId, $_POST, $this->getOperatorId());
+		$model = EmployeeSalaryStructureModel::factory();
+		$result = $model->saveInitialSalaryTable($this->companyId, $_POST, $this->getOperatorId());
 		if (!$result) {
-			Utils::showMsg(EmployeeSalaryStructureModel::factory()->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$employeeId = intval($this->request->getPost('initial_salary_employee_id'));
 		$this->addSalaryLog('initial_salary_employee_save', 'employee_salary_structure', $employeeId, '', '保存员工初始工资数据');
-		Utils::showMsg('员工初始工资数据已保存', $backUrl);
+		$this->respondSalaryDeleteSuccess('员工初始工资数据已保存', $backUrl, array('employee_id' => $employeeId));
 	}
 
 	public function deleteinitialsalaryemployeeAction()

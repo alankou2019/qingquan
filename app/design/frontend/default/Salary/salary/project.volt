@@ -52,14 +52,24 @@
 .salary_default_field input{width:180px;}
 .salary_bulk_copy{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:11px;}
 .salary_bulk_dialog{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(15,23,42,.28);}
-.salary_bulk_dialog_box{width:320px;margin:16vh auto 0;background:#fff;border:1px solid #cbd5e1;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.18);}
+.salary_bulk_dialog_box{width:480px;margin:10vh auto 0;background:#fff;border:1px solid #cbd5e1;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.18);}
 .salary_bulk_dialog_title{color:#1f2937;font-size:15px;margin-bottom:10px;}
-.salary_bulk_dialog input{box-sizing:border-box;width:100%;height:32px;border:1px solid #cbd5e1;padding:0 8px;}
+.salary_bulk_dialog input[type=number],.salary_bulk_dialog select{box-sizing:border-box;width:100%;height:32px;border:1px solid #cbd5e1;padding:0 8px;}
+.salary_bulk_field{margin-bottom:12px;}
+.salary_bulk_field_label{display:block;color:#475569;margin-bottom:6px;}
+.salary_bulk_scope_options{padding:8px 10px;border:1px solid #d9e2ef;background:#f8fafc;}
+.salary_bulk_scope_options label{display:inline-block;margin-right:18px;cursor:pointer;}
+.salary_bulk_scope_options input,.salary_bulk_employee_list input{width:auto;height:auto;margin-right:4px;vertical-align:middle;}
+.salary_bulk_scope_panel{display:none;margin-top:8px;}
+.salary_bulk_scope_panel.on{display:block;}
+.salary_bulk_employee_list{max-height:150px;overflow:auto;border:1px solid #d9e2ef;padding:8px 10px;}
+.salary_bulk_employee_list label{display:inline-block;width:142px;margin:0 6px 7px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:top;}
 .salary_bulk_dialog_actions{margin-top:14px;text-align:right;}
 .salary_bulk_dialog_actions .salary_btn{margin-left:8px;}
 .salary_initial_actions{margin-top:10px;text-align:right;}
 .salary_initial_actions .salary_btn{margin-left:8px;}
 .salary_initial_unsaved{display:none;margin-right:10px;color:#b45309;}
+.salary_row_save_status{display:block;min-height:16px;margin-top:3px;color:#15803d;font-size:11px;}
 </style>
 <div class="full_box">
 	<div class="head_tab clear">
@@ -175,12 +185,12 @@
 						<textarea id="salary_formula_text" name="formula_text">{% if editItem %}{{editItem.formula_text}}{% endif %}</textarea>
 					</div>
 					<div class="salary_formula_tools">
-						<div class="formula_hint">点击工资项目名称可插入公式。支持 +、-、*、/、括号；被引用项目建议排在本项目前面。</div>
+						<div class="formula_hint">仅显示当前企业已启用的数据类项目。点击项目名称可插入公式，支持 +、-、*、/、括号。</div>
 						<div class="salary_formula_refs">
 							{% for item in formulaProjects %}
 							<button type="button" data-project-name="{{item['name']}}" onclick="insertSalaryFormulaProject(this);">{{item['name']}}</button>
 							{% elsefor %}
-							<span>暂无可引用项目，请先启用数字项或核算项。</span>
+							<span>暂无可引用项目，请先在企业工资项目中启用数据类项目。</span>
 							{% endfor %}
 						</div>
 						<div class="salary_formula_ops">
@@ -263,13 +273,13 @@
 							<th class="initial_department_col">部门</th>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}}"><span class="salary_two_line">{{project['name']}}</span>{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">全部复制</button>{% endif %}</th>
+								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}}"><span class="salary_two_line">{{project['name']}}</span>{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] and project['source_type_option']!='calculated' %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">设置金额</button>{% endif %}</th>
 								{% endif %}
 							{% endfor %}
 							<th>操作</th>
 						</tr>
 						{% for employee in initialEmployees %}
-						<tr id="initial_salary_row_{{employee['id']}}">
+						<tr id="initial_salary_row_{{employee['id']}}" data-employee-id="{{employee['id']}}" data-department="{% if employee['department_name'] %}{{employee['department_name']}}{% else %}未设置部门{% endif %}" data-position="{% if employee['position_name'] %}{{employee['position_name']}}{% else %}未设置岗位{% endif %}">
 							<td class="initial_name_col" title="{{employee['name']}}"><span class="salary_two_line">{{employee['name']}}</span></td>
 							<td class="initial_mobile_col" title="{{employee['mobile']}}"><span class="salary_two_line">{{employee['mobile']}}</span></td>
 							<td class="initial_department_col" title="{{employee['department_name']}}"><span class="salary_two_line">{{employee['department_name']}}</span></td>
@@ -290,9 +300,10 @@
 					<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deleteinitialsalaryemployee'])}}" data-delete-row-id="initial_salary_row_{{employee['id']}}" data-delete-confirm="只会从初始工资表移出该员工，不影响人事档案、部门和历史工资记录。确认删除吗？" onclick="return salaryInlineDelete(this, {initial_salary_employee_id:{{employee['id']}}});">删除</button>
 								</span>
 								<span class="salary_row_edit_actions">
-									<button class="salary_link_btn" type="submit" onclick="return prepareInitialSalarySave({{employee['id']}});">保存</button>　
+									<button class="salary_link_btn" type="button" onclick="saveInitialSalaryRow({{employee['id']}}, this);">保存</button>　
 									<button class="salary_link_btn" type="button" onclick="cancelInitialSalaryRow({{employee['id']}});">取消</button>
 								</span>
+								<span id="initial_salary_row_status_{{employee['id']}}" class="salary_row_save_status"></span>
 							</td>
 						</tr>
 						{% elsefor %}
@@ -308,9 +319,36 @@
 			</form>
 			<div id="initial_salary_bulk_dialog" class="salary_bulk_dialog" role="dialog" aria-modal="true" aria-labelledby="initial_salary_bulk_title">
 				<div class="salary_bulk_dialog_box">
-					<div id="initial_salary_bulk_title" class="salary_bulk_dialog_title">批量填写</div>
-					<div>请输入要复制到所有员工的数字：</div>
-					<input id="initial_salary_bulk_value" type="number" step="0.01" inputmode="decimal" value="0.00" />
+					<div id="initial_salary_bulk_title" class="salary_bulk_dialog_title">设置金额</div>
+					<div class="salary_bulk_field">
+						<label class="salary_bulk_field_label" for="initial_salary_bulk_value">金额</label>
+						<input id="initial_salary_bulk_value" type="number" step="0.01" inputmode="decimal" value="0.00" />
+					</div>
+					<div class="salary_bulk_field">
+						<span class="salary_bulk_field_label">设置范围</span>
+						<div class="salary_bulk_scope_options">
+							<label><input type="radio" name="initial_salary_bulk_scope" value="all" checked="checked" onchange="updateInitialSalaryBulkScope();" />全部员工</label>
+							<label><input type="radio" name="initial_salary_bulk_scope" value="department" onchange="updateInitialSalaryBulkScope();" />部门</label>
+							<label><input type="radio" name="initial_salary_bulk_scope" value="position" onchange="updateInitialSalaryBulkScope();" />岗位</label>
+							<label><input type="radio" name="initial_salary_bulk_scope" value="employee" onchange="updateInitialSalaryBulkScope();" />指定员工</label>
+						</div>
+						<div id="initial_salary_bulk_scope_all" class="salary_bulk_scope_panel on">将为初始工资表中的全部员工设置金额。</div>
+						<div id="initial_salary_bulk_scope_department" class="salary_bulk_scope_panel">
+							<select id="initial_salary_bulk_department">
+								{% for department in initialDepartments %}<option value="{{department}}">{{department}}</option>{% endfor %}
+							</select>
+						</div>
+						<div id="initial_salary_bulk_scope_position" class="salary_bulk_scope_panel">
+							<select id="initial_salary_bulk_position">
+								{% for position in initialPositions %}<option value="{{position}}">{{position}}</option>{% endfor %}
+							</select>
+						</div>
+						<div id="initial_salary_bulk_scope_employee" class="salary_bulk_scope_panel salary_bulk_employee_list">
+							{% for employee in initialEmployees %}
+							<label title="{{employee['name']}} {{employee['mobile']}}"><input type="checkbox" name="initial_salary_bulk_employee" value="{{employee['id']}}" />{{employee['name']}}</label>
+							{% endfor %}
+						</div>
+					</div>
 					<div class="salary_bulk_dialog_actions">
 						<button class="salary_btn salary_btn_gray" type="button" onclick="closeInitialSalaryBulkCopy();">取消</button>
 						<button class="salary_btn" type="button" onclick="applyInitialSalaryBulkCopy();">确定</button>
@@ -518,6 +556,28 @@ function markInitialSalaryUnsaved() {
 		notice.style.display = 'inline';
 	}
 }
+function refreshInitialSalaryDirtyState() {
+	var form = document.getElementById('initial_salary_form');
+	var dirty = false;
+	if (form) {
+		var inputs = form.getElementsByTagName('input');
+		for (var i = 0; i < inputs.length; i++) {
+			var name = inputs[i].getAttribute('name') || '';
+			if (name.indexOf('amount[') !== 0 || inputs[i].getAttribute('data-saved-value') === null) {
+				continue;
+			}
+			if (String(inputs[i].value) !== String(inputs[i].getAttribute('data-saved-value'))) {
+				dirty = true;
+				break;
+			}
+		}
+	}
+	initialSalaryDirty = dirty;
+	var notice = document.getElementById('initial_salary_unsaved');
+	if (notice) {
+		notice.style.display = dirty ? 'inline' : 'none';
+	}
+}
 function getInitialSalaryCellInput(cell) {
 	var inputs = cell ? cell.getElementsByTagName('input') : [];
 	return inputs.length ? inputs[0] : null;
@@ -617,6 +677,12 @@ function initializeInitialSalaryCalculations() {
 	for (var i = 0; i < rows.length; i++) {
 		if (rows[i].id && rows[i].id.indexOf('initial_salary_row_') === 0) {
 			recalculateInitialSalaryRow(rows[i], false);
+			var inputs = rows[i].getElementsByTagName('input');
+			for (var j = 0; j < inputs.length; j++) {
+				if ((inputs[j].getAttribute('name') || '').indexOf('amount[') === 0) {
+					inputs[j].setAttribute('data-saved-value', inputs[j].value);
+				}
+			}
 		}
 	}
 }
@@ -653,11 +719,87 @@ function cancelInitialSalaryRow(employeeId) {
 	recalculateInitialSalaryRow(row, false);
 	row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'inline';
 	row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'none';
+	refreshInitialSalaryDirtyState();
 }
 function prepareInitialSalarySave(employeeId) {
 	document.getElementById('initial_salary_employee_id').value = employeeId;
 	initialSalaryDirty = false;
 	return true;
+}
+function setInitialSalaryRowStatus(employeeId, message, isError) {
+	var status = document.getElementById('initial_salary_row_status_' + employeeId);
+	if (!status) {
+		return;
+	}
+	status.style.color = isError ? '#b91c1c' : '#15803d';
+	status.innerHTML = message || '';
+	if (message && !isError) {
+		window.setTimeout(function() {
+			if (status.innerHTML == message) {
+				status.innerHTML = '';
+			}
+		}, 2600);
+	}
+}
+function saveInitialSalaryRow(employeeId, button) {
+	var form = document.getElementById('initial_salary_form');
+	var row = getInitialSalaryRow(employeeId);
+	if (!form || !row || !button || button.getAttribute('data-saving') == '1') {
+		return false;
+	}
+	recalculateInitialSalaryRow(row, false);
+	var pairs = [
+		'salary_ajax=1',
+		'initial_salary_employee_id=' + encodeURIComponent(employeeId)
+	];
+	var inputs = row.getElementsByTagName('input');
+	for (var i = 0; i < inputs.length; i++) {
+		var name = inputs[i].getAttribute('name') || '';
+		if (name.indexOf('amount[') === 0) {
+			pairs.push(encodeURIComponent(name) + '=' + encodeURIComponent(inputs[i].value));
+		}
+	}
+	var originalText = button.innerHTML;
+	button.setAttribute('data-saving', '1');
+	button.disabled = true;
+	button.innerHTML = '保存中...';
+	setInitialSalaryRowStatus(employeeId, '', false);
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', form.action, true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+	xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState != 4) {
+			return;
+		}
+		button.removeAttribute('data-saving');
+		button.disabled = false;
+		button.innerHTML = originalText;
+		var result = null;
+		try {
+			result = JSON.parse(xhr.responseText);
+		} catch (e) {
+			setInitialSalaryRowStatus(employeeId, '保存响应异常，请重试', true);
+			return;
+		}
+		if (xhr.status < 200 || xhr.status >= 300 || !result || result.status != 'y') {
+			setInitialSalaryRowStatus(employeeId, result && result.error ? result.error : '保存失败，请重试', true);
+			return;
+		}
+		for (var j = 0; j < inputs.length; j++) {
+			if ((inputs[j].getAttribute('name') || '').indexOf('amount[') === 0) {
+				inputs[j].setAttribute('data-saved-value', inputs[j].value);
+				inputs[j].setAttribute('data-original-value', inputs[j].value);
+			}
+			inputs[j].setAttribute('readonly', 'readonly');
+		}
+		row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'inline';
+		row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'none';
+		setInitialSalaryRowStatus(employeeId, result.data && result.data.message ? result.data.message : '已保存', false);
+		refreshInitialSalaryDirtyState();
+	};
+	xhr.send(pairs.join('&'));
+	return false;
 }
 var initialSalaryBulkProjectId = 0;
 var initialSalaryBulkProjectName = '';
@@ -670,13 +812,63 @@ function openInitialSalaryBulkCopy(button) {
 	if (!initialSalaryBulkProjectId) {
 		return;
 	}
-	document.getElementById('initial_salary_bulk_title').textContent = '全部复制：' + initialSalaryBulkProjectName;
+	document.getElementById('initial_salary_bulk_title').textContent = '设置金额：' + initialSalaryBulkProjectName;
 	document.getElementById('initial_salary_bulk_value').value = '0.00';
+	var scopes = document.getElementsByName('initial_salary_bulk_scope');
+	for (var i = 0; i < scopes.length; i++) {
+		scopes[i].checked = scopes[i].value == 'all';
+	}
+	var employeeChecks = document.getElementsByName('initial_salary_bulk_employee');
+	for (var j = 0; j < employeeChecks.length; j++) {
+		employeeChecks[j].checked = false;
+	}
+	updateInitialSalaryBulkScope();
 	document.getElementById('initial_salary_bulk_dialog').style.display = 'block';
 	document.getElementById('initial_salary_bulk_value').focus();
 }
 function closeInitialSalaryBulkCopy() {
 	document.getElementById('initial_salary_bulk_dialog').style.display = 'none';
+}
+function getInitialSalaryBulkScope() {
+	var scopes = document.getElementsByName('initial_salary_bulk_scope');
+	for (var i = 0; i < scopes.length; i++) {
+		if (scopes[i].checked) {
+			return scopes[i].value;
+		}
+	}
+	return 'all';
+}
+function updateInitialSalaryBulkScope() {
+	var scope = getInitialSalaryBulkScope();
+	var panels = ['all', 'department', 'position', 'employee'];
+	for (var i = 0; i < panels.length; i++) {
+		var panel = document.getElementById('initial_salary_bulk_scope_' + panels[i]);
+		if (panel) {
+			panel.className = 'salary_bulk_scope_panel' + (panels[i] == scope ? ' on' : '') + (panels[i] == 'employee' ? ' salary_bulk_employee_list' : '');
+		}
+	}
+}
+function getInitialSalaryBulkEmployeeMap() {
+	var selected = {};
+	var checks = document.getElementsByName('initial_salary_bulk_employee');
+	for (var i = 0; i < checks.length; i++) {
+		if (checks[i].checked) {
+			selected[String(checks[i].value)] = true;
+		}
+	}
+	return selected;
+}
+function initialSalaryRowMatchesScope(row, scope, selectedEmployees) {
+	if (scope == 'all') {
+		return true;
+	}
+	if (scope == 'department') {
+		return row.getAttribute('data-department') == document.getElementById('initial_salary_bulk_department').value;
+	}
+	if (scope == 'position') {
+		return row.getAttribute('data-position') == document.getElementById('initial_salary_bulk_position').value;
+	}
+	return !!selectedEmployees[String(row.getAttribute('data-employee-id'))];
 }
 function applyInitialSalaryBulkCopy() {
 	var input = document.getElementById('initial_salary_bulk_value');
@@ -687,30 +879,49 @@ function applyInitialSalaryBulkCopy() {
 		return;
 	}
 	value = (Math.round(value * 100) / 100).toFixed(2);
-	var fields = document.getElementById('initial_salary_form').getElementsByTagName('input');
+	var scope = getInitialSalaryBulkScope();
+	var selectedEmployees = getInitialSalaryBulkEmployeeMap();
+	if (scope == 'employee') {
+		var hasSelectedEmployee = false;
+		for (var employeeId in selectedEmployees) {
+			if (selectedEmployees.hasOwnProperty(employeeId)) {
+				hasSelectedEmployee = true;
+				break;
+			}
+		}
+		if (!hasSelectedEmployee) {
+			alert('请至少选择一名员工');
+			return;
+		}
+	}
+	var rows = document.getElementById('initial_salary_form').getElementsByTagName('tr');
 	var suffix = '][' + initialSalaryBulkProjectId + ']';
 	var targets = [];
-	for (var i = 0; i < fields.length; i++) {
-		var name = fields[i].getAttribute('name') || '';
-		if (name.indexOf('amount[') === 0 && name.slice(-suffix.length) === suffix) {
-			targets.push(fields[i]);
+	var targetRows = [];
+	for (var i = 0; i < rows.length; i++) {
+		if (!rows[i].id || rows[i].id.indexOf('initial_salary_row_') !== 0 || !initialSalaryRowMatchesScope(rows[i], scope, selectedEmployees)) {
+			continue;
+		}
+		var fields = rows[i].getElementsByTagName('input');
+		for (var fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+			var name = fields[fieldIndex].getAttribute('name') || '';
+			if (name.indexOf('amount[') === 0 && name.slice(-suffix.length) === suffix) {
+				targets.push(fields[fieldIndex]);
+				targetRows.push(rows[i]);
+				break;
+			}
 		}
 	}
 	if (!targets.length) {
 		alert('没有找到可填写的员工数据');
 		return;
 	}
-	if (!confirm('确定将“' + initialSalaryBulkProjectName + '”统一设置为 ' + value + ' 吗？填写后请点击“保存整张工资表”。')) {
+	if (!confirm('确定为选中的 ' + targets.length + ' 名员工设置“' + initialSalaryBulkProjectName + '”金额 ' + value + ' 吗？设置后请点击“保存整张工资表”。')) {
 		return;
 	}
 	for (var targetIndex = 0; targetIndex < targets.length; targetIndex++) {
 		targets[targetIndex].value = value;
-	}
-	var rows = document.getElementById('initial_salary_form').getElementsByTagName('tr');
-	for (var j = 0; j < rows.length; j++) {
-		if (rows[j].id && rows[j].id.indexOf('initial_salary_row_') === 0) {
-			recalculateInitialSalaryRow(rows[j], false);
-		}
+		recalculateInitialSalaryRow(targetRows[targetIndex], false);
 	}
 	markInitialSalaryUnsaved();
 	closeInitialSalaryBulkCopy();
