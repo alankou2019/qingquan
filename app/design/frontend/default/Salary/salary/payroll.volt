@@ -1,143 +1,57 @@
 <style>
-.salary_page{padding:18px;}
-.salary_toolbar{margin-bottom:12px;}
-.salary_toolbar .btn,.salary_btn{display:inline-block;background:#4560e6;color:#fff;padding:0 14px;line-height:30px;height:30px;text-decoration:none;margin-right:8px;border:0;cursor:pointer;}
-.salary_toolbar .btn_gray,.salary_btn_gray{background:#64748b;}
-.salary_filter{border:1px solid #d9e2ef;background:#fbfdff;padding:12px 14px;margin-bottom:12px;color:#475569;}
-.salary_filter input[type=text]{height:28px;line-height:28px;border:1px solid #cbd5e1;padding:0 8px;width:90px;}
-.salary_tip{color:#64748b;line-height:24px;margin:0 0 12px 0;}
-.salary_status{display:inline-block;padding:0 8px;height:24px;line-height:24px;background:#eef2ff;color:#3949ab;}
-.salary_status_done{background:#e8f7ef;color:#16803c;}
-.salary_status_warn{background:#fff7e6;color:#a15c00;}
-.salary_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff;}
-.salary_table{width:100%;border-collapse:collapse;background:#fff;}
-.salary_sheet{min-width:1100px;}
-.salary_table th{background:#f8fafc;color:#334155;font-weight:normal;text-align:left;padding:9px;border-bottom:1px solid #d9e2ef;white-space:nowrap;}
-.salary_table td{padding:8px;border-bottom:1px solid #edf2f7;color:#475569;vertical-align:middle;white-space:nowrap;}
-.salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
-.salary_sheet input.salary_text_input{text-align:left;width:120px;}
-.salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
-.salary_total_col{background:#fbfdff;font-weight:bold;color:#1f2937;}
-.salary_empty{border:1px solid #d9e2ef;background:#fbfdff;padding:18px;color:#64748b;}
-.salary_link_btn{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px;}
-.inline_form{display:inline-block;margin:0 8px 4px 0;}
+.salary_page{padding:18px;}.salary_toolbar{margin-bottom:12px;}.salary_toolbar .btn,.salary_btn{display:inline-block;background:#4560e6;color:#fff;padding:0 14px;line-height:30px;height:30px;text-decoration:none;margin-right:8px;border:0;cursor:pointer}.salary_toolbar .btn_gray,.salary_btn_gray{background:#64748b}.salary_filter{border:1px solid #d9e2ef;background:#fbfdff;padding:12px 14px;margin-bottom:12px;color:#475569}.salary_filter input[type=month]{height:28px;border:1px solid #cbd5e1;padding:0 8px}.salary_tip{color:#64748b;line-height:24px;margin:0 0 12px}.salary_status{display:inline-block;padding:0 8px;height:24px;line-height:24px;background:#eef2ff;color:#3949ab}.salary_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff}.salary_table{width:100%;border-collapse:collapse;background:#fff}.salary_table th{background:#f8fafc;color:#334155;font-weight:normal;text-align:left;padding:8px;border-bottom:1px solid #d9e2ef}.salary_table td{padding:8px;border-bottom:1px solid #edf2f7;color:#475569;vertical-align:middle}.salary_table tr:hover td{box-shadow:inset 0 0 0 9999px rgba(100,116,139,.08)}.salary_sheet{min-width:1100px}.salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right}.salary_sheet input.salary_text_input{text-align:left;width:120px}.salary_sheet input[readonly]{background:#f1f5f9;color:#64748b}.salary_sheet .payroll_name_col{width:110px;min-width:110px}.salary_sheet .payroll_mobile_col{width:120px;min-width:120px}.salary_sheet .payroll_department_col{width:160px;min-width:160px}.salary_sheet .payroll_project_col{width:116px;min-width:116px}.salary_two_line{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:36px;line-height:18px;white-space:normal;word-break:break-all}.payroll_mobile_col .salary_two_line{display:block;white-space:nowrap;text-overflow:ellipsis}.salary_sheet .payroll_summary{background:#eaf3ff}.salary_sheet .payroll_earning{background:#edf9f1}.salary_sheet .payroll_deduction{background:#fff4e8}.salary_sheet .payroll_statistic{background:#f3f0ff}.salary_sheet .payroll_data{background:#edf7f8}.salary_sheet .payroll_note{background:#fffbe8}.salary_sheet .payroll_other{background:#f8fafc}.salary_bulk_copy{display:block;margin-top:4px;border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px}.salary_row_actions{min-width:105px;white-space:nowrap}.salary_row_edit_actions{display:none}.salary_link_btn{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px}.salary_empty{border:1px solid #d9e2ef;background:#fbfdff;padding:18px;color:#64748b}.inline_form{display:inline-block;margin:0 8px 4px 0}.salary_table_actions{margin-top:10px;text-align:right}.salary_unsaved{display:none;margin-right:10px;color:#b45309}.salary_row_save_status{display:block;min-height:16px;margin-top:3px;color:#15803d;font-size:11px}.salary_bulk_dialog{display:none;position:fixed;z-index:9999;left:0;top:0;width:100%;height:100%;background:rgba(15,23,42,.35)}.salary_bulk_dialog_box{width:480px;margin:10vh auto 0;background:#fff;border:1px solid #cbd5e1;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.18)}.salary_bulk_dialog_title{color:#1f2937;font-size:15px;margin-bottom:10px}.salary_bulk_field{margin-bottom:12px}.salary_bulk_field_label{display:block;color:#475569;margin-bottom:6px}.salary_bulk_dialog input[type=number],.salary_bulk_dialog select{box-sizing:border-box;width:100%;height:32px;border:1px solid #cbd5e1;padding:0 8px}.salary_bulk_scope_options{padding:8px 10px;border:1px solid #d9e2ef;background:#f8fafc}.salary_bulk_scope_options label{display:inline-block;margin-right:18px;cursor:pointer}.salary_bulk_scope_options input,.salary_bulk_employee_list input{width:auto;height:auto;margin-right:4px;vertical-align:middle}.salary_bulk_scope_panel{display:none;margin-top:8px}.salary_bulk_scope_panel.on{display:block}.salary_bulk_employee_list{max-height:150px;overflow:auto;border:1px solid #d9e2ef;padding:8px 10px}.salary_bulk_employee_list label{display:inline-block;width:142px;margin:0 6px 7px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:top}.salary_bulk_dialog_actions{margin-top:14px;text-align:right}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">工资表核算</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	<div class="head_tab clear"><ul><li class="on"><a href="#">工资表核算</a></li><li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li></ul></div>
 	<div class="salary_page">
-		<div class="salary_toolbar">
-			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a>
-			<a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a>
-		</div>
-		<form class="salary_filter" method="get" action="{{helper.createUrl(['p':'salary/payroll'])}}">
-			<input type="hidden" name="p" value="salary/payroll" />
-			工资月份 <input type="text" name="payroll_month" value="{{payrollMonth}}" placeholder="2026-06" />
-			<button class="salary_btn" type="submit">查看</button>
+		<div class="salary_toolbar"><a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a></div>
+		<form class="salary_filter" method="post" action="{{helper.createUrl(['p':'salary/generatepayroll'])}}" {% if period %}onsubmit="return confirm('重新生成会用当前初始工资表覆盖本月核算表，确定继续吗？');"{% endif %}>
+			工资月份 <input type="month" name="payroll_month" value="{{payrollMonth}}" /> <button class="salary_btn" type="submit">生成</button>
 		</form>
 		{% if !period %}
-			<div class="salary_empty">
-				当前月份还没有工资表。请先在工资项目设置中维护初始工资表，然后从初始工资表生成本月工资表。
-				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/generatepayroll'])}}" style="margin-left:10px;">
-					<input type="hidden" name="payroll_month" value="{{payrollMonth}}" />
-					<button class="salary_btn" type="submit">从初始工资表生成</button>
-				</form>
-			</div>
+		<div class="salary_empty">当前月份还没有工资核算表。选择月份后点击“生成”，系统将复制当前初始工资表的人员、项目和数据。</div>
 		{% else %}
-			<div class="salary_tip">
-				当前工资表：{{period['payroll_month']}}　
-				状态：<span class="salary_status {% if period['status']=='approved' %}salary_status_done{% elseif period['status']=='submitted' %}salary_status_warn{% endif %}">{{period['status_name']}}</span>
-				　应发总额：{{period['earning_total']}}　应扣总额：{{period['deduction_total']}}　实发总额：{{period['net_total']}}
-			</div>
-			<form method="post" action="{{helper.createUrl(['p':'salary/savepayroll'])}}">
-				<input type="hidden" name="id" value="{{period['id']}}" />
-				<div class="salary_scroll">
-					<table class="salary_table salary_sheet">
-						<tr>
-							<th>员工</th>
-							<th>手机号</th>
-							<th>部门</th>
-							{% for project in payrollProjectGroups['earning'] %}
-							<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
-							{% endfor %}
-							<th class="salary_total_col">应发总额<br />系统固定</th>
-							{% for project in payrollProjectGroups['deduction'] %}
-							<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
-							{% endfor %}
-							<th class="salary_total_col">应扣总额<br />系统固定</th>
-							{% for project in payrollProjectGroups['other'] %}
-							<th>{{project['name']}}<br />{{project['calculation_mode_label']}}</th>
-							{% endfor %}
-							<th class="salary_total_col">实发总额<br />系统固定</th>
-						</tr>
-						{% for row in payrollRows %}
-						<tr>
-							<td>{{row['employee_name']}}</td>
-							<td>{{row['employee_no']}}</td>
-							<td>{{row['department_name']}}</td>
-							{% for project in payrollProjectGroups['earning'] %}
-							<td>
-								{% if project['is_text_project'] %}
-								<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
-								{% else %}
-								<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
-								{% endif %}
-							</td>
-							{% endfor %}
-							<td class="salary_total_col">{{row['earning_total']}}</td>
-							{% for project in payrollProjectGroups['deduction'] %}
-							<td>
-								{% if project['is_text_project'] %}
-								<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
-								{% else %}
-								<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
-								{% endif %}
-							</td>
-							{% endfor %}
-							<td class="salary_total_col">{{row['deduction_total']}}</td>
-							{% for project in payrollProjectGroups['other'] %}
-							<td>
-								{% if project['is_text_project'] %}
-								<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% endif %}" {% if !period['can_edit'] %}readonly="readonly"{% endif %} />
-								{% else %}
-								<input type="text" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['id']] is defined %}{{row['values'][project['id']]}}{% else %}0.00{% endif %}" {% if !period['can_edit'] or project['is_formula_project'] %}readonly="readonly"{% endif %} />
-								{% endif %}
-							</td>
-							{% endfor %}
-							<td class="salary_total_col">{{row['net_amount']}}</td>
-						</tr>
-						{% elsefor %}
-						<tr><td colspan="50" class="salary_empty">当前工资表暂无员工数据</td></tr>
-						{% endfor %}
-					</table>
-				</div>
-				<div style="margin-top:10px;">
-					{% if period['can_edit'] %}
-					<button class="salary_btn" type="submit">保存核算表</button>
-					{% endif %}
-				</div>
-			</form>
-			<div style="margin-top:10px;">
-				{% if period['can_submit_audit'] %}
-				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/submitreview'])}}" onsubmit="return confirm('确定提交工资表审核吗？');">
-					<input type="hidden" name="id" value="{{period['id']}}" />
-					<button class="salary_link_btn" type="submit">提交审核</button>
-				</form>
-				{% endif %}
-				{% if period['can_publish'] and canSendPayslip %}
-				<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['id'],'from':'payroll'])}}">发工资条</a>
-				{% endif %}
-				{% if period['can_archive'] %}
-				<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/archivepayroll'])}}" onsubmit="return confirm('归档后将转入归档记录，确定归档吗？');">
-					<input type="hidden" name="id" value="{{period['id']}}" />
-					<button class="salary_link_btn" type="submit">归档</button>
-				</form>
-				{% endif %}
-			</div>
+		<div class="salary_tip">当前工资表：{{period['payroll_month']}}　状态：<span class="salary_status">{{period['status_name']}}</span>　人数：<span id="payroll_employee_count">{{period['employee_count']}}</span>　应发总额：<span id="payroll_period_earning">{{period['earning_total']}}</span>　应扣总额：<span id="payroll_period_deduction">{{period['deduction_total']}}</span>　实发总额：<span id="payroll_period_net">{{period['net_total']}}</span></div>
+		<form id="payroll_form" method="post" action="{{helper.createUrl(['p':'salary/savepayroll'])}}" onsubmit="return savePayrollTable(this);">
+			<input type="hidden" name="id" value="{{period['id']}}" /><input type="hidden" id="payroll_employee_id" name="payroll_employee_id" value="0" />
+			<div class="salary_scroll"><table class="salary_table salary_sheet"><tr>
+				<th class="payroll_name_col">员工</th><th class="payroll_mobile_col">手机号</th><th class="payroll_department_col">部门</th>
+				{% for project in payrollDisplayProjects %}{% if project['status']=='active' and project['deleted_at']==0 %}<th class="payroll_{{project['initial_group']}} payroll_project_col" title="{{project['name']}}"><span class="salary_two_line">{{project['name']}}</span>{% if period['can_edit'] and !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] and project['source_type_option']!='calculated' %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openPayrollBulk(this);">设置金额</button>{% endif %}</th>{% endif %}{% endfor %}
+				<th>操作</th></tr>
+				{% for row in payrollRows %}<tr id="payroll_row_{{row['employee_id']}}" data-employee-id="{{row['employee_id']}}" data-department="{% if row['department_name'] %}{{row['department_name']}}{% else %}未设置部门{% endif %}" data-position="{% if row['position_name'] %}{{row['position_name']}}{% else %}未设置岗位{% endif %}">
+					<td class="payroll_name_col" title="{{row['employee_name']}}"><span class="salary_two_line">{{row['employee_name']}}</span></td><td class="payroll_mobile_col" title="{{row['employee_no']}}"><span class="salary_two_line">{{row['employee_no']}}</span></td><td class="payroll_department_col" title="{{row['department_name']}}"><span class="salary_two_line">{{row['department_name']}}</span></td>
+					{% for project in payrollDisplayProjects %}{% if project['status']=='active' and project['deleted_at']==0 %}<td class="payroll_{{project['initial_group']}}" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" data-project-kind="{% if project['is_summary_project'] %}summary{% elseif project['is_formula_project'] %}formula{% elseif project['is_text_project'] %}text{% else %}number{% endif %}" data-formula="{% if project['formula_text'] is defined %}{{project['formula_text']}}{% endif %}" data-include-earning="{% if project['include_earning'] is defined %}{{project['include_earning']}}{% else %}0{% endif %}" data-include-deduction="{% if project['include_deduction'] is defined %}{{project['include_deduction']}}{% else %}0{% endif %}" data-summary-key="{{project['value_key']}}">
+						{% if project['is_text_project'] %}<input type="text" class="salary_text_input" name="amount[{{row['employee_id']}}][{{project['id']}}]" value="{% if row['values'][project['value_key']] is defined %}{{row['values'][project['value_key']]}}{% endif %}" readonly="readonly" />{% else %}<input type="text" {% if !project['is_summary_project'] %}name="amount[{{row['employee_id']}}][{{project['id']}}]"{% endif %} value="{% if row['values'][project['value_key']] is defined %}{{row['values'][project['value_key']]}}{% else %}0.00{% endif %}" readonly="readonly" {% if project['is_formula_project'] or project['is_summary_project'] %}data-always-readonly="1"{% else %}oninput="recalculatePayrollRow(this);"{% endif %} />{% endif %}
+					</td>{% endif %}{% endfor %}
+					<td class="salary_row_actions">{% if period['can_edit'] %}<span class="salary_row_default_actions"><button class="salary_link_btn" type="button" onclick="editPayrollRow({{row['employee_id']}});">编辑</button>　<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deletepayrollemployee'])}}" data-delete-row-id="payroll_row_{{row['employee_id']}}" data-delete-confirm="只会从当前月份工资核算表删除该员工，不影响初始工资表、人事档案和历史记录。确认删除吗？" onclick="return salaryInlineDelete(this,{id:{{period['id']}},employee_id:{{row['employee_id']}}},updatePayrollSummary);">删除</button></span><span class="salary_row_edit_actions"><button class="salary_link_btn" type="button" onclick="savePayrollRow({{row['employee_id']}},this);">保存</button>　<button class="salary_link_btn" type="button" onclick="cancelPayrollRow({{row['employee_id']}});">取消</button></span><span id="payroll_row_status_{{row['employee_id']}}" class="salary_row_save_status"></span>{% else %}-{% endif %}</td>
+				</tr>{% elsefor %}<tr><td colspan="40" class="salary_empty">当前工资表暂无员工数据</td></tr>{% endfor %}
+			</table></div>
+			{% if period['can_edit'] %}<div class="salary_table_actions"><span id="payroll_unsaved" class="salary_unsaved">当前数据尚未保存</span><button class="salary_btn salary_btn_gray" type="button" onclick="clearPayrollTable();">清空当前数据</button><button class="salary_btn" type="submit">保存整张工资表</button></div>{% endif %}
+		</form>
+		<div style="margin-top:12px;">{% if canExportPayroll %}<a class="salary_btn salary_btn_gray" href="{{helper.createUrl(['p':'salary/exportpayroll','id':period['id']])}}">导出Excel</a>{% endif %}{% if period['can_archive'] %}<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/archivepayroll'])}}" onsubmit="return confirmPayrollArchive();"><input type="hidden" name="id" value="{{period['id']}}" /><button class="salary_btn" type="submit">归档</button></form>{% endif %}</div>
+		<div id="payroll_bulk_dialog" class="salary_bulk_dialog" role="dialog"><div class="salary_bulk_dialog_box"><div id="payroll_bulk_title" class="salary_bulk_dialog_title">设置金额</div><div class="salary_bulk_field"><label class="salary_bulk_field_label" for="payroll_bulk_value">金额</label><input id="payroll_bulk_value" type="number" step="0.01" value="0.00" /></div><div class="salary_bulk_field"><span class="salary_bulk_field_label">设置范围</span><div class="salary_bulk_scope_options"><label><input type="radio" name="payroll_bulk_scope" value="all" checked="checked" onchange="updatePayrollBulkScope();" />全部员工</label><label><input type="radio" name="payroll_bulk_scope" value="department" onchange="updatePayrollBulkScope();" />部门</label><label><input type="radio" name="payroll_bulk_scope" value="position" onchange="updatePayrollBulkScope();" />岗位</label><label><input type="radio" name="payroll_bulk_scope" value="employee" onchange="updatePayrollBulkScope();" />指定员工</label></div><div id="payroll_bulk_scope_all" class="salary_bulk_scope_panel on">将为当前工资核算表中的全部员工设置金额。</div><div id="payroll_bulk_scope_department" class="salary_bulk_scope_panel"><select id="payroll_bulk_department">{% for department in payrollDepartments %}<option value="{{department}}">{{department}}</option>{% endfor %}</select></div><div id="payroll_bulk_scope_position" class="salary_bulk_scope_panel"><select id="payroll_bulk_position">{% for position in payrollPositions %}<option value="{{position}}">{{position}}</option>{% endfor %}</select></div><div id="payroll_bulk_scope_employee" class="salary_bulk_scope_panel salary_bulk_employee_list">{% for row in payrollRows %}<label title="{{row['employee_name']}} {{row['employee_no']}}"><input type="checkbox" name="payroll_bulk_employee" value="{{row['employee_id']}}" />{{row['employee_name']}}</label>{% endfor %}</div></div><div class="salary_bulk_dialog_actions"><button class="salary_btn salary_btn_gray" type="button" onclick="closePayrollBulk();">取消</button><button class="salary_btn" type="button" onclick="applyPayrollBulk();">应用</button></div></div></div>
 		{% endif %}
 	</div>
 </div>
+<script type="text/javascript">
+var payrollDirty=false,payrollBulkProjectId=0;
+function payrollMoney(v){v=parseFloat(String(v||'').replace(/,/g,''));return isNaN(v)||!isFinite(v)?0:Math.round(v*100)/100}function payrollFormat(v){return payrollMoney(v).toFixed(2)}
+function payrollCellInput(cell){var i=cell?cell.getElementsByTagName('input'):[];return i.length?i[0]:null}
+function payrollFormula(formula,map){var e=String(formula||''),names=[],n;for(n in map){if(map.hasOwnProperty(n)&&n)names.push(n)}names.sort(function(a,b){return b.length-a.length});for(var i=0;i<names.length;i++)e=e.split(names[i]).join('('+payrollFormat(map[names[i]])+')');e=e.replace(/\s+/g,'');if(!e||!/^[0-9\.\+\-\*\/\(\)]+$/.test(e))return 0;try{return payrollMoney(Function('"use strict";return ('+e+');')())}catch(x){return 0}}
+function markPayrollDirty(){payrollDirty=true;var n=document.getElementById('payroll_unsaved');if(n)n.style.display='inline'}
+function refreshPayrollDirty(){var f=document.getElementById('payroll_form'),dirty=false;if(f){var inputs=f.getElementsByTagName('input');for(var i=0;i<inputs.length;i++){var name=inputs[i].getAttribute('name')||'';if(name.indexOf('amount[')===0&&inputs[i].getAttribute('data-saved-value')!==null&&String(inputs[i].value)!==String(inputs[i].getAttribute('data-saved-value'))){dirty=true;break}}}payrollDirty=dirty;var n=document.getElementById('payroll_unsaved');if(n)n.style.display=dirty?'inline':'none'}
+function recalculatePayrollRow(source,dirty){var row=source;while(row&&row.tagName&&row.tagName.toLowerCase()!='tr')row=row.parentNode;if(!row)return;var cells=row.getElementsByTagName('td'),map={},formulas=[],earning=0,deduction=0;for(var i=0;i<cells.length;i++){var kind=cells[i].getAttribute('data-project-kind'),input=payrollCellInput(cells[i]);if(!kind||!input)continue;if(kind=='number'){var amount=payrollMoney(input.value);map[cells[i].getAttribute('data-project-name')||'']=amount;if(parseInt(cells[i].getAttribute('data-include-earning'),10))earning+=amount;if(parseInt(cells[i].getAttribute('data-include-deduction'),10))deduction+=amount}else if(kind=='formula')formulas.push(cells[i])}for(var j=0;j<formulas.length;j++){var fi=payrollCellInput(formulas[j]),fa=payrollFormula(formulas[j].getAttribute('data-formula'),map);fi.value=payrollFormat(fa);map[formulas[j].getAttribute('data-project-name')||'']=fa;if(parseInt(formulas[j].getAttribute('data-include-earning'),10))earning+=fa;if(parseInt(formulas[j].getAttribute('data-include-deduction'),10))deduction+=fa}for(var k=0;k<cells.length;k++){if(cells[k].getAttribute('data-project-kind')!='summary')continue;var si=payrollCellInput(cells[k]),key=cells[k].getAttribute('data-summary-key');if(key=='summary_earning_total')si.value=payrollFormat(earning);else if(key=='summary_deduction_total')si.value=payrollFormat(deduction);else if(key=='summary_net_total')si.value=payrollFormat(earning-deduction)}if(dirty!==false)markPayrollDirty()}
+function initializePayroll(){var f=document.getElementById('payroll_form');if(!f)return;var rows=f.getElementsByTagName('tr');for(var i=0;i<rows.length;i++){if(rows[i].id&&rows[i].id.indexOf('payroll_row_')===0){recalculatePayrollRow(rows[i],false);var inputs=rows[i].getElementsByTagName('input');for(var j=0;j<inputs.length;j++)if((inputs[j].getAttribute('name')||'').indexOf('amount[')===0)inputs[j].setAttribute('data-saved-value',inputs[j].value)}}}
+function payrollRow(id){return document.getElementById('payroll_row_'+id)}function editPayrollRow(id){var r=payrollRow(id);if(!r)return;var i=r.getElementsByTagName('input');for(var x=0;x<i.length;x++){i[x].setAttribute('data-original-value',i[x].value);if(i[x].getAttribute('data-always-readonly')!='1')i[x].removeAttribute('readonly')}r.getElementsByClassName('salary_row_default_actions')[0].style.display='none';r.getElementsByClassName('salary_row_edit_actions')[0].style.display='inline'}
+function cancelPayrollRow(id){var r=payrollRow(id);if(!r)return;var i=r.getElementsByTagName('input');for(var x=0;x<i.length;x++){if(i[x].getAttribute('data-original-value')!==null)i[x].value=i[x].getAttribute('data-original-value');i[x].setAttribute('readonly','readonly')}recalculatePayrollRow(r,false);r.getElementsByClassName('salary_row_default_actions')[0].style.display='inline';r.getElementsByClassName('salary_row_edit_actions')[0].style.display='none';refreshPayrollDirty()}
+function payrollStatus(id,msg,error){var s=document.getElementById('payroll_row_status_'+id);if(!s)return;s.style.color=error?'#b91c1c':'#15803d';s.innerHTML=msg||''}
+function payrollPairs(row,id){var pairs=['salary_ajax=1','payroll_employee_id='+encodeURIComponent(id)],hidden=document.getElementById('payroll_form').getElementsByTagName('input');for(var h=0;h<hidden.length;h++)if(hidden[h].name=='id')pairs.push('id='+encodeURIComponent(hidden[h].value));var inputs=row.getElementsByTagName('input');for(var i=0;i<inputs.length;i++){var name=inputs[i].getAttribute('name')||'';if(name.indexOf('amount[')===0)pairs.push(encodeURIComponent(name)+'='+encodeURIComponent(inputs[i].value))}return pairs}
+function updatePayrollSummary(data){if(!data)return;var map={payroll_employee_count:'employee_count',payroll_period_earning:'period_earning_total',payroll_period_deduction:'period_deduction_total',payroll_period_net:'period_net_total'};for(var id in map)if(map.hasOwnProperty(id)&&typeof data[map[id]]!='undefined'&&document.getElementById(id))document.getElementById(id).innerHTML=data[map[id]]}
+function savePayrollRow(id,button){var f=document.getElementById('payroll_form'),r=payrollRow(id);if(!f||!r||!button)return false;recalculatePayrollRow(r,false);button.disabled=true;var xhr=new XMLHttpRequest();xhr.open('POST',f.action,true);xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');xhr.onreadystatechange=function(){if(xhr.readyState!=4)return;button.disabled=false;var result=null;try{result=JSON.parse(xhr.responseText)}catch(e){payrollStatus(id,'保存响应异常',true);return}if(xhr.status<200||xhr.status>=300||!result||result.status!='y'){payrollStatus(id,result&&result.error?result.error:'保存失败',true);return}var inputs=r.getElementsByTagName('input');for(var i=0;i<inputs.length;i++){if((inputs[i].getAttribute('name')||'').indexOf('amount[')===0){inputs[i].setAttribute('data-saved-value',inputs[i].value);inputs[i].setAttribute('data-original-value',inputs[i].value)}inputs[i].setAttribute('readonly','readonly')}r.getElementsByClassName('salary_row_default_actions')[0].style.display='inline';r.getElementsByClassName('salary_row_edit_actions')[0].style.display='none';payrollStatus(id,'已保存',false);updatePayrollSummary(result.data);refreshPayrollDirty()};xhr.send(payrollPairs(r,id).join('&'));return false}
+function savePayrollTable(form){var rows=form.getElementsByTagName('tr');for(var i=0;i<rows.length;i++)if(rows[i].id&&rows[i].id.indexOf('payroll_row_')===0)recalculatePayrollRow(rows[i],false);var inputs=form.getElementsByTagName('input'),pairs=['salary_ajax=1','payroll_employee_id=0'];for(var j=0;j<inputs.length;j++){var name=inputs[j].getAttribute('name')||'';if(name=='id'||name.indexOf('amount[')===0)pairs.push(encodeURIComponent(name)+'='+encodeURIComponent(inputs[j].value))}var xhr=new XMLHttpRequest();xhr.open('POST',form.action,true);xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');xhr.onreadystatechange=function(){if(xhr.readyState!=4)return;var result=null;try{result=JSON.parse(xhr.responseText)}catch(e){alert('保存响应异常，请重试');return}if(xhr.status<200||xhr.status>=300||!result||result.status!='y'){alert(result&&result.error?result.error:'保存失败，请重试');return}for(var k=0;k<inputs.length;k++)if((inputs[k].getAttribute('name')||'').indexOf('amount[')===0)inputs[k].setAttribute('data-saved-value',inputs[k].value);updatePayrollSummary(result.data);refreshPayrollDirty();alert('工资核算表已保存')};xhr.send(pairs.join('&'));return false}
+function openPayrollBulk(b){payrollBulkProjectId=parseInt(b.getAttribute('data-project-id'),10)||0;if(!payrollBulkProjectId)return;document.getElementById('payroll_bulk_title').innerHTML='设置金额：'+(b.getAttribute('data-project-name')||'工资项目');document.getElementById('payroll_bulk_value').value='0.00';document.getElementById('payroll_bulk_dialog').style.display='block'}function closePayrollBulk(){document.getElementById('payroll_bulk_dialog').style.display='none'}function payrollScope(){var r=document.getElementsByName('payroll_bulk_scope');for(var i=0;i<r.length;i++)if(r[i].checked)return r[i].value;return'all'}function updatePayrollBulkScope(){var s=payrollScope(),p=['all','department','position','employee'];for(var i=0;i<p.length;i++){var e=document.getElementById('payroll_bulk_scope_'+p[i]);if(e)e.className='salary_bulk_scope_panel'+(p[i]==s?' on':'')+(p[i]=='employee'?' salary_bulk_employee_list':'')}}
+function applyPayrollBulk(){var value=parseFloat(document.getElementById('payroll_bulk_value').value);if(isNaN(value)||!isFinite(value)){alert('请输入有效数字');return}value=payrollFormat(value);var scope=payrollScope(),selected={},checks=document.getElementsByName('payroll_bulk_employee');for(var c=0;c<checks.length;c++)if(checks[c].checked)selected[String(checks[c].value)]=true;if(scope=='employee'&&Object.keys(selected).length===0){alert('请至少选择一名员工');return}var rows=document.getElementById('payroll_form').getElementsByTagName('tr'),count=0;for(var i=0;i<rows.length;i++){if(!rows[i].id||rows[i].id.indexOf('payroll_row_')!==0)continue;var match=scope=='all'||(scope=='department'&&rows[i].getAttribute('data-department')==document.getElementById('payroll_bulk_department').value)||(scope=='position'&&rows[i].getAttribute('data-position')==document.getElementById('payroll_bulk_position').value)||(scope=='employee'&&selected[String(rows[i].getAttribute('data-employee-id'))]);if(!match)continue;var fields=rows[i].getElementsByTagName('input');for(var f=0;f<fields.length;f++){var name=fields[f].getAttribute('name')||'';if(name.slice(-(']['+payrollBulkProjectId+']').length)==']['+payrollBulkProjectId+']'){fields[f].value=value;recalculatePayrollRow(rows[i],false);count++;break}}}if(!count){alert('当前范围没有可设置的员工');return}markPayrollDirty();closePayrollBulk()}
+function clearPayrollTable(){if(!confirm('确定清空当前核算数据吗？数字项将变为0.00，文本项将清空；保存后才会写入数据库。'))return;var form=document.getElementById('payroll_form'),cells=form.getElementsByTagName('td');for(var i=0;i<cells.length;i++){var kind=cells[i].getAttribute('data-project-kind'),input=payrollCellInput(cells[i]);if(!input)continue;if(kind=='number')input.value='0.00';else if(kind=='text')input.value=''}var rows=form.getElementsByTagName('tr');for(var j=0;j<rows.length;j++)if(rows[j].id&&rows[j].id.indexOf('payroll_row_')===0)recalculatePayrollRow(rows[j],false);markPayrollDirty()}
+function confirmPayrollArchive(){if(payrollDirty){alert('当前核算表还有未保存的数据，请先保存后再归档。');return false}return confirm('归档后本月工资表将转入归档记录且不能直接修改，确定归档吗？')}
+initializePayroll();window.onbeforeunload=function(){if(payrollDirty)return'工资核算表还有未保存的数据'};
+</script>

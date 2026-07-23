@@ -51,9 +51,9 @@
 					{% if period['unconfirmed_count'] > 0 %}<br />未确认 {{period['unconfirmed_count']}} 人{% endif %}
 				</td>
 				<td>
+					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/archiveview','id':period['id']])}}">查看</a>
 					{% if canSendPayslip %}
 					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['payroll_period_id'],'archive_id':period['id'],'from':'archive'])}}">发工资条</a>
-					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['payroll_period_id'],'from':'archive'])}}">查看确认</a>
 					{% endif %}
 					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/restorearchive'])}}" onsubmit="return confirm('确定恢复到工资表核算重新核算吗？');">
 						<input type="hidden" name="id" value="{{period['id']}}" />

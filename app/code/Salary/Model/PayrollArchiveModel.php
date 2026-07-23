@@ -108,6 +108,28 @@ class PayrollArchiveModel extends BaseModel
 		return $this->getDB()->query($sql)->fetch();
 	}
 
+	public function getArchiveSnapshot($companyId, $archiveId)
+	{
+		$archive = $this->getArchive($companyId, $archiveId);
+		if (!$archive) {
+			$this->_lastError = '归档工资表不存在';
+			return false;
+		}
+		$snapshot = @unserialize($archive['snapshot_data']);
+		if (empty($snapshot) || !is_array($snapshot)) {
+			$this->_lastError = '归档工资表数据不完整';
+			return false;
+		}
+		if (isset($snapshot['version']) && intval($snapshot['version']) >= 2) {
+			$projects = isset($snapshot['projects']) && is_array($snapshot['projects']) ? $snapshot['projects'] : array();
+			$rows = isset($snapshot['rows']) && is_array($snapshot['rows']) ? $snapshot['rows'] : array();
+		} else {
+			$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($companyId, intval($archive['payroll_period_id']));
+			$rows = $snapshot;
+		}
+		return array('archive' => $archive, 'projects' => $projects, 'rows' => $rows);
+	}
+
 	public function restoreToPayroll($companyId, $archiveId, $operatorId)
 	{
 		$archive = $this->getArchive($companyId, $archiveId);

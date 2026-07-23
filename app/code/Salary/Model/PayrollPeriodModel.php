@@ -126,8 +126,8 @@ class PayrollPeriodModel extends BaseModel
 			return false;
 		}
 		$period = $this->getCompanyPeriodByMonth($companyId, $payrollMonth, true);
-		if ($period && !in_array($period['status'], array('draft', 'calculated', 'rejected'))) {
-			$this->_lastError = '该月份工资表已提交审核、审核通过或已归档，不能重新生成';
+		if ($period && in_array($period['status'], array('archived', 'published'))) {
+			$this->_lastError = '该月份工资表已经归档，如需重新核算请先在归档记录中恢复';
 			return false;
 		}
 		$initial = EmployeeSalaryStructureModel::factory()->getInitialSalaryTable($companyId);
@@ -146,7 +146,7 @@ class PayrollPeriodModel extends BaseModel
 			$this->_lastError = '工资表不存在';
 			return false;
 		}
-		if (!in_array($period['status'], array('draft', 'calculated', 'rejected'))) {
+		if (!self::canEdit($period['status'])) {
 			$this->_lastError = '当前状态不能编辑工资表';
 			return false;
 		}
@@ -169,6 +169,62 @@ class PayrollPeriodModel extends BaseModel
 			);
 		}
 		return $this->savePayrollMatrix($companyId, $period['payroll_month'], $projects, $rows, $operatorId, $period['source_type'], $period['source_name'], intval($period['id']));
+	}
+
+	public function deletePayrollEmployee($companyId, $periodId, $employeeId)
+	{
+		$companyId = intval($companyId);
+		$periodId = intval($periodId);
+		$employeeId = intval($employeeId);
+		$period = $this->getCompanyPeriod($companyId, $periodId);
+		if (!$period) {
+			$this->_lastError = '工资表不存在';
+			return false;
+		}
+		if (!self::canEdit($period['status'])) {
+			$this->_lastError = '当前状态不能删除员工';
+			return false;
+		}
+		$rowTable = $this->getTableName('payroll_employee_rows');
+		$valueTable = $this->getTableName('payroll_item_values');
+		$sql = 'select id from `' . $rowTable . '` where company_id=' . $companyId . ' and payroll_period_id=' . $periodId .
+			' and employee_id=' . $employeeId . ' limit 1';
+		$row = $this->getDB()->query($sql)->fetch();
+		if (!$row) {
+			$this->_lastError = '工资表中没有该员工';
+			return false;
+		}
+		$db = $this->getDB();
+		$db->begin();
+		try {
+			$rowId = intval($row['id']);
+			$db->execute('delete from `' . $valueTable . '` where company_id=' . $companyId . ' and payroll_period_id=' . $periodId . ' and payroll_employee_row_id=' . $rowId);
+			$db->execute('delete from `' . $rowTable . '` where company_id=' . $companyId . ' and payroll_period_id=' . $periodId . ' and id=' . $rowId);
+			$this->refreshPeriodTotals($companyId, $periodId, $db);
+			$db->commit();
+			return true;
+		} catch (\Exception $e) {
+			$db->rollback();
+			$this->_lastError = '删除工资表员工失败：' . $e->getMessage();
+			return false;
+		}
+	}
+
+	protected function refreshPeriodTotals($companyId, $periodId, $db = null)
+	{
+		if (!$db) {
+			$db = $this->getDB();
+		}
+		$rowTable = $this->getTableName('payroll_employee_rows');
+		$sql = 'select count(*) as employee_count,ifnull(sum(earning_total),0) as earning_total,ifnull(sum(deduction_total),0) as deduction_total,ifnull(sum(net_amount),0) as net_total ' .
+			'from `' . $rowTable . '` where company_id=' . intval($companyId) . ' and payroll_period_id=' . intval($periodId);
+		$totals = $db->query($sql)->fetch();
+		$now = time();
+		$sql = 'update `' . $this->getSource() . '` set employee_count=' . intval($totals['employee_count']) .
+			',earning_total=' . $this->formatMoney($totals['earning_total']) . ',deduction_total=' . $this->formatMoney($totals['deduction_total']) .
+			',net_total=' . $this->formatMoney($totals['net_total']) . ',updated_at=' . $now .
+			' where company_id=' . intval($companyId) . ' and id=' . intval($periodId);
+		return $db->execute($sql);
 	}
 
 	public function savePayrollMatrix($companyId, $payrollMonth, $projects, $rows, $operatorId, $sourceType = 'system', $sourceName = '', $periodId = 0)
@@ -375,12 +431,17 @@ class PayrollPeriodModel extends BaseModel
 
 	public static function canPublishPayslip($status)
 	{
-		return in_array($status, array('approved', 'archived', 'published'));
+		return in_array($status, array('archived', 'published'));
 	}
 
 	public static function canArchive($status)
 	{
-		return in_array($status, array('approved'));
+		return self::canEdit($status) || in_array($status, array('submitted', 'approved'));
+	}
+
+	public static function canEdit($status)
+	{
+		return in_array($status, array('draft', 'calculated', 'rejected'));
 	}
 
 	public static function canSubmitAudit($status)

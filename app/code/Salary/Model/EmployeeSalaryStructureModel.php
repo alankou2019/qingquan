@@ -307,6 +307,11 @@ class EmployeeSalaryStructureModel extends BaseModel
 		return array_merge($return, $groups['statistic'], $groups['data'], $groups['note'], $groups['other']);
 	}
 
+	public function buildSalaryTableDisplayProjects($projects)
+	{
+		return $this->buildInitialDisplayProjects($projects);
+	}
+
 	protected function buildSummaryProject($key, $name)
 	{
 		return array(
