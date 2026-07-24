@@ -1319,7 +1319,7 @@ class SalaryController extends FrontendBaseController
 				'name' => '钉钉',
 				'status' => '已接通旧系统同步',
 				'desc' => '继续使用原有考核系统的钉钉组织和员工同步能力。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/async')),
+				'url' => $this->getHelper()->createUrl(array('p' => 'department/async', 'from' => 'salary')),
 				'action' => '进入同步',
 			),
 			'wecom' => array(
@@ -1333,15 +1333,17 @@ class SalaryController extends FrontendBaseController
 				'name' => '飞书',
 				'status' => '预留',
 				'desc' => '飞书接口尚未接入，当前先保留企业平台选项和后续接入口。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/index')),
-				'action' => '去部门管理',
+				'url' => '',
+				'action' => '',
 			),
 			'manual' => array(
 				'name' => '手工/Excel',
 				'status' => '可用',
 				'desc' => '适合暂未接入第三方通讯平台的企业，员工资料通过后台导入或维护。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/index')),
-				'action' => '去部门管理',
+				'url' => '',
+				'action' => '',
+				'upload_url' => $this->getHelper()->createUrl(array('p' => 'department/uploadexcel', 'from' => 'salary')),
+				'template_url' => $this->getHelper()->createUrl(array('p' => 'department/exportexceltpl')),
 			),
 		);
 
@@ -2079,11 +2081,18 @@ class SalaryController extends FrontendBaseController
 	protected function getCompanyUsers()
 	{
 		$userTable = CompanyUserModel::factory()->getSource();
-		$departmentSql = SalaryEmployeeDepartmentModel::factory()->getDepartmentSql($this->companyId, 'u');
-		$sql = 'select u.id,u.name,u.department_id,u.is_admin,u.is_leader,' . $departmentSql['select'] . ' as departmentname ' .
+		$employeeDepartmentModel = SalaryEmployeeDepartmentModel::factory();
+		$departmentSql = $employeeDepartmentModel->getDepartmentSql($this->companyId, 'u');
+		$mobileColumn = $employeeDepartmentModel->getEmployeeMobileColumn($userTable);
+		$positionColumn = $employeeDepartmentModel->getEmployeePositionColumn($userTable);
+		$mobileSelect = $mobileColumn ? 'u.`' . $mobileColumn . '`' : '""';
+		$positionSelect = $positionColumn ? 'u.`' . $positionColumn . '`' : '""';
+		$sql = 'select u.id,u.name,u.department_id,u.is_admin,u.is_leader,' .
+			$mobileSelect . ' as mobile,' . $positionSelect . ' as position_name,' .
+			$departmentSql['select'] . ' as departmentname ' .
 			'from `' . $userTable . '` u ' .
 			$departmentSql['join'] .
-			'where u.company_id=' . intval($this->companyId) . ' order by u.id asc';
+			'where u.company_id=' . intval($this->companyId) . ' order by departmentname asc,u.id asc';
 		return $this->getDI()->get('db')->query($sql)->fetchAll();
 	}
 }

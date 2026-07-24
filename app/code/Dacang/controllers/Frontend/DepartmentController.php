@@ -56,10 +56,17 @@ class DepartmentController extends FrontendBaseController
      */
     public function asyncAction()
     {
-        $backUrl = $this->getHelper()->createUrl(['p' => 'firm/staff']);
+        $fromSalary = isset($_REQUEST['from']) && $_REQUEST['from'] == 'salary';
+        $backUrl = $fromSalary
+            ? $this->getHelper()->createUrl(['p' => 'salary/employeesync'])
+            : $this->getHelper()->createUrl(['p' => 'firm/staff']);
         $type    = !empty($_REQUEST['type']) ? $_REQUEST['type'] : 'department';
         if ($type == 'department') {
-            $backUrl = $this->getHelper()->createUrl(['p' => 'department/async', 'type' => 'user']);
+            $nextParams = ['p' => 'department/async', 'type' => 'user'];
+            if ($fromSalary) {
+                $nextParams['from'] = 'salary';
+            }
+            $backUrl = $this->getHelper()->createUrl($nextParams);
             DingdingOapi::factory()->asyncDepartment($this->companyId);
             Utils::showMsg('同步部门数据成功!', $backUrl);
 
@@ -71,7 +78,10 @@ class DepartmentController extends FrontendBaseController
 
     public function UploadExcelAction()
     {
-        $gourl  = Helper::factory()->createUrl(['p' => 'department/index']);
+        $fromSalary = isset($_REQUEST['from']) && $_REQUEST['from'] == 'salary';
+        $gourl = $fromSalary
+            ? Helper::factory()->createUrl(['p' => 'salary/employeesync'])
+            : Helper::factory()->createUrl(['p' => 'department/index']);
         $ispost = $this->request->isPost();
         if ($ispost) {
             //判断文件类型
