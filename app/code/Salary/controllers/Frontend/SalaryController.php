@@ -678,14 +678,36 @@ class SalaryController extends FrontendBaseController
 		$this->checkModule();
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
 		if (!$this->request->isPost()) {
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult('不支持的请求方式');
+			}
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
-		$projectId = intval($this->request->get('id'));
-		$result = SalaryProjectModel::factory()->disableCompanyProject($this->companyId, $projectId);
+		$projectId = intval($this->request->getPost('id'));
+		$model = SalaryProjectModel::factory();
+		$project = $model->findFirst('id=' . $projectId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		if (!$project) {
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult('工资项目不存在');
+			}
+			Utils::showMsg('工资项目不存在', $backUrl);
+		}
+		$templateId = intval($project->template_id);
+		$result = $model->disableCompanyProject($this->companyId, $projectId);
 		if (!$result) {
-			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult($model->getLastError());
+			}
+			Utils::showMsg($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('project_disable', 'salary_project', $projectId, '', '停用工资项目');
+		if ($this->isSalaryAjaxRequest()) {
+			$this->sendSuccessResult(array(
+				'message' => '通用工资项目已停用',
+				'project_id' => $projectId,
+				'template_id' => $templateId,
+			));
+		}
 		Utils::showMsg('工资项目已停用', $backUrl);
 	}
 
