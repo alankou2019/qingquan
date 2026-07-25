@@ -25,7 +25,7 @@
 .salary_sheet .initial_mobile_col{width:120px;min-width:120px;max-width:120px;}
 .salary_sheet .initial_department_col{width:160px;min-width:160px;max-width:160px;}
 .salary_sheet .initial_project_col{width:116px;min-width:116px;max-width:116px;}
-.salary_sheet .initial_project_col .salary_bulk_copy{display:block;margin-top:4px;white-space:nowrap;}
+.salary_sheet .initial_project_col .salary_bulk_copy{display:block;margin:4px auto 0;white-space:nowrap;}
 .salary_project_draggable{cursor:move;position:relative;user-select:none;}
 .salary_project_drag_handle{float:right;color:#94a3b8;font-size:13px;line-height:18px;cursor:grab;}
 .salary_project_drag_before{box-shadow:inset 3px 0 0 #4560e6;}
