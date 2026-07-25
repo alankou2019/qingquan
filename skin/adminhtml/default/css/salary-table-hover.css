@@ -9,3 +9,12 @@ table.salary_table tr > td,
 table.commission_table tr > td {
 	transition: background-color .12s ease;
 }
+
+/* Keep every salary-module table heading centered across legacy and new pages. */
+table.salary_table th,
+table.commission_table th,
+table.estimate_table th,
+table.estimate_record_table th,
+.salary_table_body table.table_box th {
+	text-align: center !important;
+}
