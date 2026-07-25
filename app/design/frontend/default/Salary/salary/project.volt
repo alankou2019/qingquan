@@ -305,23 +305,15 @@
 								{% if project['status']=='active' and project['deleted_at']==0 %}
 								<td class="initial_{{project['initial_group']}}" data-project-id="{{project['id']}}" data-project-group="{{project['initial_group']}}" data-project-name="{{project['name']}}" data-project-kind="{% if project['is_summary_project'] %}summary{% elseif project['is_formula_project'] %}formula{% elseif project['is_text_project'] %}text{% else %}number{% endif %}" data-formula="{% if project['formula_text'] is defined %}{{project['formula_text']}}{% endif %}" data-include-earning="{% if project['include_earning'] is defined %}{{project['include_earning']}}{% else %}0{% endif %}" data-include-deduction="{% if project['include_deduction'] is defined %}{{project['include_deduction']}}{% else %}0{% endif %}" data-summary-key="{{project['value_key']}}">
 									{% if project['is_text_project'] %}
-									<input type="text" class="salary_text_input" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% endif %}" readonly="readonly" />
+									<input type="text" class="salary_text_input" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% endif %}" oninput="markInitialSalaryUnsaved();" />
 									{% else %}
-									<input type="text" {% if !project['is_summary_project'] %}name="amount[{{employee['id']}}][{{project['id']}}]"{% endif %} value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% else %}0.00{% endif %}" readonly="readonly" {% if project['is_formula_project'] or project['is_summary_project'] %}data-always-readonly="1"{% else %}oninput="recalculateInitialSalaryRow(this);"{% endif %} />
+									<input type="text" {% if !project['is_summary_project'] %}name="amount[{{employee['id']}}][{{project['id']}}]"{% endif %} value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% else %}0.00{% endif %}" {% if project['is_formula_project'] or project['is_summary_project'] %}readonly="readonly" data-always-readonly="1"{% else %}oninput="recalculateInitialSalaryRow(this);"{% endif %} />
 									{% endif %}
 								</td>
 								{% endif %}
 							{% endfor %}
 							<td class="salary_row_actions">
-								<span class="salary_row_default_actions">
-									<button class="salary_link_btn" type="button" onclick="editInitialSalaryRow({{employee['id']}});">编辑</button>　
-					<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deleteinitialsalaryemployee'])}}" data-delete-row-id="initial_salary_row_{{employee['id']}}" data-delete-confirm="只会从初始工资表移出该员工，不影响人事档案、部门和历史工资记录。确认删除吗？" onclick="return salaryInlineDelete(this, {initial_salary_employee_id:{{employee['id']}}});">删除</button>
-								</span>
-								<span class="salary_row_edit_actions">
-									<button class="salary_link_btn" type="button" onclick="saveInitialSalaryRow({{employee['id']}}, this);">保存</button>　
-									<button class="salary_link_btn" type="button" onclick="cancelInitialSalaryRow({{employee['id']}});">取消</button>
-								</span>
-								<span id="initial_salary_row_status_{{employee['id']}}" class="salary_row_save_status"></span>
+								<button class="salary_link_btn" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deleteinitialsalaryemployee'])}}" data-delete-row-id="initial_salary_row_{{employee['id']}}" data-delete-confirm="只会从初始工资表移出该员工，不影响人事档案、部门和历史工资记录。确认删除吗？" onclick="return salaryInlineDelete(this, {initial_salary_employee_id:{{employee['id']}}});">删除</button>
 							</td>
 						</tr>
 						{% elsefor %}
@@ -849,120 +841,10 @@ function initializeInitialSalaryCalculations() {
 		}
 	}
 }
-function getInitialSalaryRow(employeeId) {
-	return document.getElementById('initial_salary_row_' + employeeId);
-}
-function editInitialSalaryRow(employeeId) {
-	var row = getInitialSalaryRow(employeeId);
-	if (!row) {
-		return;
-	}
-	var inputs = row.getElementsByTagName('input');
-	for (var i = 0; i < inputs.length; i++) {
-		inputs[i].setAttribute('data-original-value', inputs[i].value);
-		if (inputs[i].getAttribute('data-always-readonly') != '1') {
-			inputs[i].removeAttribute('readonly');
-		}
-	}
-	row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'none';
-	row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'inline';
-}
-function cancelInitialSalaryRow(employeeId) {
-	var row = getInitialSalaryRow(employeeId);
-	if (!row) {
-		return;
-	}
-	var inputs = row.getElementsByTagName('input');
-	for (var i = 0; i < inputs.length; i++) {
-		if (inputs[i].getAttribute('data-original-value') !== null) {
-			inputs[i].value = inputs[i].getAttribute('data-original-value');
-		}
-		inputs[i].setAttribute('readonly', 'readonly');
-	}
-	recalculateInitialSalaryRow(row, false);
-	row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'inline';
-	row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'none';
-	refreshInitialSalaryDirtyState();
-}
 function prepareInitialSalarySave(employeeId) {
 	document.getElementById('initial_salary_employee_id').value = employeeId;
 	initialSalaryDirty = false;
 	return true;
-}
-function setInitialSalaryRowStatus(employeeId, message, isError) {
-	var status = document.getElementById('initial_salary_row_status_' + employeeId);
-	if (!status) {
-		return;
-	}
-	status.style.color = isError ? '#b91c1c' : '#15803d';
-	status.innerHTML = message || '';
-	if (message && !isError) {
-		window.setTimeout(function() {
-			if (status.innerHTML == message) {
-				status.innerHTML = '';
-			}
-		}, 2600);
-	}
-}
-function saveInitialSalaryRow(employeeId, button) {
-	var form = document.getElementById('initial_salary_form');
-	var row = getInitialSalaryRow(employeeId);
-	if (!form || !row || !button || button.getAttribute('data-saving') == '1') {
-		return false;
-	}
-	recalculateInitialSalaryRow(row, false);
-	var pairs = [
-		'salary_ajax=1',
-		'initial_salary_employee_id=' + encodeURIComponent(employeeId)
-	];
-	var inputs = row.getElementsByTagName('input');
-	for (var i = 0; i < inputs.length; i++) {
-		var name = inputs[i].getAttribute('name') || '';
-		if (name.indexOf('amount[') === 0) {
-			pairs.push(encodeURIComponent(name) + '=' + encodeURIComponent(inputs[i].value));
-		}
-	}
-	var originalText = button.innerHTML;
-	button.setAttribute('data-saving', '1');
-	button.disabled = true;
-	button.innerHTML = '保存中...';
-	setInitialSalaryRowStatus(employeeId, '', false);
-	var xhr = new XMLHttpRequest();
-	xhr.open('POST', form.action, true);
-	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-	xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-	xhr.onreadystatechange = function() {
-		if (xhr.readyState != 4) {
-			return;
-		}
-		button.removeAttribute('data-saving');
-		button.disabled = false;
-		button.innerHTML = originalText;
-		var result = null;
-		try {
-			result = JSON.parse(xhr.responseText);
-		} catch (e) {
-			setInitialSalaryRowStatus(employeeId, '保存响应异常，请重试', true);
-			return;
-		}
-		if (xhr.status < 200 || xhr.status >= 300 || !result || result.status != 'y') {
-			setInitialSalaryRowStatus(employeeId, result && result.error ? result.error : '保存失败，请重试', true);
-			return;
-		}
-		for (var j = 0; j < inputs.length; j++) {
-			if ((inputs[j].getAttribute('name') || '').indexOf('amount[') === 0) {
-				inputs[j].setAttribute('data-saved-value', inputs[j].value);
-				inputs[j].setAttribute('data-original-value', inputs[j].value);
-			}
-			inputs[j].setAttribute('readonly', 'readonly');
-		}
-		row.getElementsByClassName('salary_row_default_actions')[0].style.display = 'inline';
-		row.getElementsByClassName('salary_row_edit_actions')[0].style.display = 'none';
-		setInitialSalaryRowStatus(employeeId, result.data && result.data.message ? result.data.message : '已保存', false);
-		refreshInitialSalaryDirtyState();
-	};
-	xhr.send(pairs.join('&'));
-	return false;
 }
 var initialSalaryBulkProjectId = 0;
 var initialSalaryBulkProjectName = '';
