@@ -636,6 +636,22 @@ class SalaryController extends FrontendBaseController
 		Utils::showMsg('工资项目已保存', $backUrl);
 	}
 
+	public function saveprojectorderAction()
+	{
+		$this->checkModule();
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+		$direction = trim($this->request->getPost('direction'));
+		$projectIds = $this->request->getPost('project_ids');
+		$model = SalaryProjectModel::factory();
+		if (!$model->saveCompanyProjectOrder($this->companyId, $direction, $projectIds)) {
+			$this->sendErrorResult($model->getLastError());
+		}
+		$this->addSalaryLog('project_order_save', 'salary_project', 0, '', '调整初始工资表工资项目顺序');
+		$this->sendSuccessResult(array('message' => '项目顺序已保存'));
+	}
+
 	public function projectdeleteAction()
 	{
 		$this->checkModule();
@@ -928,6 +944,30 @@ class SalaryController extends FrontendBaseController
 			));
 		}
 		Utils::showMsg('工资表已保存', $backUrl);
+	}
+
+	public function savepayrollprojectorderAction()
+	{
+		$this->checkFeature('payroll');
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+		$periodId = intval($this->request->getPost('id'));
+		$direction = trim($this->request->getPost('direction'));
+		$projectIds = $this->request->getPost('project_ids');
+		$model = PayrollEmployeeRowModel::factory();
+		if (!$model->savePayrollProjectOrder($this->companyId, $periodId, $direction, $projectIds)) {
+			$this->sendErrorResult($model->getLastError());
+		}
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$this->addSalaryLog(
+			'payroll_project_order_save',
+			'payroll_period',
+			$periodId,
+			$period ? $period['payroll_month'] : '',
+			'调整当前月工资核算表项目顺序'
+		);
+		$this->sendSuccessResult(array('message' => '当前月项目顺序已保存'));
 	}
 
 	public function deletepayrollemployeeAction()

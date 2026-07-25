@@ -141,6 +141,85 @@ class SalaryProjectModel extends BaseModel
 		return $this->formatProjectItems($items);
 	}
 
+	public function saveCompanyProjectOrder($companyId, $direction, $projectIds)
+	{
+		$companyId = intval($companyId);
+		$direction = trim((string)$direction);
+		if ($companyId <= 0 || !in_array($direction, array('earning', 'deduction', 'statistic', 'data', 'note', 'other'))) {
+			$this->_lastError = '工资项目排序参数不正确';
+			return false;
+		}
+
+		$orderedIds = $this->normalizeProjectOrderIds($projectIds);
+		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . $companyId .
+			' and deleted_at=0 order by sort_order asc,id asc';
+		$items = $this->getDB()->query($sql)->fetchAll();
+		$groupItems = array();
+		$groupPositions = array();
+		foreach ($items as $index => $item) {
+			$itemDirection = isset($item['direction']) && $item['direction'] != '' ? $item['direction'] : 'other';
+			if ($item['status'] == 'active' && $itemDirection == $direction) {
+				$groupItems[intval($item['id'])] = $item;
+				$groupPositions[] = $index;
+			}
+		}
+		if (!$this->isCompleteProjectOrder($orderedIds, $groupItems)) {
+			$this->_lastError = '工资项目已经发生变化，请刷新页面后重新排序';
+			return false;
+		}
+
+		foreach ($groupPositions as $positionIndex => $itemIndex) {
+			$items[$itemIndex] = $groupItems[$orderedIds[$positionIndex]];
+		}
+
+		$db = $this->getDB();
+		$db->begin();
+		$now = time();
+		try {
+			foreach ($items as $index => $item) {
+				$db->execute(
+					'update `' . $this->getSource() . '` set sort_order=' . (($index + 1) * 10) .
+					',updated_at=' . $now . ' where company_id=' . $companyId .
+					' and id=' . intval($item['id']) . ' and deleted_at=0'
+				);
+			}
+			$db->commit();
+		} catch (\Exception $exception) {
+			$db->rollback();
+			$this->_lastError = '工资项目排序保存失败，请稍后重试';
+			return false;
+		}
+		return true;
+	}
+
+	protected function normalizeProjectOrderIds($projectIds)
+	{
+		if (!is_array($projectIds)) {
+			$projectIds = explode(',', trim((string)$projectIds));
+		}
+		$return = array();
+		foreach ($projectIds as $projectId) {
+			$projectId = intval($projectId);
+			if ($projectId > 0 && !in_array($projectId, $return)) {
+				$return[] = $projectId;
+			}
+		}
+		return $return;
+	}
+
+	protected function isCompleteProjectOrder($orderedIds, $groupItems)
+	{
+		if (count($orderedIds) != count($groupItems)) {
+			return false;
+		}
+		foreach ($orderedIds as $projectId) {
+			if (!isset($groupItems[$projectId])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	public function getCompanyTemplateProjectMap($companyId, $includeDeleted = false)
 	{
 		$return = array();

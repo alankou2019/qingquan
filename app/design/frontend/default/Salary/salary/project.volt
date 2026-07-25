@@ -26,6 +26,12 @@
 .salary_sheet .initial_department_col{width:160px;min-width:160px;max-width:160px;}
 .salary_sheet .initial_project_col{width:116px;min-width:116px;max-width:116px;}
 .salary_sheet .initial_project_col .salary_bulk_copy{display:block;margin-top:4px;white-space:nowrap;}
+.salary_project_draggable{cursor:move;position:relative;user-select:none;}
+.salary_project_drag_handle{float:right;color:#94a3b8;font-size:13px;line-height:18px;cursor:grab;}
+.salary_project_drag_before{box-shadow:inset 3px 0 0 #4560e6;}
+.salary_project_drag_after{box-shadow:inset -3px 0 0 #4560e6;}
+.salary_project_order_status{display:inline-block;min-height:18px;margin-left:10px;color:#15803d;font-size:12px;}
+.salary_project_order_status.error{color:#b91c1c;}
 .salary_two_line{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:36px;line-height:18px;white-space:normal;word-break:break-all;}
 .initial_mobile_col .salary_two_line{display:block;white-space:nowrap;text-overflow:ellipsis;}
 .salary_status_enabled{color:#15803d;}
@@ -262,18 +268,23 @@
 					<input type="file" name="initial_file" accept=".xls,.xlsx" />
 					<button class="salary_btn" type="submit">Excel导入初始工资表</button>
 				</form>
+				<span id="initial_project_order_status" class="salary_project_order_status"></span>
 			</div>
 			<form id="initial_salary_form" method="post" action="{{helper.createUrl(['p':'salary/saveinitialsalary'])}}">
 				<input type="hidden" id="initial_salary_employee_id" name="initial_salary_employee_id" value="0" />
 				<div class="salary_scroll">
-					<table class="salary_table salary_sheet">
+					<table class="salary_table salary_sheet" id="initial_salary_table">
 						<tr>
 							<th class="initial_name_col">员工</th>
 							<th class="initial_mobile_col">手机号</th>
 							<th class="initial_department_col">部门</th>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<th class="initial_{{project['initial_group']}} initial_project_col" title="{{project['name']}}"><span class="salary_two_line">{{project['name']}}</span>{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] and project['source_type_option']!='calculated' %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">设置金额</button>{% endif %}</th>
+								<th class="initial_{{project['initial_group']}} initial_project_col{% if !project['is_summary_project'] %} salary_project_draggable{% endif %}" title="{{project['name']}}"{% if !project['is_summary_project'] %} draggable="true" data-project-id="{{project['id']}}" data-project-group="{{project['initial_group']}}" ondragstart="initialProjectDragStart(event,this);" ondragover="initialProjectDragOver(event,this);" ondragleave="initialProjectDragLeave(this);" ondrop="initialProjectDrop(event,this);" ondragend="initialProjectDragEnd();"{% endif %}>
+									{% if !project['is_summary_project'] %}<span class="salary_project_drag_handle" title="拖动调整位置">⋮⋮</span>{% endif %}
+									<span class="salary_two_line">{{project['name']}}</span>
+									{% if !project['is_text_project'] and !project['is_formula_project'] and !project['is_summary_project'] and project['source_type_option']!='calculated' %}<button class="salary_bulk_copy" type="button" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" onclick="openInitialSalaryBulkCopy(this);">设置金额</button>{% endif %}
+								</th>
 								{% endif %}
 							{% endfor %}
 							<th>操作</th>
@@ -285,7 +296,7 @@
 							<td class="initial_department_col" title="{{employee['department_name']}}"><span class="salary_two_line">{{employee['department_name']}}</span></td>
 							{% for project in initialProjects %}
 								{% if project['status']=='active' and project['deleted_at']==0 %}
-								<td class="initial_{{project['initial_group']}}" data-project-id="{{project['id']}}" data-project-name="{{project['name']}}" data-project-kind="{% if project['is_summary_project'] %}summary{% elseif project['is_formula_project'] %}formula{% elseif project['is_text_project'] %}text{% else %}number{% endif %}" data-formula="{% if project['formula_text'] is defined %}{{project['formula_text']}}{% endif %}" data-include-earning="{% if project['include_earning'] is defined %}{{project['include_earning']}}{% else %}0{% endif %}" data-include-deduction="{% if project['include_deduction'] is defined %}{{project['include_deduction']}}{% else %}0{% endif %}" data-summary-key="{{project['value_key']}}">
+								<td class="initial_{{project['initial_group']}}" data-project-id="{{project['id']}}" data-project-group="{{project['initial_group']}}" data-project-name="{{project['name']}}" data-project-kind="{% if project['is_summary_project'] %}summary{% elseif project['is_formula_project'] %}formula{% elseif project['is_text_project'] %}text{% else %}number{% endif %}" data-formula="{% if project['formula_text'] is defined %}{{project['formula_text']}}{% endif %}" data-include-earning="{% if project['include_earning'] is defined %}{{project['include_earning']}}{% else %}0{% endif %}" data-include-deduction="{% if project['include_deduction'] is defined %}{{project['include_deduction']}}{% else %}0{% endif %}" data-summary-key="{{project['value_key']}}">
 									{% if project['is_text_project'] %}
 									<input type="text" class="salary_text_input" name="amount[{{employee['id']}}][{{project['id']}}]" value="{% if employee['values'][project['value_key']] is defined %}{{employee['values'][project['value_key']]}}{% endif %}" readonly="readonly" />
 									{% else %}
@@ -955,6 +966,148 @@ function clearInitialSalaryTable() {
 function prepareInitialSalaryDelete(employeeId) {
 	document.getElementById('initial_salary_employee_id').value = employeeId;
 	return confirm('只会从初始工资表移出该员工，不影响人事档案、部门和历史工资记录。确认删除吗？');
+}
+var initialProjectDragId = 0;
+var initialProjectDragGroup = '';
+var initialProjectOriginalOrder = [];
+function initialProjectHeaders(group) {
+	var table = document.getElementById('initial_salary_table');
+	return table ? table.querySelectorAll('th[data-project-group="' + group + '"]') : [];
+}
+function initialProjectOrder(group) {
+	var headers = initialProjectHeaders(group);
+	var order = [];
+	for (var i = 0; i < headers.length; i++) {
+		order.push(parseInt(headers[i].getAttribute('data-project-id'), 10));
+	}
+	return order;
+}
+function initialProjectSetStatus(message, isError) {
+	var status = document.getElementById('initial_project_order_status');
+	if (!status) {
+		return;
+	}
+	status.className = isError ? 'salary_project_order_status error' : 'salary_project_order_status';
+	status.textContent = message || '';
+}
+function initialProjectClearDropStyles() {
+	var table = document.getElementById('initial_salary_table');
+	if (!table) {
+		return;
+	}
+	var headers = table.querySelectorAll('th.salary_project_draggable');
+	for (var i = 0; i < headers.length; i++) {
+		headers[i].className = headers[i].className.replace(/\s*salary_project_drag_before|\s*salary_project_drag_after/g, '');
+		headers[i].style.opacity = '';
+	}
+}
+function initialProjectMoveColumn(sourceId, targetId, after) {
+	var table = document.getElementById('initial_salary_table');
+	if (!table || sourceId == targetId) {
+		return;
+	}
+	for (var rowIndex = 0; rowIndex < table.rows.length; rowIndex++) {
+		var row = table.rows[rowIndex];
+		var source = row.querySelector('[data-project-id="' + sourceId + '"]');
+		var target = row.querySelector('[data-project-id="' + targetId + '"]');
+		if (source && target) {
+			target.parentNode.insertBefore(source, after ? target.nextSibling : target);
+		}
+	}
+}
+function initialProjectApplyOrder(group, order) {
+	var table = document.getElementById('initial_salary_table');
+	if (!table || !order.length) {
+		return;
+	}
+	for (var rowIndex = 0; rowIndex < table.rows.length; rowIndex++) {
+		var row = table.rows[rowIndex];
+		var groupCells = row.querySelectorAll('[data-project-group="' + group + '"]');
+		if (!groupCells.length) {
+			continue;
+		}
+		var marker = groupCells[groupCells.length - 1].nextSibling;
+		for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+			var cell = row.querySelector('[data-project-id="' + order[orderIndex] + '"]');
+			if (cell) {
+				row.insertBefore(cell, marker);
+			}
+		}
+	}
+}
+function initialProjectSaveOrder(group, order, previousOrder) {
+	initialProjectSetStatus('正在保存项目顺序...', false);
+	var request = new XMLHttpRequest();
+	request.open('POST', '{{helper.createUrl(['p':'salary/saveprojectorder'])}}', true);
+	request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+	request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	request.onreadystatechange = function() {
+		if (request.readyState !== 4) {
+			return;
+		}
+		var result = null;
+		try {
+			result = JSON.parse(request.responseText);
+		} catch (error) {
+			result = null;
+		}
+		if (request.status < 200 || request.status >= 300 || !result || result.status !== 'y') {
+			initialProjectApplyOrder(group, previousOrder);
+			initialProjectSetStatus(result && result.error ? result.error : '项目顺序保存失败，已恢复原顺序', true);
+			return;
+		}
+		initialProjectSetStatus(result.data && result.data.message ? result.data.message : '项目顺序已保存', false);
+	};
+	request.send('direction=' + encodeURIComponent(group) + '&project_ids=' + encodeURIComponent(order.join(',')));
+}
+function initialProjectDragStart(event, header) {
+	initialProjectDragId = parseInt(header.getAttribute('data-project-id'), 10) || 0;
+	initialProjectDragGroup = header.getAttribute('data-project-group') || '';
+	initialProjectOriginalOrder = initialProjectOrder(initialProjectDragGroup);
+	header.style.opacity = '0.55';
+	if (event.dataTransfer) {
+		event.dataTransfer.effectAllowed = 'move';
+		event.dataTransfer.setData('text/plain', String(initialProjectDragId));
+	}
+}
+function initialProjectDragOver(event, header) {
+	if (!initialProjectDragId || header.getAttribute('data-project-group') !== initialProjectDragGroup || parseInt(header.getAttribute('data-project-id'), 10) === initialProjectDragId) {
+		return;
+	}
+	event.preventDefault();
+	initialProjectClearDropStyles();
+	var rect = header.getBoundingClientRect();
+	var after = event.clientX > rect.left + rect.width / 2;
+	header.className += after ? ' salary_project_drag_after' : ' salary_project_drag_before';
+	if (event.dataTransfer) {
+		event.dataTransfer.dropEffect = 'move';
+	}
+}
+function initialProjectDragLeave(header) {
+	header.className = header.className.replace(/\s*salary_project_drag_before|\s*salary_project_drag_after/g, '');
+}
+function initialProjectDrop(event, header) {
+	if (!initialProjectDragId || header.getAttribute('data-project-group') !== initialProjectDragGroup) {
+		return;
+	}
+	event.preventDefault();
+	var targetId = parseInt(header.getAttribute('data-project-id'), 10) || 0;
+	var rect = header.getBoundingClientRect();
+	var after = event.clientX > rect.left + rect.width / 2;
+	initialProjectMoveColumn(initialProjectDragId, targetId, after);
+	var newOrder = initialProjectOrder(initialProjectDragGroup);
+	var oldOrder = initialProjectOriginalOrder.slice(0);
+	var group = initialProjectDragGroup;
+	initialProjectDragEnd();
+	if (newOrder.join(',') !== oldOrder.join(',')) {
+		initialProjectSaveOrder(group, newOrder, oldOrder);
+	}
+}
+function initialProjectDragEnd() {
+	initialProjectClearDropStyles();
+	initialProjectDragId = 0;
+	initialProjectDragGroup = '';
+	initialProjectOriginalOrder = [];
 }
 toggleSalaryFormulaBox();
 initializeInitialSalaryCalculations();
