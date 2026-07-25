@@ -10,6 +10,7 @@ use ScshuxCms\Core\Helper\Utils;
 use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
+use ScshuxCms\Dacang\Model\PlatformUserIdentityModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\CommissionArchiveModel;
 use ScshuxCms\Salary\Model\CommissionEstimateModel;
@@ -1352,6 +1353,151 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('platformName', isset($platformOptions[$platform]) ? $platformOptions[$platform] : $platform);
 		$this->view->setVar('syncItems', $syncItems);
 		$this->view->setVar('userItems', $this->getCompanyUsers());
+		$this->view->setVar('departmentItems', $this->getSalaryEmployeeDepartments());
+	}
+
+	public function employeesaveAction()
+	{
+		$this->checkModule();
+		$this->requireSalaryEmployeeManager();
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$userInfo = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and id=' . $employeeId);
+		if (!$userInfo) {
+			$this->sendErrorResult('员工不存在或不属于当前企业');
+		}
+
+		$name = trim($this->request->getPost('name'));
+		$mobile = trim($this->request->getPost('mobile'));
+		$positionName = trim($this->request->getPost('position_name'));
+		$departmentId = intval($this->request->getPost('department_id'));
+		if ($name == '') {
+			$this->sendErrorResult('员工姓名不能为空');
+		}
+		if (function_exists('mb_strlen') && mb_strlen($name, 'UTF-8') > 80) {
+			$this->sendErrorResult('员工姓名不能超过80个字符');
+		}
+		if ($mobile != '' && !preg_match('/^\d{6,20}$/', $mobile)) {
+			$this->sendErrorResult('手机号应为6至20位数字');
+		}
+		if (function_exists('mb_strlen') && mb_strlen($positionName, 'UTF-8') > 100) {
+			$this->sendErrorResult('岗位不能超过100个字符');
+		}
+
+		$departmentMap = $this->getSalaryEmployeeDepartmentMap();
+		if ($departmentId > 0 && !isset($departmentMap[$departmentId])) {
+			$this->sendErrorResult('所选部门不存在或不属于当前企业');
+		}
+
+		$userTable = CompanyUserModel::factory()->getSource();
+		$employeeDepartmentModel = SalaryEmployeeDepartmentModel::factory();
+		$mobileColumn = $employeeDepartmentModel->getEmployeeMobileColumn($userTable);
+		$positionColumn = $employeeDepartmentModel->getEmployeePositionColumn($userTable);
+		if ($mobileColumn != '' && $mobile != '') {
+			$duplicate = $this->getDI()->get('db')->query(
+				'select id from `' . $userTable . '` where company_id=' . intval($this->companyId) .
+				' and id<>' . $employeeId .
+				' and `' . $mobileColumn . '`="' . addslashes($mobile) . '" limit 1'
+			)->fetch();
+			if ($duplicate) {
+				$this->sendErrorResult('该手机号已被其他员工使用');
+			}
+		}
+
+		$saveData = array(
+			'name' => $name,
+			'department_id' => $departmentId,
+		);
+		if ($mobileColumn != '') {
+			$saveData[$mobileColumn] = $mobile;
+		}
+		if ($positionColumn != '') {
+			$saveData[$positionColumn] = $positionName;
+		}
+		if (!$userInfo->save($saveData)) {
+			$this->sendErrorResult('员工信息保存失败，请稍后重试');
+		}
+
+		$departmentName = $departmentId > 0 && isset($departmentMap[$departmentId])
+			? $departmentMap[$departmentId]['name']
+			: '-';
+		$this->addSalaryLog('salary_employee_save', 'company_user', $employeeId, '', '编辑员工信息：' . $name);
+		$this->sendSuccessResult(array(
+			'message' => '员工信息已保存',
+			'employee' => array(
+				'id' => $employeeId,
+				'name' => $name,
+				'mobile' => $mobile,
+				'department_id' => $departmentId,
+				'department_name' => $departmentName,
+				'position_name' => $positionName,
+			),
+		));
+	}
+
+	public function employeedeleteAction()
+	{
+		$this->checkModule();
+		$this->requireSalaryEmployeeManager();
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$userInfo = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and id=' . $employeeId);
+		if (!$userInfo) {
+			$this->sendErrorResult('员工不存在或已经删除');
+		}
+		if (intval($userInfo->is_admin) == 1) {
+			$this->sendErrorResult('企业管理员不能删除');
+		}
+		if ($employeeId == $this->getSalaryRoleUserId()) {
+			$this->sendErrorResult('不能删除当前登录员工');
+		}
+		if (intval($userInfo->addreport) == 1) {
+			$this->sendErrorResult('该员工正在使用绩效考核，不能在薪酬页面直接删除');
+		}
+
+		$employeeName = $userInfo->name;
+		$db = $this->getDI()->get('db');
+		$db->begin();
+		try {
+			SalaryViewRoleModel::factory()->deleteBySql(
+				'company_id=' . intval($this->companyId) .
+				' and (user_id=' . $employeeId .
+				' or (scope_type="employee" and target_id=' . $employeeId . '))'
+			);
+			$db->execute(
+				'delete from `' . SalaryPayrollAuditModel::factory()->getRoleTable() . '`' .
+				' where company_id=' . intval($this->companyId) . ' and reviewer_id=' . $employeeId
+			);
+			$platformIdentityTable = PlatformUserIdentityModel::factory()->getSource();
+			if ($this->tableExists($platformIdentityTable)) {
+				$db->execute(
+					'delete from `' . $platformIdentityTable . '` where company_id=' .
+					intval($this->companyId) . ' and company_user_id=' . $employeeId
+				);
+			}
+			if (!$db->execute(
+				'delete from `' . CompanyUserModel::factory()->getSource() . '` where company_id=' .
+				intval($this->companyId) . ' and id=' . $employeeId
+			)) {
+				throw new \Exception('员工删除失败');
+			}
+			$db->commit();
+		} catch (\Exception $exception) {
+			$db->rollback();
+			$this->sendErrorResult('员工删除失败，请稍后重试');
+		}
+
+		$this->addSalaryLog('salary_employee_delete', 'company_user', $employeeId, '', '删除员工：' . $employeeName . '；历史薪酬记录保留');
+		$this->sendSuccessResult(array(
+			'message' => '员工已删除，历史薪酬记录仍然保留',
+			'employee_id' => $employeeId,
+		));
 	}
 
 	public function authAction()
@@ -2094,5 +2240,49 @@ class SalaryController extends FrontendBaseController
 			$departmentSql['join'] .
 			'where u.company_id=' . intval($this->companyId) . ' order by departmentname asc,u.id asc';
 		return $this->getDI()->get('db')->query($sql)->fetchAll();
+	}
+
+	protected function getSalaryEmployeeDepartments()
+	{
+		return array_values($this->getSalaryEmployeeDepartmentMap());
+	}
+
+	protected function getSalaryEmployeeDepartmentMap()
+	{
+		$return = array();
+		$platform = SalaryEmployeeDepartmentModel::factory()->getCompanyPlatform($this->companyId);
+		$items = DepartmentModel::find(array(
+			'conditions' => 'company_id=' . intval($this->companyId),
+			'order' => 'id asc',
+		));
+		foreach ($items as $item) {
+			$value = $platform == 'dingding' ? intval($item->dingding_id) : intval($item->id);
+			if ($value <= 0) {
+				$value = intval($item->id);
+			}
+			$return[$value] = array(
+				'value' => $value,
+				'name' => $item->name,
+			);
+		}
+		return $return;
+	}
+
+	protected function requireSalaryEmployeeManager()
+	{
+		$user = Helper::factory()->getSession()->get('_user');
+		if (empty($user->is_admin)) {
+			$this->sendErrorResult('只有企业管理员可以编辑或删除员工');
+		}
+		return true;
+	}
+
+	protected function tableExists($tableName)
+	{
+		$item = $this->getDI()->get('db')->query(
+			'select count(*) as num from information_schema.tables where table_schema=database()' .
+			' and table_name="' . addslashes($tableName) . '"'
+		)->fetch();
+		return $item && intval($item['num']) > 0;
 	}
 }

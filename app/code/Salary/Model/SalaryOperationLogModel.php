@@ -144,6 +144,8 @@ class SalaryOperationLogModel extends BaseModel
 			'initial_salary_employee_delete' => '移出初始工资表员工',
 			'initial_salary_employee_restore' => '恢复初始工资表员工',
 			'initial_salary_import' => '导入初始工资表',
+			'salary_employee_save' => '编辑员工信息',
+			'salary_employee_delete' => '删除员工',
 			'payroll_generate' => '生成工资表',
 			'payroll_save' => '保存工资表',
 			'payroll_import' => '导入工资表',
