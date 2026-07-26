@@ -75,6 +75,13 @@
 .salary_initial_actions .salary_btn{margin-left:8px;}
 .salary_initial_unsaved{display:none;margin-right:10px;color:#b45309;}
 .salary_row_save_status{display:block;min-height:16px;margin-top:3px;color:#15803d;font-size:11px;}
+.salary_project_editor_dialog{display:none;position:fixed;z-index:1100;left:0;top:0;width:100%;height:100%;background:rgba(15,23,42,.36);overflow:auto;}
+.salary_project_editor_box{width:760px;max-width:calc(100% - 32px);margin:7vh auto 30px;background:#fff;border:1px solid #cbd5e1;box-shadow:0 12px 32px rgba(15,23,42,.28);}
+.salary_project_editor_head{height:44px;line-height:44px;padding:0 14px;border-bottom:1px solid #d9e2ef;color:#1f2937;font-size:16px;}
+.salary_project_editor_close{float:right;border:0;background:none;color:#64748b;font-size:22px;line-height:42px;cursor:pointer;}
+.salary_project_editor_body{padding:14px;}
+.salary_project_editor_error{display:none;margin-bottom:10px;padding:8px 10px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;}
+.salary_project_editor_dialog .salary_formula_tools{width:calc(100% - 380px);min-width:280px;}
 </style>
 <div class="full_box">
 	<div class="head_tab clear">
@@ -128,7 +135,7 @@
 						<td>{{item['source_type_label']}}</td>
 						<td>{% if item['linked_module']!='none' %}关联 {{item['linked_module']}}{% else %}-{% endif %}</td>
 						<td class="salary_template_action">
-							<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','template_id':item['id']])}}">编辑</a>
+							<button class="salary_link_btn" type="button" onclick="return openSalaryProjectEditor({template_id:{{item['id']}}});">编辑</button>
 							{% if !item['is_selected'] %}
 							<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectenabletemplate'])}}" onsubmit="return enableSalaryTemplate(this);">
 								<input type="hidden" name="template_id" value="{{item['id']}}" />
@@ -147,6 +154,24 @@
 					<tr><td colspan="6" class="salary_empty">暂无平台通用项目</td></tr>
 					{% endfor %}
 			</table>
+		</div>
+
+		<div id="salary_project_editor_dialog" class="salary_project_editor_dialog" role="dialog" aria-modal="true" aria-labelledby="salary_project_editor_title" onclick="if(event.target===this){closeSalaryProjectEditor();}">
+			<div class="salary_project_editor_box">
+				<div class="salary_project_editor_head"><span id="salary_project_editor_title">编辑工资项目</span><button class="salary_project_editor_close" type="button" onclick="closeSalaryProjectEditor();" title="关闭">&times;</button></div>
+				<div class="salary_project_editor_body">
+					<div id="salary_project_editor_error" class="salary_project_editor_error"></div>
+					<form id="salary_project_editor_form" class="salary_form" method="post" action="{{helper.createUrl(['p':'salary/projectsave'])}}" onsubmit="return saveSalaryProjectEditor(this);">
+						<input type="hidden" id="salary_project_editor_id" name="id" value="0" />
+						<input type="hidden" id="salary_project_editor_template_id" name="template_id" value="0" />
+						<input type="hidden" id="salary_project_editor_status" name="status" value="active" />
+						<div><label>项目名称</label><input id="salary_project_editor_name" type="text" name="name" maxlength="80" /><label>项目类别</label><select id="salary_project_editor_direction" name="direction">{% for key,label in directions %}<option value="{{key}}">{{label}}</option>{% endfor %}</select><label>项目属性</label><select id="salary_project_editor_source_type" name="source_type" onchange="toggleSalaryProjectEditorFields();">{% for key,label in sourceTypes %}<option value="{{key}}">{{label}}</option>{% endfor %}</select></div>
+						<div><span id="salary_project_editor_default_number_field" class="salary_default_field"><label>默认数字</label><input id="salary_project_editor_default_number" type="text" name="default_number" maxlength="18" value="0.00" /></span><span id="salary_project_editor_default_text_field" class="salary_default_field"><label>默认文本</label><input id="salary_project_editor_default_text" type="text" name="default_text" maxlength="500" /></span><label>关联模块</label><input id="salary_project_editor_linked_module" type="text" name="linked_module" maxlength="30" value="none" /><label>排序</label><input id="salary_project_editor_sort_order" type="text" name="sort_order" maxlength="10" style="width:70px;" value="0" /></div>
+						<div id="salary_project_editor_formula_row"><label>核算公式</label><div class="salary_formula_area"><textarea id="salary_project_editor_formula_text" name="formula_text"></textarea></div><div class="salary_formula_tools"><div class="formula_hint">点击工资项目名称可插入公式。支持 +、-、*、/、括号。</div><div id="salary_project_editor_formula_refs" class="salary_formula_refs"></div><div class="salary_formula_ops"><button type="button" onclick="insertSalaryProjectEditorFormulaText(' + ');">+</button><button type="button" onclick="insertSalaryProjectEditorFormulaText(' - ');">-</button><button type="button" onclick="insertSalaryProjectEditorFormulaText(' * ');">*</button><button type="button" onclick="insertSalaryProjectEditorFormulaText(' / ');">/</button><button type="button" onclick="insertSalaryProjectEditorFormulaText('(');">(</button><button type="button" onclick="insertSalaryProjectEditorFormulaText(')');">)</button></div></div></div>
+						<div style="margin-top:10px;text-align:right;"><button class="salary_btn salary_btn_gray" type="button" onclick="closeSalaryProjectEditor();">取消</button><button id="salary_project_editor_submit" class="salary_btn" type="submit">保存工资项目</button></div>
+					</form>
+				</div>
+			</div>
 		</div>
 
 		<div class="salary_block">
@@ -250,7 +275,7 @@
 					<td>{% if item['include_deduction'] %}是{% else %}否{% endif %}</td>
 					<td>{% if item['include_net'] %}是{% else %}否{% endif %}</td>
 					<td>
-						<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/project','id':item['id']])}}">编辑</a>
+						<button class="salary_link_btn" type="button" onclick="return openSalaryProjectEditor({id:{{item['id']}}});">编辑</button>
 						{% if item['template_id'] %}
 						<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/projectdisable'])}}" onsubmit="return disableSalaryTemplate(this);">
 							<input type="hidden" name="id" value="{{item['id']}}" />
@@ -420,6 +445,172 @@ function toggleSalaryFormulaBox() {
 	numberField.style.display = sourceType.value == 'number' ? 'inline-block' : 'none';
 	textField.style.display = sourceType.value == 'text' ? 'inline-block' : 'none';
 }
+var salaryProjectEditDataUrl = "{{helper.createUrl(['p':'salary/projecteditdata'])}}";
+function getSalaryProjectEditorElement(id) { return document.getElementById('salary_project_editor_' + id); }
+function setSalaryProjectEditorValue(id, value) {
+	var element = getSalaryProjectEditorElement(id);
+	if (element) { element.value = value === null || typeof value == 'undefined' ? '' : value; }
+}
+function toggleSalaryProjectEditorFields() {
+	var sourceType = getSalaryProjectEditorElement('source_type');
+	var formulaRow = getSalaryProjectEditorElement('formula_row');
+	var numberField = getSalaryProjectEditorElement('default_number_field');
+	var textField = getSalaryProjectEditorElement('default_text_field');
+	if (!sourceType || !formulaRow || !numberField || !textField) { return; }
+	formulaRow.style.display = sourceType.value == 'calculated' ? 'block' : 'none';
+	numberField.style.display = sourceType.value == 'number' ? 'inline-block' : 'none';
+	textField.style.display = sourceType.value == 'text' ? 'inline-block' : 'none';
+}
+function insertSalaryProjectEditorFormulaText(text) {
+	var textarea = getSalaryProjectEditorElement('formula_text');
+	if (!textarea || text === null || typeof text == 'undefined') { return; }
+	textarea.focus();
+	if (typeof textarea.selectionStart == 'number') {
+		var start = textarea.selectionStart, end = textarea.selectionEnd;
+		textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+		textarea.selectionStart = textarea.selectionEnd = start + text.length;
+	} else { textarea.value += text; }
+}
+function showSalaryProjectEditorError(message) {
+	var error = getSalaryProjectEditorElement('error');
+	if (!error) { return; }
+	error.innerHTML = message || '';
+	error.style.display = message ? 'block' : 'none';
+}
+function updateSalaryProjectEditorFormulaRefs(items) {
+	var box = getSalaryProjectEditorElement('formula_refs');
+	if (!box) { return; }
+	while (box.firstChild) { box.removeChild(box.firstChild); }
+	if (!items || !items.length) {
+		box.appendChild(document.createTextNode('暂无可引用项目，请先在企业工资项目中启用数字项或核算项。'));
+		return;
+	}
+	for (var i = 0; i < items.length; i++) {
+		var button = document.createElement('button');
+		button.type = 'button';
+		button.appendChild(document.createTextNode(items[i].name || ''));
+		button.onclick = (function(name) { return function() { insertSalaryProjectEditorFormulaText(name); }; })(items[i].name || '');
+		box.appendChild(button);
+	}
+}
+function populateSalaryProjectEditor(project, formulaProjects) {
+	project = project || {};
+	setSalaryProjectEditorValue('id', project.id || 0);
+	setSalaryProjectEditorValue('template_id', project.template_id || 0);
+	setSalaryProjectEditorValue('status', project.status || 'active');
+	setSalaryProjectEditorValue('name', project.name || '');
+	setSalaryProjectEditorValue('direction', project.direction || 'earning');
+	setSalaryProjectEditorValue('source_type', project.source_type_option || project.source_type || 'number');
+	setSalaryProjectEditorValue('default_number', project.default_number || '0.00');
+	setSalaryProjectEditorValue('default_text', project.default_text || '');
+	setSalaryProjectEditorValue('linked_module', project.linked_module || 'none');
+	setSalaryProjectEditorValue('sort_order', project.sort_order || 0);
+	setSalaryProjectEditorValue('formula_text', project.formula_text || '');
+	var title = getSalaryProjectEditorElement('title');
+	if (title) { title.innerHTML = parseInt(project.template_id, 10) > 0 ? '编辑通用项目' : '编辑工资项目'; }
+	updateSalaryProjectEditorFormulaRefs(formulaProjects || []);
+	toggleSalaryProjectEditorFields();
+}
+function openSalaryProjectEditor(options) {
+	options = options || {};
+	if (!options.id && !options.template_id) { return false; }
+	var dialog = document.getElementById('salary_project_editor_dialog');
+	if (!dialog) { return false; }
+	dialog.style.display = 'block';
+	showSalaryProjectEditorError('');
+	var submit = getSalaryProjectEditorElement('submit');
+	if (submit) { submit.disabled = true; }
+	var separator = salaryProjectEditDataUrl.indexOf('?') >= 0 ? '&' : '?';
+	var requestUrl = salaryProjectEditDataUrl + separator + (options.id ? 'id=' + encodeURIComponent(options.id) : 'template_id=' + encodeURIComponent(options.template_id));
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', requestUrl, true);
+	xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState !== 4) { return; }
+		if (submit) { submit.disabled = false; }
+		var result = null;
+		try { result = JSON.parse(xhr.responseText); } catch (e) {}
+		if (xhr.status < 200 || xhr.status >= 300 || !result || result.status != 'y' || !result.data || !result.data.project) {
+			showSalaryProjectEditorError(result && result.error ? result.error : '读取工资项目失败，请稍后重试。');
+			return;
+		}
+		populateSalaryProjectEditor(result.data.project, result.data.formula_projects);
+		getSalaryProjectEditorElement('name').focus();
+	};
+	xhr.send(null);
+	return false;
+}
+function closeSalaryProjectEditor() {
+	var dialog = document.getElementById('salary_project_editor_dialog');
+	if (dialog) { dialog.style.display = 'none'; }
+	showSalaryProjectEditorError('');
+}
+function setSalaryProjectRowText(cell, value) {
+	if (!cell) { return; }
+	while (cell.firstChild) { cell.removeChild(cell.firstChild); }
+	cell.appendChild(document.createTextNode(value || ''));
+}
+function updateSalaryProjectCompanyRow(project) {
+	if (!project || !project.id) { return; }
+	var row = document.getElementById('salary_project_row_' + project.id);
+	if (!row) { if (project.status == 'active') { appendSalaryProjectRow(project); } return; }
+	var cells = row.getElementsByTagName('td');
+	if (cells.length < 8) { return; }
+	var badge = cells[0].getElementsByTagName('span')[0];
+	if (badge) { badge.innerHTML = project.project_kind_label || ''; }
+	setSalaryProjectRowText(cells[1], project.name);
+	setSalaryProjectRowText(cells[2], project.direction_label);
+	setSalaryProjectRowText(cells[3], project.source_type_label);
+	setSalaryProjectRowText(cells[4], project.calculation_mode_label);
+	setSalaryProjectRowText(cells[5], parseInt(project.include_earning, 10) ? '是' : '否');
+	setSalaryProjectRowText(cells[6], parseInt(project.include_deduction, 10) ? '是' : '否');
+	setSalaryProjectRowText(cells[7], parseInt(project.include_net, 10) ? '是' : '否');
+}
+function updateSalaryProjectTemplateRowData(templateId, project) {
+	var row = document.getElementById('salary_template_row_' + templateId);
+	if (!row || !project) { return; }
+	var cells = row.getElementsByTagName('td');
+	if (cells.length < 5) { return; }
+	setSalaryProjectRowText(cells[1], project.name);
+	setSalaryProjectRowText(cells[2], project.direction_label);
+	setSalaryProjectRowText(cells[3], project.source_type_label);
+	setSalaryProjectRowText(cells[4], project.linked_module && project.linked_module != 'none' ? '关联 ' + project.linked_module : '-');
+}
+function serializeSalaryProjectEditor(form) {
+	var parts = ['salary_ajax=1'], fields = form.elements;
+	for (var i = 0; i < fields.length; i++) {
+		if (!fields[i].name || fields[i].disabled || (fields[i].type == 'checkbox' && !fields[i].checked)) { continue; }
+		parts.push(encodeURIComponent(fields[i].name) + '=' + encodeURIComponent(fields[i].value));
+	}
+	return parts.join('&');
+}
+function saveSalaryProjectEditor(form) {
+	var submit = getSalaryProjectEditorElement('submit');
+	if (!form || !submit || submit.getAttribute('data-saving') == '1') { return false; }
+	showSalaryProjectEditorError('');
+	var originalText = submit.innerHTML;
+	submit.setAttribute('data-saving', '1'); submit.disabled = true; submit.innerHTML = '保存中...';
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', form.action, true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+	xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState !== 4) { return; }
+		submit.removeAttribute('data-saving'); submit.disabled = false; submit.innerHTML = originalText;
+		var result = null;
+		try { result = JSON.parse(xhr.responseText); } catch (e) {}
+		if (xhr.status < 200 || xhr.status >= 300 || !result || result.status != 'y' || !result.data || !result.data.project) {
+			showSalaryProjectEditorError(result && result.error ? result.error : '保存失败，请稍后重试。'); return;
+		}
+		var project = result.data.project;
+		updateSalaryProjectCompanyRow(project);
+		if (parseInt(project.template_id, 10) > 0) { updateSalaryProjectTemplateRowData(project.template_id, project); }
+		closeSalaryProjectEditor();
+		showSalaryTemplateMessage(result.data.message || '工资项目已保存', false);
+	};
+	xhr.send(serializeSalaryProjectEditor(form));
+	return false;
+}
 function showSalaryTemplateMessage(message, isError) {
 	var box = document.getElementById('salary_inline_delete_message');
 	if (!box) {
@@ -585,9 +776,10 @@ function appendSalaryProjectRow(project) {
 		flagCell.appendChild(document.createTextNode(parseInt(project[flags[k]], 10) ? '是' : '否'));
 	}
 	var action = row.insertCell(-1);
-	var edit = document.createElement('a');
+	var edit = document.createElement('button');
 	edit.className = 'salary_link_btn';
-	edit.href = project.edit_url || '#';
+	edit.type = 'button';
+	edit.onclick = function() { return openSalaryProjectEditor({id:project.id}); };
 	edit.appendChild(document.createTextNode('编辑'));
 	action.appendChild(edit);
 	action.appendChild(document.createTextNode(' '));

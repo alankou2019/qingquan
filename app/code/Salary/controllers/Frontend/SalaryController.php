@@ -577,6 +577,22 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('initialPositions', $initialPositions);
 	}
 
+	/**
+	 * Return existing project data for the in-page project editor.
+	 */
+	public function projecteditdataAction()
+	{
+		$this->checkModule();
+		$data = $this->getSalaryProjectEditorData(
+			intval($this->request->get('id')),
+			intval($this->request->get('template_id'))
+		);
+		if (!$data) {
+			$this->sendErrorResult('工资项目不存在或已被删除');
+		}
+		$this->sendSuccessResult($data);
+	}
+
 	public function projectsavetemplatesAction()
 	{
 		$this->checkModule();
@@ -632,11 +648,25 @@ class SalaryController extends FrontendBaseController
 		if (!$this->request->isPost()) {
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
-		$result = SalaryProjectModel::factory()->saveCustomProject($this->companyId, $_POST);
+		$model = SalaryProjectModel::factory();
+		$result = $model->saveCustomProject($this->companyId, $_POST);
 		if (!$result) {
-			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult($model->getLastError());
+			}
+			Utils::showMsg($model->getLastError(), $backUrl);
 		}
-		$this->addSalaryLog('project_save', 'salary_project', intval(isset($_POST['id']) ? $_POST['id'] : 0), '', '保存工资项目');
+		$projectId = intval(isset($_POST['id']) ? $_POST['id'] : 0);
+		$templateId = intval(isset($_POST['template_id']) ? $_POST['template_id'] : 0);
+		$this->addSalaryLog('project_save', 'salary_project', $projectId, '', '保存工资项目');
+		if ($this->isSalaryAjaxRequest()) {
+			$data = $this->getSalaryProjectEditorData($projectId, $templateId);
+			if (!$data) {
+				$this->sendErrorResult('工资项目已保存，但无法读取最新数据，请刷新页面查看');
+			}
+			$data['message'] = '工资项目已保存';
+			$this->sendSuccessResult($data);
+		}
 		Utils::showMsg('工资项目已保存', $backUrl);
 	}
 
@@ -1739,6 +1769,65 @@ class SalaryController extends FrontendBaseController
 	protected function isSalaryAjaxRequest()
 	{
 		return $this->request->isAjax() || intval($this->request->getPost('salary_ajax')) == 1;
+	}
+
+	/**
+	 * Build editor data while keeping each company's projects isolated.
+	 */
+	protected function getSalaryProjectEditorData($projectId, $templateId)
+	{
+		$projectId = intval($projectId);
+		$templateId = intval($templateId);
+		$projectModel = SalaryProjectModel::factory();
+		$project = false;
+		if ($projectId > 0) {
+			$project = $projectModel->findFirst('id=' . $projectId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		} elseif ($templateId > 0) {
+			$project = $projectModel->findFirst('company_id=' . intval($this->companyId) . ' and template_id=' . $templateId . ' and deleted_at=0');
+			if (!$project) {
+				$template = SalaryProjectTemplateModel::factory()->findFirst('id=' . $templateId . ' and status="active"');
+				if (!$template) {
+					return false;
+				}
+				$templateData = $template->toArray();
+				$project = array(
+					'id' => 0,
+					'template_id' => $templateId,
+					'name' => $templateData['name'],
+					'source_type' => SalaryProjectModel::normalizeSourceType($templateData['source_type']),
+					'direction' => SalaryProjectModel::normalizeDirection($templateData['direction']),
+					'calculation_mode' => $templateData['calculation_mode'],
+					'linked_module' => $templateData['linked_module'],
+					'formula_text' => '',
+					'default_number' => '0.00',
+					'default_text' => '',
+					'include_earning' => intval($templateData['include_earning']),
+					'include_deduction' => intval($templateData['include_deduction']),
+					'include_net' => intval($templateData['include_net']),
+					'sort_order' => intval($templateData['sort_order']),
+					'status' => 'inactive',
+					'deleted_at' => 0,
+				);
+			}
+		}
+		if (!$project) {
+			return false;
+		}
+
+		$projectData = is_array($project) ? $project : $project->toArray();
+		$formattedProjects = $projectModel->formatProjectItems(array($projectData));
+		$companyProjects = $projectModel->getCompanyProjects($this->companyId);
+		$formulaProjects = array();
+		foreach ($companyProjects as $companyProject) {
+			if ($companyProject['status'] != 'active' || intval($companyProject['deleted_at']) > 0 || intval($companyProject['id']) == intval($projectData['id'])) {
+				continue;
+			}
+			if (SalaryProjectModel::isTextProject($companyProject)) {
+				continue;
+			}
+			$formulaProjects[] = array('id' => intval($companyProject['id']), 'name' => $companyProject['name']);
+		}
+		return array('project' => $formattedProjects[0], 'formula_projects' => $formulaProjects);
 	}
 
 	protected function respondSalaryDeleteError($message, $backUrl)
