@@ -1,6 +1,7 @@
 <style>
 .salary_page{padding:18px;}.salary_toolbar{margin-bottom:12px;}.salary_toolbar .btn,.salary_btn{display:inline-block;background:#4560e6;color:#fff;padding:0 14px;line-height:30px;height:30px;text-decoration:none;margin-right:8px;border:0;cursor:pointer}.salary_toolbar .btn_gray,.salary_btn_gray{background:#64748b}.salary_filter{border:1px solid #d9e2ef;background:#fbfdff;padding:12px 14px;margin-bottom:12px;color:#475569}.salary_filter input[type=month]{height:28px;border:1px solid #cbd5e1;padding:0 8px}.salary_tip{color:#64748b;line-height:24px;margin:0 0 12px}.salary_status{display:inline-block;padding:0 8px;height:24px;line-height:24px;background:#eef2ff;color:#3949ab}.salary_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff}.salary_table{width:100%;border-collapse:collapse;background:#fff}.salary_table th{background:#f8fafc;color:#334155;font-weight:normal;text-align:left;padding:8px;border-bottom:1px solid #d9e2ef}.salary_table td{padding:8px;border-bottom:1px solid #edf2f7;color:#475569;vertical-align:middle}.salary_table tr:hover td{box-shadow:inset 0 0 0 9999px rgba(100,116,139,.08)}.salary_sheet{min-width:1100px}.salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right}.salary_sheet input.salary_text_input{text-align:left;width:120px}.salary_sheet input[readonly]{background:#f1f5f9;color:#64748b}.salary_sheet .payroll_name_col{width:110px;min-width:110px}.salary_sheet .payroll_mobile_col{width:120px;min-width:120px}.salary_sheet .payroll_department_col{width:160px;min-width:160px}.salary_sheet .payroll_project_col{width:116px;min-width:116px}.salary_two_line{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:36px;line-height:18px;white-space:normal;word-break:break-all}.payroll_mobile_col .salary_two_line{display:block;white-space:nowrap;text-overflow:ellipsis}.salary_sheet .payroll_summary{background:#eaf3ff}.salary_sheet .payroll_earning{background:#edf9f1}.salary_sheet .payroll_deduction{background:#fff4e8}.salary_sheet .payroll_statistic{background:#f3f0ff}.salary_sheet .payroll_data{background:#edf7f8}.salary_sheet .payroll_note{background:#fffbe8}.salary_sheet .payroll_other{background:#f8fafc}.salary_bulk_copy{display:block;margin:4px auto 0;border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px}.salary_row_actions{min-width:105px;white-space:nowrap}.salary_row_edit_actions{display:none}.salary_link_btn{border:0;background:none;color:#4560e6;cursor:pointer;padding:0;font-size:12px}.salary_empty{border:1px solid #d9e2ef;background:#fbfdff;padding:18px;color:#64748b}.inline_form{display:inline-block;margin:0 8px 4px 0}.salary_table_actions{margin-top:10px;text-align:right}.salary_unsaved{display:none;margin-right:10px;color:#b45309}.salary_row_save_status{display:block;min-height:16px;margin-top:3px;color:#15803d;font-size:11px}.salary_bulk_dialog{display:none;position:fixed;z-index:9999;left:0;top:0;width:100%;height:100%;background:rgba(15,23,42,.35)}.salary_bulk_dialog_box{width:480px;margin:10vh auto 0;background:#fff;border:1px solid #cbd5e1;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.18)}.salary_bulk_dialog_title{color:#1f2937;font-size:15px;margin-bottom:10px}.salary_bulk_field{margin-bottom:12px}.salary_bulk_field_label{display:block;color:#475569;margin-bottom:6px}.salary_bulk_dialog input[type=number],.salary_bulk_dialog select{box-sizing:border-box;width:100%;height:32px;border:1px solid #cbd5e1;padding:0 8px}.salary_bulk_scope_options{padding:8px 10px;border:1px solid #d9e2ef;background:#f8fafc}.salary_bulk_scope_options label{display:inline-block;margin-right:18px;cursor:pointer}.salary_bulk_scope_options input,.salary_bulk_employee_list input{width:auto;height:auto;margin-right:4px;vertical-align:middle}.salary_bulk_scope_panel{display:none;margin-top:8px}.salary_bulk_scope_panel.on{display:block}.salary_bulk_employee_list{max-height:150px;overflow:auto;border:1px solid #d9e2ef;padding:8px 10px}.salary_bulk_employee_list label{display:inline-block;width:142px;margin:0 6px 7px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:top}.salary_bulk_dialog_actions{margin-top:14px;text-align:right}
 .salary_project_draggable{cursor:move;position:relative;user-select:none}.salary_project_drag_handle{float:right;color:#94a3b8;font-size:13px;line-height:18px;cursor:grab}.salary_project_drag_before{box-shadow:inset 3px 0 0 #4560e6}.salary_project_drag_after{box-shadow:inset -3px 0 0 #4560e6}.salary_project_order_status{display:inline-block;min-height:18px;margin-right:10px;color:#15803d;font-size:12px}.salary_project_order_status.error{color:#b91c1c}
+.salary_data_import_actions{display:inline-block;margin-left:14px}.salary_data_import_actions .salary_btn{height:26px;line-height:26px;padding:0 10px;margin-right:5px;font-size:12px}.salary_data_import_result{display:none;margin:-4px 0 12px;padding:9px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534}.salary_data_import_result.error{border-color:#fecaca;background:#fef2f2;color:#991b1b}.salary_data_import_result table{width:100%;margin-top:7px;border-collapse:collapse;background:#fff}.salary_data_import_result th,.salary_data_import_result td{padding:5px 7px;border:1px solid #d9e2ef;text-align:left;color:#475569}.salary_data_import_result th{background:#f8fafc}
 </style>
 <div class="full_box">
 	<div class="head_tab clear"><ul><li class="on"><a href="#">工资表核算</a></li><li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li></ul></div>
@@ -13,7 +14,8 @@
 		{% if !period %}
 		<div class="salary_empty">当前月份还没有工资核算表。选择月份后点击“生成”，系统将复制当前初始工资表的人员、项目和数据。</div>
 		{% else %}
-		<div class="salary_tip">当前工资表：{{period['payroll_month']}}　状态：<span class="salary_status">{{period['status_name']}}</span>　人数：<span id="payroll_employee_count">{{period['employee_count']}}</span>　应发总额：<span id="payroll_period_earning">{{period['earning_total']}}</span>　应扣总额：<span id="payroll_period_deduction">{{period['deduction_total']}}</span>　实发总额：<span id="payroll_period_net">{{period['net_total']}}</span></div>
+		<div class="salary_tip">当前工资表：{{period['payroll_month']}}　状态：<span class="salary_status">{{period['status_name']}}</span>　人数：<span id="payroll_employee_count">{{period['employee_count']}}</span>　应发总额：<span id="payroll_period_earning">{{period['earning_total']}}</span>　应扣总额：<span id="payroll_period_deduction">{{period['deduction_total']}}</span>　实发总额：<span id="payroll_period_net">{{period['net_total']}}</span>{% if period['can_edit'] and payrollDataProjects %}<span class="salary_data_import_actions">{% if canExportPayroll %}<a class="salary_btn salary_btn_gray" href="{{helper.createUrl(['p':'salary/payrolldatatemplate','id':period['id']])}}">数据模板下载</a>{% endif %}<button id="payroll_data_import_button" class="salary_btn" type="button" data-upload-url="{{helper.createUrl(['p':'salary/uploadpayrolldata'])}}" onclick="openPayrollDataImport();">导入数据</button><input id="payroll_data_file" type="file" accept=".xls,.xlsx" style="display:none;" onchange="uploadPayrollData(this);" /></span>{% endif %}</div>
+		<div id="payroll_data_import_result" class="salary_data_import_result"></div>
 		<form id="payroll_form" method="post" action="{{helper.createUrl(['p':'salary/savepayroll'])}}" onsubmit="return savePayrollTable(this);">
 			<input type="hidden" name="id" value="{{period['id']}}" /><input type="hidden" id="payroll_employee_id" name="payroll_employee_id" value="0" />
 			<div class="salary_scroll"><table class="salary_table salary_sheet" id="payroll_salary_table"><tr>
@@ -39,7 +41,7 @@
 <script type="text/javascript">
 var payrollDirty=false,payrollBulkProjectId=0;
 function payrollGenerateStatus(message,isError){var status=document.getElementById('payroll_generate_status');if(!status)return;status.className=isError?'salary_project_order_status error':'salary_project_order_status';status.textContent=message||''}
-function replacePayrollMatrix(url){var request=new XMLHttpRequest();request.open('GET',url,true);request.onreadystatechange=function(){if(request.readyState!==4)return;var button=document.getElementById('payroll_generate_button');if(button){button.disabled=false;button.innerHTML='\u751f\u6210'}if(request.status<200||request.status>=300){payrollGenerateStatus('\u5de5\u8d44\u6838\u7b97\u8868\u5237\u65b0\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u672c\u9875',true);return}var container=document.createElement('div');container.innerHTML=request.responseText;var fresh=container.querySelector('#payroll_matrix_region'),current=document.getElementById('payroll_matrix_region');if(!fresh||!current){payrollGenerateStatus('\u5de5\u8d44\u6838\u7b97\u8868\u5237\u65b0\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u672c\u9875',true);return}current.innerHTML=fresh.innerHTML;payrollDirty=false;initializePayroll();payrollGenerateStatus('\u5df2\u751f\u6210\u5f53\u524d\u6708\u4efd\u5de5\u8d44\u6838\u7b97\u8868',false)};request.send(null)}
+function replacePayrollMatrix(url,message,callback){var request=new XMLHttpRequest();request.open('GET',url,true);request.onreadystatechange=function(){if(request.readyState!==4)return;var button=document.getElementById('payroll_generate_button');if(button){button.disabled=false;button.innerHTML='\u751f\u6210'}if(request.status<200||request.status>=300){payrollGenerateStatus('\u5de5\u8d44\u6838\u7b97\u8868\u5237\u65b0\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u672c\u9875',true);return}var container=document.createElement('div');container.innerHTML=request.responseText;var fresh=container.querySelector('#payroll_matrix_region'),current=document.getElementById('payroll_matrix_region');if(!fresh||!current){payrollGenerateStatus('\u5de5\u8d44\u6838\u7b97\u8868\u5237\u65b0\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u672c\u9875',true);return}current.innerHTML=fresh.innerHTML;payrollDirty=false;initializePayroll();payrollGenerateStatus(message||'\u5df2\u751f\u6210\u5f53\u524d\u6708\u4efd\u5de5\u8d44\u6838\u7b97\u8868',false);if(typeof callback==='function')callback()};request.send(null)}
 function generatePayrollTable(form){
 	if(payrollDirty){alert('\u5f53\u524d\u5de5\u8d44\u6838\u7b97\u8868\u8fd8\u6709\u672a\u4fdd\u5b58\u7684\u6570\u636e\uff0c\u8bf7\u5148\u4fdd\u5b58\u540e\u518d\u751f\u6210\u3002');return false}
 	var current=document.getElementById('payroll_form');
@@ -66,6 +68,72 @@ function generatePayrollTable(form){
 	};
 	request.send('salary_ajax=1&payroll_month='+encodeURIComponent(month));
 	return false;
+}
+function openPayrollDataImport(){
+	if(payrollDirty){alert('当前工资核算表还有未保存的数据，请先保存后再导入。');return}
+	var input=document.getElementById('payroll_data_file');
+	if(input)input.click();
+}
+function payrollDataResultCell(row,value){
+	var cell=document.createElement('td');
+	cell.appendChild(document.createTextNode(value===null||typeof value==='undefined'?'':String(value)));
+	row.appendChild(cell);
+}
+function renderPayrollDataImportResult(data,isError,message){
+	var box=document.getElementById('payroll_data_import_result');
+	if(!box)return;
+	while(box.firstChild)box.removeChild(box.firstChild);
+	box.className='salary_data_import_result'+(isError?' error':'');
+	box.style.display='block';
+	var summary=document.createElement('div');
+	if(!message&&!isError&&data)message='导入完成：更新'+(data.updated_cell_count||0)+'个单元格，涉及'+(data.employee_count||0)+'名员工；跳过空白单元格'+(data.skipped_blank_count||0)+'个。';
+	summary.appendChild(document.createTextNode(message||'导入完成'));
+	box.appendChild(summary);
+	var errors=data&&data.errors&&data.errors.length?data.errors:[];
+	if(!errors.length)return;
+	var note=document.createElement('div');
+	note.style.marginTop='6px';
+	note.appendChild(document.createTextNode('以下'+errors.length+'条内容未导入：'));
+	box.appendChild(note);
+	var table=document.createElement('table'),head=document.createElement('tr');
+	var titles=['Excel行','姓名','手机号','原因'];
+	for(var i=0;i<titles.length;i++){var th=document.createElement('th');th.appendChild(document.createTextNode(titles[i]));head.appendChild(th)}
+	table.appendChild(head);
+	for(var j=0;j<errors.length;j++){var row=document.createElement('tr');payrollDataResultCell(row,errors[j].row||'');payrollDataResultCell(row,errors[j].name||'');payrollDataResultCell(row,errors[j].mobile||'');payrollDataResultCell(row,errors[j].reason||'');table.appendChild(row)}
+	box.appendChild(table);
+}
+function uploadPayrollData(input){
+	if(!input||!input.files||!input.files.length)return;
+	if(payrollDirty){alert('当前工资核算表还有未保存的数据，请先保存后再导入。');input.value='';return}
+	var form=document.getElementById('payroll_form'),button=document.getElementById('payroll_data_import_button'),periodId=0;
+	if(form&&form.elements['id'])periodId=parseInt(form.elements['id'].value,10)||0;
+	if(!periodId){alert('没有找到当前工资核算表');input.value='';return}
+	var file=input.files[0],name=String(file.name||'').toLowerCase();
+	if(!/\.(xls|xlsx)$/.test(name)){alert('请选择xls或xlsx格式的Excel文件');input.value='';return}
+	var data=new FormData();
+	data.append('id',periodId);
+	data.append('salary_ajax','1');
+	data.append('payroll_data_file',file);
+	if(button){button.disabled=true;button.innerHTML='导入中...'}
+	renderPayrollDataImportResult(null,false,'正在导入并重新核算工资数据...');
+	var request=new XMLHttpRequest();
+	request.open('POST',button.getAttribute('data-upload-url'),true);
+	request.setRequestHeader('X-Requested-With','XMLHttpRequest');
+	request.onreadystatechange=function(){
+		if(request.readyState!==4)return;
+		if(button){button.disabled=false;button.innerHTML='导入数据'}
+		input.value='';
+		var result=null;
+		try{result=JSON.parse(request.responseText)}catch(error){result=null}
+		if(request.status<200||request.status>=300||!result||result.status!=='y'){
+			var errorData=result&&result.data?result.data:null;
+			renderPayrollDataImportResult(errorData,true,result&&result.error?result.error:'导入响应异常，请重试');
+			return;
+		}
+		var resultData=result.data||{},reloadUrl=resultData.reload_url||window.location.href;
+		replacePayrollMatrix(reloadUrl,'工资核算数据已导入并重新计算',function(){renderPayrollDataImportResult(resultData,false,'')});
+	};
+	request.send(data);
 }
 function payrollMoney(v){v=parseFloat(String(v||'').replace(/,/g,''));return isNaN(v)||!isFinite(v)?0:Math.round(v*100)/100}function payrollFormat(v){return payrollMoney(v).toFixed(2)}
 function payrollCellInput(cell){var i=cell?cell.getElementsByTagName('input'):[];return i.length?i[0]:null}

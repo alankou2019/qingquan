@@ -842,6 +842,7 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('payrollRows', $rows);
 		$this->view->setVar('payrollDepartments', $departments);
 		$this->view->setVar('payrollPositions', $positions);
+		$this->view->setVar('payrollDataProjects', SalaryPayrollImportModel::getImportableDataProjects($projects));
 		$this->view->setVar('canExportPayroll', $this->canExportSalaryData());
 		$this->view->setVar('defaultPayrollMonth', date('Y-m'));
 	}
@@ -1085,6 +1086,81 @@ class SalaryController extends FrontendBaseController
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
+	}
+
+	public function payrolldatatemplateAction()
+	{
+		$this->checkFeature('payroll');
+		$periodId = intval($this->request->get('id'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period ? $period['payroll_month'] : date('Y-m')));
+		if (!$period) {
+			Utils::showMsg('工资核算表不存在', $backUrl);
+		}
+		if (!$this->canExportSalaryData()) {
+			Utils::showMsg('当前账号没有下载员工数据模板的权限', $backUrl);
+		}
+		$projects = SalaryPayrollImportModel::getImportableDataProjects(
+			PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($this->companyId, $periodId)
+		);
+		if (empty($projects)) {
+			Utils::showMsg('当前工资核算表没有可导入的数据类项目', $backUrl);
+		}
+		$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, $periodId);
+		$this->addSalaryLog('payroll_data_template_download', 'payroll_period', $periodId, $period['payroll_month'], '下载工资核算数据导入模板，人数' . count($rows));
+		$this->outputPayrollDataTemplate($period, $projects, $rows);
+	}
+
+	public function uploadpayrolldataAction()
+	{
+		$this->checkFeature('payroll');
+		$periodId = intval($this->request->getPost('id'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period ? $period['payroll_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			$this->sendJson(array('status' => 'n', 'error' => '不支持的请求方式', 'data' => array('errors' => array())));
+		}
+		if (!$period) {
+			$this->sendJson(array('status' => 'n', 'error' => '工资核算表不存在', 'data' => array('errors' => array())));
+		}
+		if (!PayrollPeriodModel::canEdit($period['status'])) {
+			$this->sendJson(array('status' => 'n', 'error' => '当前工资核算表不能导入数据', 'data' => array('errors' => array())));
+		}
+		if (empty($_FILES['payroll_data_file']['name'])) {
+			$this->sendJson(array('status' => 'n', 'error' => '请先选择数据Excel文件', 'data' => array('errors' => array())));
+		}
+		$extname = strtolower(pathinfo($_FILES['payroll_data_file']['name'], PATHINFO_EXTENSION));
+		if (!in_array($extname, array('xls', 'xlsx'))) {
+			$this->sendJson(array('status' => 'n', 'error' => '请上传xls或xlsx格式的Excel文件', 'data' => array('errors' => array())));
+		}
+		$file = $this->savePayrollUpload('payroll_data_file', $extname);
+		if (!$file) {
+			$this->sendJson(array('status' => 'n', 'error' => '文件上传失败，请重新上传', 'data' => array('errors' => array())));
+		}
+		$fullPath = WEBROOT . $file;
+		$model = SalaryPayrollImportModel::factory();
+		$result = $model->importPayrollDataFromExcel($this->companyId, $periodId, $fullPath, $this->getOperatorId());
+		$errors = $model->getLastErrors();
+		if (file_exists($fullPath)) {
+			@unlink($fullPath);
+		}
+		if (!$result) {
+			$message = '工资核算数据导入失败';
+			if (!empty($errors) && !empty($errors[0]['reason'])) {
+				$message = $errors[0]['reason'];
+			}
+			$this->sendJson(array('status' => 'n', 'error' => $message, 'data' => array('errors' => $errors)));
+		}
+		$result['errors'] = $errors;
+		$result['reload_url'] = $backUrl;
+		$this->addSalaryLog(
+			'payroll_data_import',
+			'payroll_period',
+			$periodId,
+			$period['payroll_month'],
+			'导入工资核算数据，员工' . intval($result['employee_count']) . '人，更新' . intval($result['updated_cell_count']) . '个单元格，异常' . count($errors) . '条'
+		);
+		$this->sendSuccessResult($result);
 	}
 
 	public function uploadpayrollAction()
@@ -1875,6 +1951,47 @@ class SalaryController extends FrontendBaseController
 		header('Content-Description: File Transfer');
 		header('Content-type:application/vnd.ms-excel; charset=utf-8');
 		header('Content-Disposition:attachment;filename=salary_payroll_' . str_replace('-', '', $period['payroll_month']) . '.xls');
+		header('Content-Transfer-Encoding: binary');
+		header('Pragma: public');
+		header('Cache-Control:max-age=0');
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
+	}
+
+	protected function outputPayrollDataTemplate($period, $projects, $rows)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('工资核算数据导入');
+		$headers = array('手机号', '姓名');
+		foreach ($projects as $project) {
+			$headers[] = $project['name'];
+		}
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueExplicitByColumnAndRow($index, 1, $header, \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 2 ? 16 : 14);
+		}
+		$rowNumber = 2;
+		foreach ($rows as $row) {
+			$sheet->setCellValueExplicitByColumnAndRow(0, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_name'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('C2');
+
+		ob_clean();
+		header('Content-Description: File Transfer');
+		header('Content-type:application/vnd.ms-excel; charset=utf-8');
+		header('Content-Disposition:attachment;filename=salary_payroll_data_' . str_replace('-', '', $period['payroll_month']) . '.xls');
 		header('Content-Transfer-Encoding: binary');
 		header('Pragma: public');
 		header('Cache-Control:max-age=0');
