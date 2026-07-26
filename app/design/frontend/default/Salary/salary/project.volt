@@ -196,12 +196,12 @@
 						<textarea id="salary_formula_text" name="formula_text">{% if editItem %}{{editItem.formula_text}}{% endif %}</textarea>
 					</div>
 					<div class="salary_formula_tools">
-						<div class="formula_hint">仅显示当前企业已启用的数据类项目。点击项目名称可插入公式，支持 +、-、*、/、括号。</div>
+						<div class="formula_hint">显示当前企业已启用的可计算工资项目，已排除正在编辑的项目及三个系统总额。点击项目名称可插入公式，支持 +、-、*、/、括号。</div>
 						<div class="salary_formula_refs">
 							{% for item in formulaProjects %}
 							<button type="button" data-project-name="{{item['name']}}" onclick="insertSalaryFormulaProject(this);">{{item['name']}}</button>
 							{% elsefor %}
-							<span>暂无可引用项目，请先在企业工资项目中启用数据类项目。</span>
+							<span>暂无可引用项目，请先在企业工资项目中启用数字项或核算项。</span>
 							{% endfor %}
 						</div>
 						<div class="salary_formula_ops">

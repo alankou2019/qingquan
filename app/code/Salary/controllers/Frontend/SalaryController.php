@@ -540,9 +540,6 @@ class SalaryController extends FrontendBaseController
 			if (SalaryProjectModel::isTextProject($project)) {
 				continue;
 			}
-			if ($project['direction'] != 'data') {
-				continue;
-			}
 			$formulaProjects[] = $project;
 		}
 
