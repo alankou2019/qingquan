@@ -39,7 +39,6 @@
 .salary_sheet .initial_summary{background:#eaf3ff;}
 .salary_sheet .initial_earning{background:#edf9f1;}
 .salary_sheet .initial_deduction{background:#fff4e8;}
-.salary_sheet .initial_statistic{background:#f3f0ff;}
 .salary_sheet .initial_data{background:#edf7f8;}
 .salary_sheet .initial_note{background:#fffbe8;}
 .salary_sheet .initial_other{background:#f8fafc;}

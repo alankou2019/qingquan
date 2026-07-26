@@ -50,7 +50,6 @@ class SalaryProjectModel extends BaseModel
 		return array(
 			'earning' => '应发类',
 			'deduction' => '应扣类',
-			'statistic' => '统计类',
 			'data' => '数据类',
 			'note' => '说明类',
 		);
@@ -87,7 +86,7 @@ class SalaryProjectModel extends BaseModel
 			array(
 				'code' => 'earning_total',
 				'name' => '应发总额',
-				'direction_label' => '统计类',
+				'direction_label' => '系统汇总',
 				'source_type_label' => '系统固定项',
 				'calculation_mode_label' => '所有应发类项目合计',
 				'formula_text' => '应发类项目合计',
@@ -95,7 +94,7 @@ class SalaryProjectModel extends BaseModel
 			array(
 				'code' => 'deduction_total',
 				'name' => '应扣总额',
-				'direction_label' => '统计类',
+				'direction_label' => '系统汇总',
 				'source_type_label' => '系统固定项',
 				'calculation_mode_label' => '所有应扣类项目合计',
 				'formula_text' => '应扣类项目合计',
@@ -103,7 +102,7 @@ class SalaryProjectModel extends BaseModel
 			array(
 				'code' => 'net_total',
 				'name' => '实发总额',
-				'direction_label' => '统计类',
+				'direction_label' => '系统汇总',
 				'source_type_label' => '系统固定项',
 				'calculation_mode_label' => '应发总额 - 应扣总额',
 				'formula_text' => '应发总额 - 应扣总额',
@@ -144,8 +143,8 @@ class SalaryProjectModel extends BaseModel
 	public function saveCompanyProjectOrder($companyId, $direction, $projectIds)
 	{
 		$companyId = intval($companyId);
-		$direction = trim((string)$direction);
-		if ($companyId <= 0 || !in_array($direction, array('earning', 'deduction', 'statistic', 'data', 'note', 'other'))) {
+		$direction = self::normalizeDirection($direction);
+		if ($companyId <= 0 || !in_array($direction, array('earning', 'deduction', 'data', 'note', 'other'))) {
 			$this->_lastError = '工资项目排序参数不正确';
 			return false;
 		}
@@ -157,7 +156,7 @@ class SalaryProjectModel extends BaseModel
 		$groupItems = array();
 		$groupPositions = array();
 		foreach ($items as $index => $item) {
-			$itemDirection = isset($item['direction']) && $item['direction'] != '' ? $item['direction'] : 'other';
+			$itemDirection = isset($item['direction']) && $item['direction'] != '' ? self::normalizeDirection($item['direction']) : 'other';
 			if ($item['status'] == 'active' && $itemDirection == $direction) {
 				$groupItems[intval($item['id'])] = $item;
 				$groupPositions[] = $index;
@@ -295,7 +294,7 @@ class SalaryProjectModel extends BaseModel
 			'template_id' => intval($template['id']),
 			'name' => $template['name'],
 			'source_type' => self::normalizeSourceType($template['source_type']),
-			'direction' => $template['direction'],
+			'direction' => self::normalizeDirection($template['direction']),
 			'calculation_mode' => $template['calculation_mode'],
 			'linked_module' => $template['linked_module'],
 			'formula_text' => '',
@@ -368,7 +367,7 @@ class SalaryProjectModel extends BaseModel
 		$directions = self::getDirectionLabels();
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
-		$direction = isset($postData['direction']) ? trim($postData['direction']) : 'earning';
+		$direction = self::normalizeDirection(isset($postData['direction']) ? $postData['direction'] : 'earning');
 		$sourceType = self::normalizeSourceType(isset($postData['source_type']) ? trim($postData['source_type']) : 'number');
 		$calculationMode = self::defaultCalculationMode($sourceType, isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : '');
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
@@ -450,6 +449,15 @@ class SalaryProjectModel extends BaseModel
 			return 'number';
 		}
 		return $sourceType;
+	}
+
+	public static function normalizeDirection($direction)
+	{
+		$direction = trim((string)$direction);
+		if ($direction == 'statistic') {
+			return 'data';
+		}
+		return $direction;
 	}
 
 	public static function defaultCalculationMode($sourceType, $currentMode = '')
@@ -559,6 +567,7 @@ class SalaryProjectModel extends BaseModel
 				$item['default_text'] = '';
 			}
 			$sourceType = self::normalizeSourceType($item['source_type']);
+			$item['direction'] = self::normalizeDirection($item['direction']);
 			$item['source_type_label'] = self::label($sourceTypes, $item['source_type']);
 			$item['direction_label'] = self::label($directions, $item['direction']);
 			$item['calculation_mode_label'] = self::label($calculationModes, $item['calculation_mode']);

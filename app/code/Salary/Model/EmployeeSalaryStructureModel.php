@@ -288,11 +288,12 @@ class EmployeeSalaryStructureModel extends BaseModel
 
 	protected function buildInitialDisplayProjects($projects)
 	{
-		$groups = array('earning' => array(), 'deduction' => array(), 'statistic' => array(), 'data' => array(), 'note' => array(), 'other' => array());
+		$groups = array('earning' => array(), 'deduction' => array(), 'data' => array(), 'note' => array(), 'other' => array());
 		foreach ($projects as $project) {
 			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
 				continue;
 			}
+			$project['direction'] = SalaryProjectModel::normalizeDirection($project['direction']);
 			$group = isset($groups[$project['direction']]) ? $project['direction'] : 'other';
 			$project['initial_group'] = $group;
 			$project['value_key'] = intval($project['id']);
@@ -304,7 +305,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 		$return[] = $this->buildSummaryProject('summary_deduction_total', '应扣总额');
 		$return = array_merge($return, $groups['deduction']);
 		$return[] = $this->buildSummaryProject('summary_net_total', '实发总额');
-		return array_merge($return, $groups['statistic'], $groups['data'], $groups['note'], $groups['other']);
+		return array_merge($return, $groups['data'], $groups['note'], $groups['other']);
 	}
 
 	public function buildSalaryTableDisplayProjects($projects)

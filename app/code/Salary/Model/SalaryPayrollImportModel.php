@@ -615,7 +615,7 @@ class SalaryPayrollImportModel extends BaseModel
 	protected function guessDirection($name)
 	{
 		if ($this->summaryType($name)) {
-			return 'statistic';
+			return 'data';
 		}
 		$deductionWords = array('扣', '税', '社保', '公积金', '罚', '借款', '缺勤', '请假', '迟到', '早退', '代扣');
 		foreach ($deductionWords as $word) {
@@ -623,10 +623,10 @@ class SalaryPayrollImportModel extends BaseModel
 				return 'deduction';
 			}
 		}
-		$statisticWords = array('天数', '工时', '基数', '余额');
-		foreach ($statisticWords as $word) {
+		$dataWords = array('天数', '工时', '基数', '余额');
+		foreach ($dataWords as $word) {
 			if (strpos($name, $word) !== false) {
-				return 'statistic';
+				return 'data';
 			}
 		}
 		return 'earning';
@@ -634,7 +634,7 @@ class SalaryPayrollImportModel extends BaseModel
 
 	protected function directionName($direction)
 	{
-		$map = array('earning' => '应发类', 'deduction' => '应扣类', 'statistic' => '统计类', 'data' => '数据类', 'note' => '说明类');
+		$map = array('earning' => '应发类', 'deduction' => '应扣类', 'data' => '数据类', 'note' => '说明类');
 		return isset($map[$direction]) ? $map[$direction] : $direction;
 	}
 

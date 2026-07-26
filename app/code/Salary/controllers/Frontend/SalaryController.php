@@ -488,6 +488,7 @@ class SalaryController extends FrontendBaseController
 			}
 			$templates[$key]['project_id'] = $companyProject ? intval($companyProject['id']) : 0;
 			$templates[$key]['is_selected'] = $companyProject && $companyProject['status'] == 'active' ? 1 : 0;
+			$templates[$key]['direction'] = SalaryProjectModel::normalizeDirection($templates[$key]['direction']);
 			$templates[$key]['direction_label'] = SalaryProjectModel::label($directions, $templates[$key]['direction']);
 			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypeLabels, $templates[$key]['source_type']);
 		}
@@ -517,6 +518,9 @@ class SalaryController extends FrontendBaseController
 					$editItem->status = 'inactive';
 				}
 			}
+		}
+		if ($editItem) {
+			$editItem->direction = SalaryProjectModel::normalizeDirection($editItem->direction);
 		}
 
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);

@@ -110,8 +110,8 @@ class PayrollEmployeeRowModel extends BaseModel
 	{
 		$companyId = intval($companyId);
 		$periodId = intval($periodId);
-		$direction = trim((string)$direction);
-		if ($companyId <= 0 || $periodId <= 0 || !in_array($direction, array('earning', 'deduction', 'statistic', 'data', 'note', 'other'))) {
+		$direction = SalaryProjectModel::normalizeDirection($direction);
+		if ($companyId <= 0 || $periodId <= 0 || !in_array($direction, array('earning', 'deduction', 'data', 'note', 'other'))) {
 			$this->_lastError = '工资核算表排序参数不正确';
 			return false;
 		}
@@ -141,7 +141,7 @@ class PayrollEmployeeRowModel extends BaseModel
 		$groupItems = array();
 		$groupPositions = array();
 		foreach ($projects as $index => $project) {
-			$projectDirection = isset($project['direction']) && $project['direction'] != '' ? $project['direction'] : 'other';
+			$projectDirection = isset($project['direction']) && $project['direction'] != '' ? SalaryProjectModel::normalizeDirection($project['direction']) : 'other';
 			$isActive = !isset($project['status']) || $project['status'] == 'active';
 			$isDeleted = isset($project['deleted_at']) && intval($project['deleted_at']) > 0;
 			if ($isActive && !$isDeleted && $projectDirection == $direction) {
@@ -158,6 +158,7 @@ class PayrollEmployeeRowModel extends BaseModel
 			$projects[$projectIndex] = $groupItems[$orderedIds[$positionIndex]];
 		}
 		foreach ($projects as $index => $project) {
+			$projects[$index]['direction'] = SalaryProjectModel::normalizeDirection($project['direction']);
 			$projects[$index]['sort_order'] = ($index + 1) * 10;
 		}
 
