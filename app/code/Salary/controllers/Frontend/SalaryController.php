@@ -924,9 +924,15 @@ class SalaryController extends FrontendBaseController
 		}
 		$result = PayrollPeriodModel::factory()->generateFromInitial($this->companyId, $payrollMonth, $this->getOperatorId());
 		if (!$result) {
-			Utils::showMsg(PayrollPeriodModel::factory()->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError(PayrollPeriodModel::factory()->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('payroll_generate', 'payroll_period', intval($result), $payrollMonth, '从初始工资表生成工资表');
+		if ($this->isSalaryAjaxRequest()) {
+			$this->respondSalaryDeleteSuccess('已从初始工资表生成本月工资表', $backUrl, array(
+				'payroll_month' => $payrollMonth,
+				'reload_url' => $backUrl,
+			));
+		}
 		Utils::showMsg('已从初始工资表生成本月工资表', $backUrl);
 	}
 

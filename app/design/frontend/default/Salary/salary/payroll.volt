@@ -6,9 +6,10 @@
 	<div class="head_tab clear"><ul><li class="on"><a href="#">工资表核算</a></li><li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li></ul></div>
 	<div class="salary_page">
 		<div class="salary_toolbar"><a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a></div>
-		<form class="salary_filter" method="post" action="{{helper.createUrl(['p':'salary/generatepayroll'])}}" {% if period %}onsubmit="return confirm('重新生成会用当前初始工资表覆盖本月核算表，确定继续吗？');"{% endif %}>
-			工资月份 <input type="month" name="payroll_month" value="{{payrollMonth}}" /> <button class="salary_btn" type="submit">生成</button>
+		<form id="payroll_generate_form" class="salary_filter" method="post" action="{{helper.createUrl(['p':'salary/generatepayroll'])}}" onsubmit="return generatePayrollTable(this);">
+			工资月份 <input type="month" name="payroll_month" value="{{payrollMonth}}" /> <button id="payroll_generate_button" class="salary_btn" type="submit">生成</button><span id="payroll_generate_status" class="salary_project_order_status"></span>
 		</form>
+		<div id="payroll_matrix_region">
 		{% if !period %}
 		<div class="salary_empty">当前月份还没有工资核算表。选择月份后点击“生成”，系统将复制当前初始工资表的人员、项目和数据。</div>
 		{% else %}
@@ -32,10 +33,40 @@
 		<div style="margin-top:12px;">{% if canExportPayroll %}<a class="salary_btn salary_btn_gray" href="{{helper.createUrl(['p':'salary/exportpayroll','id':period['id']])}}">导出Excel</a>{% endif %}{% if period['can_archive'] %}<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/archivepayroll'])}}" onsubmit="return confirmPayrollArchive();"><input type="hidden" name="id" value="{{period['id']}}" /><button class="salary_btn" type="submit">归档</button></form>{% endif %}</div>
 		<div id="payroll_bulk_dialog" class="salary_bulk_dialog" role="dialog"><div class="salary_bulk_dialog_box"><div id="payroll_bulk_title" class="salary_bulk_dialog_title">设置金额</div><div class="salary_bulk_field"><label class="salary_bulk_field_label" for="payroll_bulk_value">金额</label><input id="payroll_bulk_value" type="number" step="0.01" value="0.00" /></div><div class="salary_bulk_field"><span class="salary_bulk_field_label">设置范围</span><div class="salary_bulk_scope_options"><label><input type="radio" name="payroll_bulk_scope" value="all" checked="checked" onchange="updatePayrollBulkScope();" />全部员工</label><label><input type="radio" name="payroll_bulk_scope" value="department" onchange="updatePayrollBulkScope();" />部门</label><label><input type="radio" name="payroll_bulk_scope" value="position" onchange="updatePayrollBulkScope();" />岗位</label><label><input type="radio" name="payroll_bulk_scope" value="employee" onchange="updatePayrollBulkScope();" />指定员工</label></div><div id="payroll_bulk_scope_all" class="salary_bulk_scope_panel on">将为当前工资核算表中的全部员工设置金额。</div><div id="payroll_bulk_scope_department" class="salary_bulk_scope_panel"><select id="payroll_bulk_department">{% for department in payrollDepartments %}<option value="{{department}}">{{department}}</option>{% endfor %}</select></div><div id="payroll_bulk_scope_position" class="salary_bulk_scope_panel"><select id="payroll_bulk_position">{% for position in payrollPositions %}<option value="{{position}}">{{position}}</option>{% endfor %}</select></div><div id="payroll_bulk_scope_employee" class="salary_bulk_scope_panel salary_bulk_employee_list">{% for row in payrollRows %}<label title="{{row['employee_name']}} {{row['employee_no']}}"><input type="checkbox" name="payroll_bulk_employee" value="{{row['employee_id']}}" />{{row['employee_name']}}</label>{% endfor %}</div></div><div class="salary_bulk_dialog_actions"><button class="salary_btn salary_btn_gray" type="button" onclick="closePayrollBulk();">取消</button><button class="salary_btn" type="button" onclick="applyPayrollBulk();">应用</button></div></div></div>
 		{% endif %}
+		</div>
 	</div>
 </div>
 <script type="text/javascript">
 var payrollDirty=false,payrollBulkProjectId=0;
+function payrollGenerateStatus(message,isError){var status=document.getElementById('payroll_generate_status');if(!status)return;status.className=isError?'salary_project_order_status error':'salary_project_order_status';status.textContent=message||''}
+function replacePayrollMatrix(url){var request=new XMLHttpRequest();request.open('GET',url,true);request.onreadystatechange=function(){if(request.readyState!==4)return;var button=document.getElementById('payroll_generate_button');if(button){button.disabled=false;button.innerHTML='\u751f\u6210'}if(request.status<200||request.status>=300){payrollGenerateStatus('\u5de5\u8d44\u6838\u7b97\u8868\u5237\u65b0\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u672c\u9875',true);return}var container=document.createElement('div');container.innerHTML=request.responseText;var fresh=container.querySelector('#payroll_matrix_region'),current=document.getElementById('payroll_matrix_region');if(!fresh||!current){payrollGenerateStatus('\u5de5\u8d44\u6838\u7b97\u8868\u5237\u65b0\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u672c\u9875',true);return}current.innerHTML=fresh.innerHTML;payrollDirty=false;initializePayroll();payrollGenerateStatus('\u5df2\u751f\u6210\u5f53\u524d\u6708\u4efd\u5de5\u8d44\u6838\u7b97\u8868',false)};request.send(null)}
+function generatePayrollTable(form){
+	if(payrollDirty){alert('\u5f53\u524d\u5de5\u8d44\u6838\u7b97\u8868\u8fd8\u6709\u672a\u4fdd\u5b58\u7684\u6570\u636e\uff0c\u8bf7\u5148\u4fdd\u5b58\u540e\u518d\u751f\u6210\u3002');return false}
+	var current=document.getElementById('payroll_form');
+	if(current&&!confirm('\u91cd\u65b0\u751f\u6210\u4f1a\u7528\u5f53\u524d\u521d\u59cb\u5de5\u8d44\u8868\u8986\u76d6\u6240\u9009\u6708\u4efd\u7684\u6838\u7b97\u8868\uff0c\u786e\u5b9a\u7ee7\u7eed\u5417\uff1f'))return false;
+	var button=document.getElementById('payroll_generate_button'),month=form.elements['payroll_month'].value||'';
+	if(!/^\d{4}-\d{2}$/.test(month)){alert('\u8bf7\u9009\u62e9\u6b63\u786e\u7684\u5de5\u8d44\u6708\u4efd');return false}
+	if(button){button.disabled=true;button.innerHTML='\u751f\u6210\u4e2d...'}
+	payrollGenerateStatus('\u6b63\u5728\u751f\u6210\u5de5\u8d44\u6838\u7b97\u8868...',false);
+	var request=new XMLHttpRequest();
+	request.open('POST',form.action,true);
+	request.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');
+	request.setRequestHeader('X-Requested-With','XMLHttpRequest');
+	request.onreadystatechange=function(){
+		if(request.readyState!==4)return;
+		var result=null;
+		try{result=JSON.parse(request.responseText)}catch(error){result=null}
+		if(request.status<200||request.status>=300||!result||result.status!=='y'){
+			if(button){button.disabled=false;button.innerHTML='\u751f\u6210'}
+			payrollGenerateStatus(result&&result.error?result.error:'\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5',true);
+			return;
+		}
+		var reloadUrl=result.data&&result.data.reload_url?result.data.reload_url:"{{helper.createUrl(['p':'salary/payroll'])}}?payroll_month="+encodeURIComponent(month);
+		replacePayrollMatrix(reloadUrl);
+	};
+	request.send('salary_ajax=1&payroll_month='+encodeURIComponent(month));
+	return false;
+}
 function payrollMoney(v){v=parseFloat(String(v||'').replace(/,/g,''));return isNaN(v)||!isFinite(v)?0:Math.round(v*100)/100}function payrollFormat(v){return payrollMoney(v).toFixed(2)}
 function payrollCellInput(cell){var i=cell?cell.getElementsByTagName('input'):[];return i.length?i[0]:null}
 function payrollFormula(formula,map){var e=String(formula||''),names=[],n;for(n in map){if(map.hasOwnProperty(n)&&n)names.push(n)}names.sort(function(a,b){return b.length-a.length});for(var i=0;i<names.length;i++)e=e.split(names[i]).join('('+payrollFormat(map[names[i]])+')');e=e.replace(/\s+/g,'');if(!e||!/^[0-9\.\+\-\*\/\(\)]+$/.test(e))return 0;try{return payrollMoney(Function('"use strict";return ('+e+');')())}catch(x){return 0}}
