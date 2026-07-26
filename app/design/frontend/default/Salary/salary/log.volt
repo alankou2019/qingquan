@@ -17,7 +17,9 @@
 <div class="full_box">
 	<div class="head_tab clear">
 		<ul>
-			<li class="on"><a href="#">薪酬操作日志</a></li>
+			<li><a href="{{helper.createUrl(['p':'salary/archive'])}}">工资表归档记录</a></li>
+			<li><a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a></li>
+			<li class="on"><a href="#">操作日志</a></li>
 			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
 		</ul>
 	</div>

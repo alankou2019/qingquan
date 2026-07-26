@@ -2363,15 +2363,13 @@ class SalaryController extends FrontendBaseController
 			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '生成并核算月份工资表，可导出Excel复核，完成后直接归档。'),
 			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '查看工资条发放记录、员工查看确认进度和未确认记录。'),
 			array('code' => 'archive', 'name' => '工资表归档记录', 'url' => 'salary/archive', 'desc' => '查看已归档工资表，可按归档数据发工资条或恢复重新核算。'),
-			array('code' => 'report', 'name' => '薪酬统计报表', 'url' => 'salary/report', 'desc' => '按月份、部门、员工查询薪酬汇总和明细，按授权范围控制查看和导出。'),
-			array('code' => 'log', 'name' => '薪酬操作日志', 'url' => 'salary/log', 'desc' => '记录工资项目、核算、审核、发放、归档、恢复和授权等关键操作。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '设置提成项目与适用范围，后续按项目规则完成月度提成核算。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {
-			if ($item['code'] == 'project' || $item['code'] == 'log') {
+			if ($item['code'] == 'project') {
 				$items[$key]['enabled'] = 1;
-			} elseif ($item['code'] == 'archive' || $item['code'] == 'report') {
+			} elseif ($item['code'] == 'archive') {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', 'payroll') ? 1 : 0;
 			} else {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
