@@ -183,12 +183,14 @@
 					<input type="text" name="linked_module" maxlength="30" value="{% if editItem %}{{editItem.linked_module}}{% else %}none{% endif %}" />
 					<label>排序</label>
 					<input type="text" name="sort_order" maxlength="10" style="width:70px;" value="{% if editItem %}{{editItem.sort_order}}{% else %}0{% endif %}" />
+					{% if editItem and editItem.template_id %}
 					<label>状态</label>
 					<select name="status">
 						{% for key,label in statusLabels %}
-						<option value="{{key}}" {% if editItem and editItem.status==key %}selected="selected"{% endif %}>{{label}}</option>
+						<option value="{{key}}" {% if editItem.status==key %}selected="selected"{% endif %}>{{label}}</option>
 						{% endfor %}
 					</select>
+					{% endif %}
 				</div>
 				<div id="salary_formula_row">
 					<label>核算公式</label>

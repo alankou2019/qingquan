@@ -371,6 +371,9 @@ class SalaryProjectModel extends BaseModel
 		$sourceType = self::normalizeSourceType(isset($postData['source_type']) ? trim($postData['source_type']) : 'number');
 		$calculationMode = self::defaultCalculationMode($sourceType, isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : '');
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
+		if ($templateId <= 0) {
+			$status = 'active';
+		}
 		if (!isset($directions[$direction]) || !isset($sourceTypes[$sourceType]) || !isset($calculationModes[$calculationMode]) || !isset($statusLabels[$status])) {
 			$this->_lastError = '工资项目参数不正确';
 			return false;
@@ -560,6 +563,9 @@ class SalaryProjectModel extends BaseModel
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
 		foreach ($items as $key => $item) {
+			if (empty($item['template_id'])) {
+				$item['status'] = 'active';
+			}
 			if (!isset($item['default_number'])) {
 				$item['default_number'] = '0.00';
 			}

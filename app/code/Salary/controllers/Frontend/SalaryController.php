@@ -521,6 +521,9 @@ class SalaryController extends FrontendBaseController
 		}
 		if ($editItem) {
 			$editItem->direction = SalaryProjectModel::normalizeDirection($editItem->direction);
+			if (intval($editItem->template_id) <= 0) {
+				$editItem->status = 'active';
+			}
 		}
 
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
