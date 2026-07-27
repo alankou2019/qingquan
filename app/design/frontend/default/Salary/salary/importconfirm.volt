@@ -9,12 +9,8 @@
 .salary_error{border:1px solid #f4c7c7;background:#fff8f8;color:#9f1d1d;padding:12px 14px;margin-bottom:14px;line-height:22px;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">首次导入确认</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/payroll'])}}">工资表核算</a><a class="on" href="#">首次导入确认</a></div>
 	<div class="salary_page">
 		{% if previewOk %}
 		<div class="salary_tip">

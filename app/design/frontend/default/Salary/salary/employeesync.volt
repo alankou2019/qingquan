@@ -34,12 +34,8 @@
 .salary_empty{padding:18px;color:#94a3b8;text-align:center;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">员工同步/导入</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'index/index','bigClass':'4'])}}" target="_top">返回薪酬管理</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a class="on" href="#">员工同步/导入</a></div>
 	<div class="salary_panel">
 		<div class="salary_notice">
 			当前企业通讯平台：{{platformName}}

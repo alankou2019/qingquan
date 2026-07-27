@@ -4,9 +4,9 @@
 .salary_data_import_actions{display:inline-block;margin-left:14px}.salary_data_import_actions .salary_btn{height:26px;line-height:26px;padding:0 10px;margin-right:5px;font-size:12px}.salary_data_import_result{display:none;margin:-4px 0 12px;padding:9px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534}.salary_data_import_result.error{border-color:#fecaca;background:#fef2f2;color:#991b1b}.salary_data_import_result table{width:100%;margin-top:7px;border-collapse:collapse;background:#fff}.salary_data_import_result th,.salary_data_import_result td{padding:5px 7px;border:1px solid #d9e2ef;text-align:left;color:#475569}.salary_data_import_result th{background:#f8fafc}
 </style>
 <div class="full_box">
-	<div class="head_tab clear"><ul><li class="on"><a href="#">工资表核算</a></li><li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li></ul></div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a class="on" href="#">工资表核算</a></div>
 	<div class="salary_page">
-		<div class="salary_toolbar"><a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a class="btn btn_gray" href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a></div>
 		<form id="payroll_generate_form" class="salary_filter" method="post" action="{{helper.createUrl(['p':'salary/generatepayroll'])}}" onsubmit="return generatePayrollTable(this);">
 			工资月份 <input type="month" name="payroll_month" value="{{payrollMonth}}" /> <button id="payroll_generate_button" class="salary_btn" type="submit">生成</button><span id="payroll_generate_status" class="salary_project_order_status"></span>
 		</form>

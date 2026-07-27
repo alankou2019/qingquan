@@ -20,14 +20,8 @@
 .salary_tip{color:#64748b;line-height:24px;margin:0 0 12px 0;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li><a href="{{helper.createUrl(['p':'salary/archive'])}}">工资表归档记录</a></li>
-			<li class="on"><a href="#">报表统计</a></li>
-			<li><a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a class="on" href="#">报表统计</a><a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a></div>
 	<div class="salary_page">
 		<div class="salary_toolbar">
 			<a class="btn" href="{{helper.createUrl(['p':'salary/auth'])}}">薪酬管理授权</a>

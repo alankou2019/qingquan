@@ -9,12 +9,8 @@
 .salary_auth input{vertical-align:middle;margin-right:4px;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">薪酬管理授权</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a class="on" href="#">授权设置</a></div>
 	<div class="salary_auth">
 		<div class="salary_auth_tip">薪酬查询授权用于设置指定员工可查看的部门或人员薪酬范围。工资核算完成后由HR直接归档；需要领导复核时，可先导出Excel线下审核。</div>
 
