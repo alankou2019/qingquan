@@ -118,6 +118,153 @@ class CommissionArchiveModel extends BaseModel
 		return is_array($rows) ? $rows : array();
 	}
 
+	/**
+	 * Import an archived monthly commission total into the matching editable payroll period.
+	 * Employees are matched by both name and mobile number; re-import overwrites the same project value.
+	 */
+	public function importArchiveToPayroll($companyId, $archiveId, $operatorId)
+	{
+		$companyId = intval($companyId);
+		$archive = $this->getArchive($companyId, $archiveId);
+		if (!$archive) {
+			$this->_lastError = '提成归档记录不存在';
+			return false;
+		}
+
+		$payrollModel = PayrollPeriodModel::factory();
+		$payrollPeriod = $payrollModel->getCompanyPeriodByMonth($companyId, $archive['commission_month']);
+		if (!$payrollPeriod) {
+			$this->_lastError = '未找到' . $archive['commission_month'] . '的可编辑工资核算表，请先生成工资表';
+			return false;
+		}
+		if (!in_array($payrollPeriod['status'], array('draft', 'calculated', 'rejected'))) {
+			$this->_lastError = '当前工资表已提交审核、审核通过、归档或发放工资条，不能导入提成奖';
+			return false;
+		}
+
+		$rowModel = PayrollEmployeeRowModel::factory();
+		$projects = $rowModel->getPayrollProjectSnapshots($companyId, intval($payrollPeriod['id']));
+		$commissionProjectId = 0;
+		foreach ($projects as $projectKey => $project) {
+			if (isset($project['linked_module']) && $project['linked_module'] == 'commission' &&
+				isset($project['status']) && $project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				if ($commissionProjectId > 0) {
+					$this->_lastError = '当前工资表存在多个关联“提成奖”的工资项目，无法确定导入目标';
+					return false;
+				}
+				$commissionProjectId = intval($project['id']);
+				// Archived commission is a fixed monthly module result and must not be recalculated as a formula.
+				$projects[$projectKey]['calculation_mode'] = 'module';
+				$projects[$projectKey]['formula_text'] = '';
+			}
+		}
+		if ($commissionProjectId <= 0) {
+			$this->_lastError = '当前工资表未包含“提成奖”工资项目，请先在工资项目设置中启用该项目后重新生成工资表';
+			return false;
+		}
+
+		$archiveRows = $this->getArchiveRows($companyId, $archiveId);
+		$payrollRows = $rowModel->getPayrollMatrix($companyId, intval($payrollPeriod['id']));
+		if (empty($archiveRows) || empty($payrollRows)) {
+			$this->_lastError = '提成归档记录或工资核算表没有可导入的员工数据';
+			return false;
+		}
+
+		$archiveMap = array();
+		$archiveDuplicates = 0;
+		$invalidArchiveCount = 0;
+		foreach ($archiveRows as $row) {
+			$key = $this->buildPersonMatchKey(isset($row['employee_name']) ? $row['employee_name'] : '', isset($row['employee_no']) ? $row['employee_no'] : '');
+			if ($key === '') {
+				$invalidArchiveCount++;
+				continue;
+			}
+			if (isset($archiveMap[$key])) {
+				$archiveMap[$key]['duplicate'] = 1;
+				$archiveDuplicates++;
+				continue;
+			}
+			$archiveMap[$key] = array(
+				'amount' => isset($row['total_amount']) ? $this->money($row['total_amount']) : '0.00',
+				'duplicate' => 0,
+			);
+		}
+
+		$payrollKeyCount = array();
+		foreach ($payrollRows as $row) {
+			$key = $this->buildPersonMatchKey(isset($row['employee_name']) ? $row['employee_name'] : '', isset($row['employee_no']) ? $row['employee_no'] : '');
+			if ($key !== '') {
+				$payrollKeyCount[$key] = isset($payrollKeyCount[$key]) ? $payrollKeyCount[$key] + 1 : 1;
+			}
+		}
+
+		$rows = array();
+		$matchedKeys = array();
+		$matchedCount = 0;
+		$duplicateCount = $archiveDuplicates;
+		$importedTotal = 0;
+		foreach ($payrollRows as $payrollRow) {
+			$values = isset($payrollRow['values']) && is_array($payrollRow['values']) ? $payrollRow['values'] : array();
+			$key = $this->buildPersonMatchKey($payrollRow['employee_name'], $payrollRow['employee_no']);
+			if ($key === '' || !isset($archiveMap[$key])) {
+				// No matching archived record: preserve this employee's current payroll values.
+			} elseif (!empty($archiveMap[$key]['duplicate']) || intval($payrollKeyCount[$key]) > 1) {
+				$duplicateCount++;
+			} else {
+				// Assignment (not addition) makes repeated imports idempotent.
+				$values[$commissionProjectId] = $archiveMap[$key]['amount'];
+				$matchedKeys[$key] = 1;
+				$matchedCount++;
+				$importedTotal += floatval($archiveMap[$key]['amount']);
+			}
+			$rows[] = array(
+				'employee' => array(
+					'id' => intval($payrollRow['employee_id']),
+					'name' => $payrollRow['employee_name'],
+					'mobile' => $payrollRow['employee_no'],
+					'department_name' => $payrollRow['department_name'],
+					'position_name' => $payrollRow['position_name'],
+				),
+				'values' => $values,
+			);
+		}
+		if ($matchedCount <= 0) {
+			$this->_lastError = '没有找到手机号和姓名同时匹配的员工，未导入任何提成奖';
+			return false;
+		}
+		$unmatchedCount = $invalidArchiveCount;
+		foreach ($archiveMap as $key => $item) {
+			if (empty($item['duplicate']) && !isset($matchedKeys[$key])) {
+				$unmatchedCount++;
+			}
+		}
+
+		$result = $payrollModel->savePayrollMatrix(
+			$companyId,
+			$payrollPeriod['payroll_month'],
+			$projects,
+			$rows,
+			$operatorId,
+			$payrollPeriod['source_type'],
+			$payrollPeriod['source_name'],
+			intval($payrollPeriod['id'])
+		);
+		if (!$result) {
+			$this->_lastError = $payrollModel->getLastError();
+			return false;
+		}
+
+		return array(
+			'payroll_period_id' => intval($result),
+			'payroll_month' => $payrollPeriod['payroll_month'],
+			'archive_id' => intval($archiveId),
+			'matched_count' => $matchedCount,
+			'unmatched_count' => $unmatchedCount,
+			'duplicate_count' => $duplicateCount,
+			'imported_total' => $this->money($importedTotal),
+		);
+	}
+
 	public function restoreToCalculation($companyId, $archiveId, $operatorId)
 	{
 		$archive = $this->getArchive($companyId, $archiveId);
@@ -194,5 +341,15 @@ class CommissionArchiveModel extends BaseModel
 	protected function money($value)
 	{
 		return sprintf('%.2f', round(floatval($value), 2));
+	}
+
+	protected function buildPersonMatchKey($name, $mobile)
+	{
+		$name = preg_replace('/\s+/', '', trim((string)$name));
+		$mobile = preg_replace('/\D+/', '', trim((string)$mobile));
+		if ($name === '' || $mobile === '') {
+			return '';
+		}
+		return $mobile . '|' . $name;
 	}
 }

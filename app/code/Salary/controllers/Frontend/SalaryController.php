@@ -53,14 +53,27 @@ class SalaryController extends FrontendBaseController
 				}
 			}
 		}
+		$scopeOptions = $model->getScopeOptions($this->companyId);
+		foreach (array('departments' => 'scope_department_ids', 'positions' => 'scope_position_values', 'employees' => 'scope_employee_ids') as $group => $selectionKey) {
+			foreach ($scopeOptions[$group] as $key => $item) {
+				$value = $group == 'positions' ? (string)$item['value'] : (string)intval($item['id']);
+				$scopeOptions[$group][$key]['selected'] = $editItem && isset($editItem[$selectionKey][$value]) ? 1 : 0;
+			}
+		}
 		$this->view->setVar('projects', $projects);
-		$this->view->setVar('scopeOptions', $model->getScopeOptions($this->companyId));
+		$this->view->setVar('scopeOptions', $scopeOptions);
 		$this->view->setVar('editItem', $editItem);
 		$this->view->setVar('metricLabels', CommissionProjectModel::getMetricLabels());
 		$this->view->setVar('modeLabels', CommissionProjectModel::getModeLabels());
 		$this->view->setVar('scopeLabels', CommissionProjectModel::getScopeLabels());
 		$this->view->setVar('statusLabels', CommissionProjectModel::getStatusLabels());
 		$this->view->setVar('rateTypeLabels', CommissionProjectModel::getRateTypeLabels());
+		$statusResult = trim($this->request->get('commission_status'));
+		$statusMessages = array(
+			'active' => '提成项目已启用，后续月提成测算将纳入该项目。',
+			'inactive' => '提成项目已停用，后续月提成测算将不再纳入该项目；历史数据不受影响。',
+		);
+		$this->view->setVar('commissionStatusMessage', isset($statusMessages[$statusResult]) ? $statusMessages[$statusResult] : '');
 	}
 
 	public function commissionsaveAction()
@@ -92,6 +105,28 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_project_delete', 'commission_project', $projectId, '', '删除提成项目规则');
 		$this->respondSalaryDeleteSuccess('提成项目已删除', $backUrl, array('project_id' => $projectId));
+	}
+
+	public function commissionstatusAction()
+	{
+		$this->checkFeature('commission');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commission'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$projectId = intval($this->request->getPost('id'));
+		$status = trim($this->request->getPost('status'));
+		$model = CommissionProjectModel::factory();
+		if (!$model->updateProjectStatus($this->companyId, $projectId, $status)) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$action = $status == 'active' ? '启用' : '停用';
+		$this->addSalaryLog('commission_project_status', 'commission_project', $projectId, '', $action . '提成项目规则');
+		$this->response->redirect(Helper::factory()->createUrl(array(
+			'p' => 'salary/commission',
+			'commission_status' => $status,
+		)), true);
+		return $this->response;
 	}
 
 	public function commissionestimateAction()
@@ -284,6 +319,78 @@ class SalaryController extends FrontendBaseController
 		Utils::showMsg('月提成核算表已保存', $backUrl);
 	}
 
+	public function commissiondatatemplateAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->get('id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$period) {
+			Utils::showMsg('提成核算表不存在', $backUrl);
+		}
+		if (!in_array($period['status'], array('draft', 'calculated'))) {
+			Utils::showMsg('当前提成核算表不能下载导入模板', $backUrl);
+		}
+		$projects = array();
+		foreach (CommissionProjectModel::factory()->getCompanyProjects($this->companyId) as $project) {
+			if ($project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$projects[] = $project;
+			}
+		}
+		if (empty($projects)) {
+			Utils::showMsg('当前没有已启用的提成项目，无法生成导入模板', $backUrl);
+		}
+		$rows = CommissionPeriodModel::factory()->getCommissionMatrix($this->companyId, $periodId);
+		$this->addSalaryLog('commission_data_template_download', 'commission_period', $periodId, $period['commission_month'], '下载提成核算数据导入模板，人数' . count($rows));
+		$this->outputCommissionDataTemplate($period, $projects, $rows);
+	}
+
+	public function uploadcommissiondataAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->getPost('id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			$this->sendJson(array('status' => 'n', 'error' => '不支持的请求方式', 'data' => array('errors' => array())));
+		}
+		if (!$period) {
+			$this->sendJson(array('status' => 'n', 'error' => '提成核算表不存在', 'data' => array('errors' => array())));
+		}
+		if (!in_array($period['status'], array('draft', 'calculated'))) {
+			$this->sendJson(array('status' => 'n', 'error' => '当前提成核算表不能导入数据', 'data' => array('errors' => array())));
+		}
+		if (empty($_FILES['commission_data_file']['name'])) {
+			$this->sendJson(array('status' => 'n', 'error' => '请先选择提成数据Excel文件', 'data' => array('errors' => array())));
+		}
+		$extname = strtolower(pathinfo($_FILES['commission_data_file']['name'], PATHINFO_EXTENSION));
+		if (!in_array($extname, array('xls', 'xlsx'))) {
+			$this->sendJson(array('status' => 'n', 'error' => '请上传xls或xlsx格式的Excel文件', 'data' => array('errors' => array())));
+		}
+		$file = $this->savePayrollUpload('commission_data_file', $extname);
+		if (!$file) {
+			$this->sendJson(array('status' => 'n', 'error' => '文件上传失败，请重新上传', 'data' => array('errors' => array())));
+		}
+		$fullPath = WEBROOT . $file;
+		$model = SalaryPayrollImportModel::factory();
+		$result = $model->importCommissionDataFromExcel($this->companyId, $periodId, $fullPath, $this->getOperatorId());
+		$errors = $model->getLastErrors();
+		if (file_exists($fullPath)) {
+			@unlink($fullPath);
+		}
+		if (!$result) {
+			$message = '提成核算数据导入失败';
+			if (!empty($errors) && !empty($errors[0]['reason'])) {
+				$message = $errors[0]['reason'];
+			}
+			$this->sendJson(array('status' => 'n', 'error' => $message, 'data' => array('errors' => $errors)));
+		}
+		$result['errors'] = $errors;
+		$result['reload_url'] = $backUrl;
+		$this->addSalaryLog('commission_data_import', 'commission_period', $periodId, $period['commission_month'], '导入提成核算数据，员工' . intval($result['employee_count']) . '人，更新' . intval($result['updated_cell_count']) . '个单元格，异常' . count($errors) . '条');
+		$this->sendSuccessResult($result);
+	}
+
 	public function savecommissionemployeeprojectsAction()
 	{
 		$this->checkFeature('commission');
@@ -369,6 +476,31 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_archive', 'commission_archive', intval($archiveId), $period ? $period['commission_month'] : '', 'Archive monthly commission calculation sheet');
 		Utils::showMsg('Commission calculation sheet archived', Helper::factory()->createUrl(array('p' => 'salary/commissionarchive')));
+	}
+
+	/**
+	 * Import one archived monthly commission result into the same-month editable payroll sheet.
+	 */
+	public function importcommissiontopayrollAction()
+	{
+		$this->checkFeature('commission');
+		$this->checkFeature('payroll');
+		$archiveId = intval($this->request->getPost('archive_id'));
+		$archive = CommissionArchiveModel::factory()->getArchive($this->companyId, $archiveId);
+		$backUrl = Helper::factory()->createUrl(array(
+			'p' => 'salary/commissionarchive',
+			'commission_month' => $archive ? $archive['commission_month'] : date('Y-m'),
+		));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$result = CommissionArchiveModel::factory()->importArchiveToPayroll($this->companyId, $archiveId, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg(CommissionArchiveModel::factory()->getLastError(), $backUrl);
+		}
+		$summary = '从提成归档导入工资表提成奖：匹配' . intval($result['matched_count']) . '人，未匹配' . intval($result['unmatched_count']) . '人，重复' . intval($result['duplicate_count']) . '人，导入合计' . $result['imported_total'];
+		$this->addSalaryLog('commission_import_payroll', 'payroll_period', intval($result['payroll_period_id']), $result['payroll_month'], $summary);
+		Utils::showMsg($summary, Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $result['payroll_month'])));
 	}
 
 	public function restorecommissionarchiveAction()
@@ -2098,6 +2230,47 @@ class SalaryController extends FrontendBaseController
 		header('Content-Description: File Transfer');
 		header('Content-type:application/vnd.ms-excel; charset=utf-8');
 		header('Content-Disposition:attachment;filename=salary_payroll_data_' . str_replace('-', '', $period['payroll_month']) . '.xls');
+		header('Content-Transfer-Encoding: binary');
+		header('Pragma: public');
+		header('Cache-Control:max-age=0');
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
+	}
+
+	protected function outputCommissionDataTemplate($period, $projects, $rows)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('提成核算数据导入');
+		$headers = array('姓名', '手机号');
+		foreach ($projects as $project) {
+			$headers[] = $project['name'];
+		}
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueExplicitByColumnAndRow($index, 1, $header, \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 2 ? 16 : 18);
+		}
+		$rowNumber = 2;
+		foreach ($rows as $row) {
+			$sheet->setCellValueExplicitByColumnAndRow(0, $rowNumber, $row['employee_name'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('C2');
+
+		ob_clean();
+		header('Content-Description: File Transfer');
+		header('Content-type:application/vnd.ms-excel; charset=utf-8');
+		header('Content-Disposition:attachment;filename=commission_data_' . str_replace('-', '', $period['commission_month']) . '.xls');
 		header('Content-Transfer-Encoding: binary');
 		header('Pragma: public');
 		header('Cache-Control:max-age=0');
