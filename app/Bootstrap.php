@@ -473,25 +473,37 @@ class  Bootstrap
     			   		{
 							$sqldir = APPROOT.'/code/'.$module.'/sql/';
 							if(file_exists($sqldir)){
-	    			   			 $dirHandle = opendir($sqldir);
-	    			   			 while (($file= readdir($dirHandle))!=false)
-	    			   			 {
-	    			   			 	 if($file == '.' || $file=='..')continue;
-	    			   			 	 $fileversion =  str_replace('install-', '', $file);
-	    			   			 	 $fileversion = str_replace('.php', '', $fileversion);
-	    			   			 	 $fileversion = trim($fileversion);
-	    			   			 	 if(version_compare($moduleRuntiemVersion, $fileversion,'<') && version_compare($fileversion,$version,'<='))
-	    			   			 	 {
-	    			   			 	 	 include_once $sqldir.$file;
-	    			   			 	 	 $moduleInfo  = ModuleModel::factory()->findFirst("name='{$module}'");
-	    			   			 	 	 $moduleInfo->save(array(
-	    			   			 	 	 		'version' => $fileversion,
-	    			   			 	 	 		'created' => Helper::factory()->getTime()->gmtime(),
-	    			   			 	 	 		'description' => $description
-	    			   			 	 	 ));
-	    			   			 	 }
-	    			   			 }
-	    			   			 closedir($dirHandle);
+								$installFiles = array();
+								$dirHandle = opendir($sqldir);
+								while (($file = readdir($dirHandle)) !== false)
+								{
+									if(!preg_match('/^install-(.+)\.php$/', $file, $matches)){
+										continue;
+									}
+									$installFiles[] = array(
+										'file' => $file,
+										'version' => trim($matches[1])
+									);
+								}
+								closedir($dirHandle);
+								usort($installFiles, function($left, $right){
+									return version_compare($left['version'], $right['version']);
+								});
+								foreach($installFiles as $installFile)
+								{
+									$file = $installFile['file'];
+									$fileversion = $installFile['version'];
+									if(version_compare($moduleRuntiemVersion, $fileversion,'<') && version_compare($fileversion,$version,'<='))
+									{
+										include_once $sqldir.$file;
+										$moduleInfo  = ModuleModel::factory()->findFirst("name='{$module}'");
+										$moduleInfo->save(array(
+											'version' => $fileversion,
+											'created' => Helper::factory()->getTime()->gmtime(),
+											'description' => $description
+										));
+									}
+								}
 							}
     			   		}
     			   }
