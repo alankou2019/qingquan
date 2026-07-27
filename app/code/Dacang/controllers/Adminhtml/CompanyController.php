@@ -14,6 +14,7 @@ use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\PlatformIntegrationModel;
 use ScshuxCms\Dacang\Helper\WecomCredential;
+use ScshuxCms\Dacang\Helper\FeishuCredential;
 class  CompanyController extends AdminBaseController
 {
     /**
@@ -68,7 +69,7 @@ class  CompanyController extends AdminBaseController
 	{
 	    $itemId  = isset($_REQUEST['id'])?intval($_REQUEST['id']):'';
 	    $platform = isset($_REQUEST['platform'])?trim($_REQUEST['platform']):'dingding';
-	    if(!in_array($platform, array('dingding', 'wecom'))){
+	    if(!in_array($platform, array('dingding', 'wecom', 'feishu'))){
 	        $platform = 'dingding';
 	    }
 	    $this->view->setVar('platform', $platform);
@@ -99,7 +100,7 @@ class  CompanyController extends AdminBaseController
 	    {
 	        $postData = $_POST;
 	        $platform = isset($postData['platform'])?trim($postData['platform']):'dingding';
-	        if(!in_array($platform, array('dingding', 'wecom'))){
+	        if(!in_array($platform, array('dingding', 'wecom', 'feishu'))){
 	            $platform = 'dingding';
 	        }
 	        if(empty($postData['name']))
@@ -112,6 +113,11 @@ class  CompanyController extends AdminBaseController
 	            }
 	        }
 	        
+	        if($platform == 'feishu'){
+	            if(empty($postData['feishu_app_id']) || empty($postData['feishu_app_secret'])){
+	                Utils::showMsg('请完整填写飞书 App ID 和 App Secret!',$backUrl);
+	            }
+	        }
 	        $postData['expire_time'] = $postData['expire_time']?$this->getHelper()->getTime()->localStrtotime($postData['expire_time']):-1;
 	        
 	        $where = 'name="'.$postData['name'].'"';
@@ -185,6 +191,26 @@ class  CompanyController extends AdminBaseController
 	            	        'company_id'=>$companyModel->id
 	            	    ));
 	            	}
+			if($platform == 'feishu'){
+			    $integration = new PlatformIntegrationModel();
+			    $integration->company_id = $companyModel->id;
+			    $integration->platform = 'feishu';
+			    $integration->corp_id = trim($postData['feishu_app_id']);
+			    $integration->agent_id = '';
+			    $integration->secret_enc = FeishuCredential::encrypt(trim($postData['feishu_app_secret']));
+			    $integration->callback_token = trim($postData['feishu_verification_token']);
+			    $integration->encoding_aes_key = trim($postData['feishu_encrypt_key']);
+			    $integration->enabled = 0;
+			    $integration->created_at = $nowtime;
+			    $integration->updated_at = $nowtime;
+			    if(!$integration->save()){
+			        Utils::showMsg('公司已创建，但飞书参数保存失败，请在公司列表中重新配置',$backUrl);
+			    }
+			    $backUrl = $this->getHelper()->createUrl(array(
+			        'p'=>'feishu/index',
+			        'company_id'=>$companyModel->id
+			    ));
+			}
 	            }
 	        }else{
 	        	

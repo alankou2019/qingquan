@@ -8,7 +8,7 @@
 
 		<span style="float: right; cursor: pointer;"
 			onclick="window.location=window.location;"><i
-			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% else %}新增钉钉公司{% endif %}</span> <a
+			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% elseif platform == 'feishu' %}新增飞书公司{% else %}新增钉钉公司{% endif %}</span> <a
 			class="go_back" onclick="window.location='{{helper.createUrl(['p':'company/index'])}}';"> <i
 			class="iconfont icon-fanhui"></i> <span>返回公司列表</span>
 		</a>
@@ -87,8 +87,15 @@
 				<li class="posi_lm"><div class="left posi_l">回调Token:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_callback_token" maxlength="255" autocomplete="off"/></div></div></li>
 				<li class="posi_lm"><div class="left posi_l">EncodingAESKey:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_encoding_aes_key" maxlength="255" autocomplete="off"/></div></div></li>
 				{% endif %}
+				{% if platform == 'feishu' and not item %}
+				<li class="posi_lm"><div class="left posi_l"></div><div class="right posi_m"><strong style="font-size:18px;">飞书自建应用参数</strong></div></li>
+				<li class="posi_lm"><div class="left posi_l must">App ID:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="feishu_app_id" datatype="*" maxlength="128" autocomplete="off"/><small class="help-block prompt_box">飞书开放平台 → 凭证与基础信息 → App ID</small></div></div></li>
+				<li class="posi_lm"><div class="left posi_l must">App Secret:</div><div class="right posi_m"><div class="input_clear"><input type="password" name="feishu_app_secret" datatype="*" maxlength="255" autocomplete="new-password"/><small class="help-block prompt_box">飞书开放平台中的 App Secret，将加密保存</small></div></div></li>
+				<li class="posi_lm"><div class="left posi_l">Verification Token:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="feishu_verification_token" maxlength="255" autocomplete="off"/></div></div></li>
+				<li class="posi_lm"><div class="left posi_l">Encrypt Key:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="feishu_encrypt_key" maxlength="255" autocomplete="off"/></div></div></li>
+				{% endif %}
                     
-				{% if platform != 'wecom' or item %}
+				{% if platform == 'dingding' or item %}
                  <li class="posi_lm">
 					<div class="left posi_l ">appKey:</div>
 					<div class="right posi_m">

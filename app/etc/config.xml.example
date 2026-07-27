@@ -47,4 +47,9 @@
         <path>/var/cache</path>
         <format>[%date%][%type%] %message%</format>
     </logger>
+    <feishu>
+        <enabled>false</enabled>
+        <base_url>https://example.test</base_url>
+        <credential_key>replace-with-a-random-secret</credential_key>
+    </feishu>
 </config>

@@ -1,4 +1,4 @@
- <script type="text/javascript" src="http://g.alicdn.com/dingding/open-develop/1.5.1/dingtalk.js"></script>
+ <script type="text/javascript" src="https://g.alicdn.com/dingding/dingtalk-jsapi/3.0.12/dingtalk.open.js"></script>
  <script type="text/javascript">
    function closePage()
    {

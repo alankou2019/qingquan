@@ -21,6 +21,7 @@ use ScshuxCms\Dacang\Model\ReportStoresModel;
 use Phalcon\Di\FactoryDefault;
 use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Core\Helper\Dding;
+use ScshuxCms\Dacang\Helper\FeishuNotifier;
 use ScshuxCms\Dacang\Model\ExtraReportModel;
 use ScshuxCms\Dacang\Model\ExtraReportItemModel;
 use ScshuxCms\Dacang\Model\ExtraReportDescModel;
@@ -613,11 +614,16 @@ class ReportController extends FrontendBaseController
 					continue ;
 				}
 					
-				//调用钉钉接口 发送消息给用户
-				$touser = ReportItemModel::factory()->getDdUserid($id) ;
-				if(!$touser)
+				$isFeishu = FeishuNotifier::isConfigured($this->companyId);
+				$touser = '';
+				if(!$isFeishu)
 				{
-					continue ;
+					//调用钉钉接口 发送消息给用户
+					$touser = ReportItemModel::factory()->getDdUserid($id) ;
+					if(!$touser)
+					{
+						continue ;
+					}
 				}
 				
 				//获取被考核人的姓名
@@ -635,8 +641,17 @@ class ReportController extends FrontendBaseController
 				$appenv=Helper::factory()->getConfig('application_env');
 				if (empty($appenv) || $appenv!='dev')
 				{
-					//不判断消息成功与否
-					$res = Dding::factory()->sendMsg($this->companyId,$touser,$tipstr);
+					if($isFeishu)
+					{
+						FeishuNotifier::sendReportStart(
+							$this->companyId,$id,'考核评分提醒',$tipstr,false
+						);
+					}
+					else
+					{
+						//不判断消息成功与否
+						$res = Dding::factory()->sendMsg($this->companyId,$touser,$tipstr);
+					}
 				}
 				
 				
@@ -681,11 +696,16 @@ class ReportController extends FrontendBaseController
 					continue ;
 				}
 					
-				//调用钉钉接口 发送消息给用户
-				$touser = ReportItemModel::factory()->getDdUserid($id) ;
-				if(!$touser)
+				$isFeishu = FeishuNotifier::isConfigured($this->companyId);
+				$touser = '';
+				if(!$isFeishu)
 				{
-					continue ;
+					//调用钉钉接口 发送消息给用户
+					$touser = ReportItemModel::factory()->getDdUserid($id) ;
+					if(!$touser)
+					{
+						continue ;
+					}
 				}
 	
 				//获取被考核人的姓名
@@ -703,8 +723,17 @@ class ReportController extends FrontendBaseController
 				$appenv=Helper::factory()->getConfig('application_env');
 				if (empty($appenv) || $appenv!='dev')
 				{
-					//不判断消息成功与否
-					$res = Dding::factory()->sendMsg($this->companyId,$touser,$tipstr);
+					if($isFeishu)
+					{
+						FeishuNotifier::sendReportStart(
+							$this->companyId,$id,'考核评分提醒',$tipstr,false
+						);
+					}
+					else
+					{
+						//不判断消息成功与否
+						$res = Dding::factory()->sendMsg($this->companyId,$touser,$tipstr);
+					}
 				}
 				$reportinfo->ispoint = 1;
 				$reportinfo->save() ;
@@ -890,16 +919,30 @@ class ReportController extends FrontendBaseController
 					continue ;
 				}
 					
-				//获取被考核人的钉钉userid
-				$dduseridobj = CompanyUserModel::findFirst($reportuser->user_id) ;
-				$dduserid = $dduseridobj->dingding_user_id ;
+				$isFeishu = FeishuNotifier::isConfigured($this->companyId);
+				$dduserid = '';
+				if(!$isFeishu)
+				{
+					//获取被考核人的钉钉userid
+					$dduseridobj = CompanyUserModel::findFirst($reportuser->user_id) ;
+					$dduserid = $dduseridobj->dingding_user_id ;
+				}
 				
 				//测试环境不发送消息
 				$appenv=Helper::factory()->getConfig('application_env');
 				if (empty($appenv) || $appenv!='dev')
 				{
 					//调用钉钉接口 通知被考核人
-					$res = Dding::factory()->sendMsg($this->companyId,$dduserid,'亲，您的'.$reportinfo->name.'已经完成咯  ，快去看看吧') ;
+					if($isFeishu)
+					{
+						FeishuNotifier::sendReportPublished(
+							$this->companyId,$reportuser->user_id,$reportinfo->name,false
+						);
+					}
+					else
+					{
+						$res = Dding::factory()->sendMsg($this->companyId,$dduserid,'亲，您的'.$reportinfo->name.'已经完成咯  ，快去看看吧') ;
+					}
 				}
 				
 				
@@ -961,16 +1004,30 @@ class ReportController extends FrontendBaseController
 					continue ;
 				}
 					
-				//获取被考核人的钉钉userid
-				$dduseridobj = CompanyUserModel::findFirst($reportuser->user_id) ;
-				$dduserid = $dduseridobj->dingding_user_id ;
+				$isFeishu = FeishuNotifier::isConfigured($this->companyId);
+				$dduserid = '';
+				if(!$isFeishu)
+				{
+					//获取被考核人的钉钉userid
+					$dduseridobj = CompanyUserModel::findFirst($reportuser->user_id) ;
+					$dduserid = $dduseridobj->dingding_user_id ;
+				}
 	
 				//测试环境不发送消息
 				$appenv=Helper::factory()->getConfig('application_env');
 				if (empty($appenv) || $appenv!='dev')
 				{
 					//调用钉钉接口 通知被考核人
-					$res = Dding::factory()->sendMsg($this->companyId,$dduserid,'亲，您的'.$reportinfo->name.'已经完成咯  ，快去看看吧') ;
+					if($isFeishu)
+					{
+						FeishuNotifier::sendReportPublished(
+							$this->companyId,$reportuser->user_id,$reportinfo->name,false
+						);
+					}
+					else
+					{
+						$res = Dding::factory()->sendMsg($this->companyId,$dduserid,'亲，您的'.$reportinfo->name.'已经完成咯  ，快去看看吧') ;
+					}
 				}
 	
 	
