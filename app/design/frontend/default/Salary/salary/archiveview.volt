@@ -3,7 +3,7 @@
 </style>
 <div class="full_box">
 	{{ partial('salary_primary_navigation') }}
-	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a><a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a><a class="on" href="#">工资表查看</a></div>
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a><a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a><a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a><a class="on" href="#">工资表查看</a></div>
 	<div class="salary_page">
 		<div class="salary_toolbar"><a class="btn" href="{{helper.createUrl(['p':'salary/archive'])}}">返回归档记录</a></div>
 		<div class="salary_tip">工资月份：{{archiveItem['payroll_month']}}　人数：{{archiveItem['employee_count']}}　应发总额：{{archiveItem['earning_total']}}　应扣总额：{{archiveItem['deduction_total']}}　实发总额：{{archiveItem['net_total']}}</div>

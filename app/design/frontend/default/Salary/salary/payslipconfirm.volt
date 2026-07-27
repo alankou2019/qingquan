@@ -29,7 +29,7 @@
 </style>
 <div class="full_box">
 	{{ partial('salary_primary_navigation') }}
-	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a><a class="on" href="#">发放确认</a></div>
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a><a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a><a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a><a class="on" href="#">发放确认</a></div>
 	<div class="salary_page">
 		<div class="salary_toolbar">
 			<a class="btn btn_gray" href="{{backUrl}}">返回</a>

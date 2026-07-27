@@ -19,7 +19,6 @@
 		<li><a href="{{helper.createUrl(['p':'salary/employeesync'])}}">员工同步</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/payroll'])}}">工资表核算</a></li>
-		<li><a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/archive'])}}">工资表归档</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成核算</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/performance'])}}">绩效工资核算</a></li>
@@ -31,6 +30,7 @@
 (function(){
 	var path=window.location.pathname||'',links=document.querySelectorAll('.salary_primary_navigation a'),match='';
 	if(path.indexOf('/salary/import')===0)match='/salary/payroll';
+	if(path.indexOf('/salary/payslip')===0)match='/salary/archive';
 	for(var i=0;i<links.length;i++){
 		var href=links[i].getAttribute('href')||'';
 		if(href==match||(match==''&&href!=''&&href!='/'&&(path==href||path.indexOf(href+'/')===0))){

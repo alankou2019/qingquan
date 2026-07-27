@@ -14,6 +14,7 @@
 	{{ partial('salary_primary_navigation') }}
 	<div class="salary_secondary_navigation">
 		<a class="on" href="#">归档记录</a>
+		<a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a>
 		<a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a>
 		<a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a>
 	</div>
