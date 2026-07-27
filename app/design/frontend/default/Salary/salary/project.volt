@@ -16,12 +16,15 @@
 .salary_badge{display:inline-block;padding:0 8px;height:22px;line-height:22px;background:#eef2ff;color:#3949ab;}
 .salary_empty{padding:18px;color:#94a3b8;text-align:center;}
 .inline_form{display:inline-block;margin:0;}
-.salary_scroll{overflow:auto;border:1px solid #d9e2ef;background:#fff;}
+.salary_scroll{position:relative;overflow:auto;border:1px solid #d9e2ef;background:#fff;}
 .salary_sheet{min-width:980px;}
 .salary_sheet input[type=text]{width:88px;height:26px;line-height:26px;border:1px solid #cbd5e1;padding:0 6px;text-align:right;}
 .salary_sheet input.salary_text_input{text-align:left;width:120px;}
 .salary_sheet input[readonly]{background:#f1f5f9;color:#64748b;}
 .salary_sheet .initial_name_col{width:110px;min-width:110px;max-width:110px;}
+.salary_sheet th.initial_name_col{position:sticky;left:0;z-index:4;background:#f8fafc;border-right:1px solid #d9e2ef;}
+.salary_sheet td.initial_name_col{position:sticky;left:0;z-index:2;background:#fff;border-right:1px solid #d9e2ef;}
+.salary_sheet tr:hover td.initial_name_col{background:#f1f3f5;}
 .salary_sheet .initial_mobile_col{width:120px;min-width:120px;max-width:120px;}
 .salary_sheet .initial_department_col{width:160px;min-width:160px;max-width:160px;}
 .salary_sheet .initial_project_col{width:116px;min-width:116px;max-width:116px;}
