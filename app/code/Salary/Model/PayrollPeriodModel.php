@@ -171,6 +171,72 @@ class PayrollPeriodModel extends BaseModel
 		return $this->savePayrollMatrix($companyId, $period['payroll_month'], $projects, $rows, $operatorId, $period['source_type'], $period['source_name'], intval($period['id']));
 	}
 
+	/**
+	 * Keep editable payroll periods aligned with a changed formula project.
+	 * Archived periods intentionally keep their historical project snapshot and values.
+	 */
+	public function recalculateOpenPeriodsForProject($companyId, $projectId, $operatorId = 0)
+	{
+		$companyId = intval($companyId);
+		$projectId = intval($projectId);
+		if ($companyId <= 0 || $projectId <= 0) {
+			return 0;
+		}
+
+		$currentProject = false;
+		foreach (SalaryProjectModel::factory()->getCompanyProjects($companyId) as $project) {
+			if (intval($project['id']) == $projectId && $project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$currentProject = $project;
+				break;
+			}
+		}
+		if (!$currentProject || !SalaryProjectModel::isFormulaProject($currentProject)) {
+			return 0;
+		}
+
+		$affectedCount = 0;
+		$rowModel = PayrollEmployeeRowModel::factory();
+		$periods = $this->getCompanyPeriods($companyId, 500, false);
+		foreach ($periods as $period) {
+			$periodId = intval($period['id']);
+			$projects = $rowModel->getPayrollProjectSnapshots($companyId, $periodId);
+			$matched = false;
+			foreach ($projects as $index => $project) {
+				if (intval($project['id']) != $projectId) {
+					continue;
+				}
+				$sortOrder = isset($project['sort_order']) ? $project['sort_order'] : 0;
+				$projects[$index] = $currentProject;
+				$projects[$index]['sort_order'] = $sortOrder;
+				$matched = true;
+				break;
+			}
+			if (!$matched) {
+				continue;
+			}
+
+			$rows = array();
+			foreach ($rowModel->getPayrollMatrix($companyId, $periodId) as $payrollRow) {
+				$rows[] = array(
+					'employee' => array(
+						'id' => intval($payrollRow['employee_id']),
+						'name' => $payrollRow['employee_name'],
+						'mobile' => $payrollRow['employee_no'],
+						'department_name' => $payrollRow['department_name'],
+						'position_name' => $payrollRow['position_name'],
+					),
+					'values' => $payrollRow['values'],
+				);
+			}
+			if (empty($rows) || !$this->savePayrollMatrix($companyId, $period['payroll_month'], $projects, $rows, $operatorId, $period['source_type'], $period['source_name'], $periodId)) {
+				$this->_lastError = $this->_lastError ? $this->_lastError : '重新核算工资表失败';
+				return false;
+			}
+			$affectedCount++;
+		}
+		return $affectedCount;
+	}
+
 	public function deletePayrollEmployee($companyId, $periodId, $employeeId)
 	{
 		$companyId = intval($companyId);

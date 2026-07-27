@@ -658,13 +658,27 @@ class SalaryController extends FrontendBaseController
 		}
 		$projectId = intval(isset($_POST['id']) ? $_POST['id'] : 0);
 		$templateId = intval(isset($_POST['template_id']) ? $_POST['template_id'] : 0);
+		$editorData = $this->getSalaryProjectEditorData($projectId, $templateId);
+		$recalculatedPeriodCount = 0;
+		if ($editorData && !empty($editorData['project']['is_formula_project']) && !empty($editorData['project']['id'])) {
+			$recalculatedPeriodCount = PayrollPeriodModel::factory()->recalculateOpenPeriodsForProject(
+				$this->companyId,
+				intval($editorData['project']['id']),
+				$this->getOperatorId()
+			);
+			if ($recalculatedPeriodCount === false) {
+				$this->addSalaryLog('project_formula_recalculate_failed', 'salary_project', intval($editorData['project']['id']), '', '工资项目公式已保存，但未归档工资表重新核算失败');
+			} elseif ($recalculatedPeriodCount > 0) {
+				$this->addSalaryLog('project_formula_recalculate', 'salary_project', intval($editorData['project']['id']), '', '修改核算公式后重新核算未归档工资表，数量：' . intval($recalculatedPeriodCount));
+			}
+		}
 		$this->addSalaryLog('project_save', 'salary_project', $projectId, '', '保存工资项目');
 		if ($this->isSalaryAjaxRequest()) {
-			$data = $this->getSalaryProjectEditorData($projectId, $templateId);
+			$data = $editorData;
 			if (!$data) {
 				$this->sendErrorResult('工资项目已保存，但无法读取最新数据，请刷新页面查看');
 			}
-			$data['message'] = '工资项目已保存';
+			$data['message'] = $recalculatedPeriodCount > 0 ? '工资项目已保存，已重新核算 ' . intval($recalculatedPeriodCount) . ' 张未归档工资表' : '工资项目已保存';
 			$this->sendSuccessResult($data);
 		}
 		Utils::showMsg('工资项目已保存', $backUrl);

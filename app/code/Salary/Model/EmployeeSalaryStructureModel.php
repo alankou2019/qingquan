@@ -32,6 +32,8 @@ class EmployeeSalaryStructureModel extends BaseModel
 		$values = $this->getInitialValueMap($companyId);
 		foreach ($employees as $key => $employee) {
 			$rowValues = array();
+			$nameAmountMap = array();
+			$formulaProjects = array();
 			$earningTotal = 0;
 			$deductionTotal = 0;
 			foreach ($projects as $project) {
@@ -39,22 +41,36 @@ class EmployeeSalaryStructureModel extends BaseModel
 					continue;
 				}
 				$projectId = intval($project['id']);
+				if (SalaryProjectModel::isFormulaProject($project)) {
+					$formulaProjects[] = $project;
+					continue;
+				}
 				if (isset($values[intval($employee['id'])][$projectId])) {
 					$rowValues[$projectId] = $values[intval($employee['id'])][$projectId];
 				} elseif (SalaryProjectModel::isTextProject($project)) {
 					$rowValues[$projectId] = isset($project['default_text']) ? $project['default_text'] : '';
-				} elseif (SalaryProjectModel::isFormulaProject($project)) {
-					$rowValues[$projectId] = '0.00';
 				} else {
 					$rowValues[$projectId] = isset($project['default_number']) ? sprintf('%.2f', floatval($project['default_number'])) : '0.00';
 				}
 				if (!SalaryProjectModel::isTextProject($project)) {
+					$nameAmountMap[$project['name']] = $this->formatMoney($rowValues[$projectId]);
 					if (intval($project['include_earning'])) {
 						$earningTotal += floatval($rowValues[$projectId]);
 					}
 					if (intval($project['include_deduction'])) {
 						$deductionTotal += floatval($rowValues[$projectId]);
 					}
+				}
+			}
+			foreach ($formulaProjects as $project) {
+				$projectId = intval($project['id']);
+				$rowValues[$projectId] = $this->calculateFormulaAmount($project['formula_text'], $nameAmountMap);
+				$nameAmountMap[$project['name']] = $rowValues[$projectId];
+				if (intval($project['include_earning'])) {
+					$earningTotal += floatval($rowValues[$projectId]);
+				}
+				if (intval($project['include_deduction'])) {
+					$deductionTotal += floatval($rowValues[$projectId]);
 				}
 			}
 			$rowValues['summary_earning_total'] = $this->formatMoney($earningTotal);

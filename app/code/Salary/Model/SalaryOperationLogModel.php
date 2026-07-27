@@ -126,6 +126,8 @@ class SalaryOperationLogModel extends BaseModel
 			'project_template_enable' => '启用通用工资项目',
 			'project_custom_save' => '保存自定义工资项目',
 			'project_save' => '保存工资项目',
+			'project_formula_recalculate' => '重新核算未归档工资表',
+			'project_formula_recalculate_failed' => '未归档工资表重新核算失败',
 			'project_order_save' => '调整初始工资项目顺序',
 			'project_delete' => '删除工资项目',
 			'project_disable' => '停用工资项目',
