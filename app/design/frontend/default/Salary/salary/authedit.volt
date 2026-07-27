@@ -10,12 +10,8 @@
 .salary_auth_edit .btn.gray{background:#94a3b8;text-decoration:none;margin-left:8px;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">薪酬查询授权</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/auth'])}}">授权设置</a><a class="on" href="#">编辑授权</a></div>
 	<div class="salary_auth_edit">
 		<form action="{{helper.createUrl(['p':'salary/authsave'])}}" method="post" id="dataForm" name="dataForm">
 			<input type="hidden" name="user_id" value="{{userInfo.id}}" />

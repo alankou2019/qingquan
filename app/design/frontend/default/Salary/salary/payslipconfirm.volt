@@ -28,12 +28,8 @@
 @media (max-width:900px){.salary_summary{grid-template-columns:repeat(2,1fr);}.salary_check_grid{grid-template-columns:repeat(2,1fr);}}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">工资条发放确认</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/archive'])}}">归档记录</a><a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a><a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a><a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a><a class="on" href="#">发放确认</a></div>
 	<div class="salary_page">
 		<div class="salary_toolbar">
 			<a class="btn btn_gray" href="{{backUrl}}">返回</a>

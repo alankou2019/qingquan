@@ -9,44 +9,10 @@
 .salary_auth input{vertical-align:middle;margin-right:4px;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">薪酬管理授权</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a class="on" href="#">授权设置</a></div>
 	<div class="salary_auth">
-		<div class="salary_auth_tip">薪酬管理授权分为两类：工资表审核授权用于设置工资表审核人；薪酬查询授权用于设置谁可以查看部门或指定员工薪酬。</div>
-
-		<div class="salary_auth_block">
-			<h3>工资表审核授权</h3>
-			<form method="post" action="{{helper.createUrl(['p':'salary/saveauditreviewers'])}}">
-				<table class="table_box salary_table">
-					<tr class="table_head">
-						<th width="10%"><span>选择</span></th>
-						<th width="18%"><span>ID</span></th>
-						<th width="28%"><span>姓名</span></th>
-						<th><span>部门</span></th>
-					</tr>
-					{% for item in userItems %}
-					<tr>
-						<td class="name"><input type="checkbox" name="reviewer_ids[]" value="{{item['id']}}" {% if item['is_audit_reviewer'] %}checked="checked"{% endif %} /></td>
-						<td class="name"><span class="txt">{{item['id']}}</span></td>
-						<td class="name"><span class="txt">{{item['name']}}</span></td>
-						<td class="name"><span class="txt">{{item['departmentname']}}</span></td>
-					</tr>
-					{% elsefor %}
-					<tr>
-						<td colspan="4" class="empty">暂无员工</td>
-					</tr>
-					{% endfor %}
-				</table>
-				<div style="margin-top:10px;">
-					<button class="btn_save" type="submit">保存审核人</button>
-					<span style="color:#64748b;margin-left:10px;">当前已设置 {{reviewerCount}} 人。工资表需全部审核人同意后才能发工资条并归档。</span>
-				</div>
-			</form>
-		</div>
+		<div class="salary_auth_tip">薪酬查询授权用于设置指定员工可查看的部门或人员薪酬范围。工资核算完成后由HR直接归档；需要领导复核时，可先导出Excel线下审核。</div>
 
 		<div class="salary_auth_block">
 			<h3>薪酬查询授权</h3>

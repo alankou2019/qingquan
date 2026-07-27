@@ -25,17 +25,15 @@
 .commission_project_choices label{display:inline-block;min-width:180px;margin:6px 12px 6px 0;color:#334155;}
 .commission_link{color:#3157d5;background:none;border:0;padding:0;cursor:pointer;text-decoration:none;font-size:14px;}
 .inline_form{display:inline-block;margin:0 8px 4px 0;}
+.commission_data_import_actions{display:inline-block;margin-left:12px;}
+.commission_data_import_result{display:none;margin:0 0 12px 0;padding:9px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;line-height:20px;}
+.commission_data_import_result.error{border-color:#fecaca;background:#fff1f2;color:#be123c;}
+.commission_data_import_result table{margin-top:7px;border-collapse:collapse;background:#fff;font-size:12px;color:#475569;}
+.commission_data_import_result th,.commission_data_import_result td{padding:4px 7px;border:1px solid #d9e2ef;text-align:left;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a></li>
-			<li><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a></li>
-			<li class="on"><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a></li>
-			<li><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a><a class="on" href="#">月提成核算</a><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></div>
 	<div class="commission_payroll_page">
 		<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 		<div class="commission_toolbar">
@@ -61,7 +59,9 @@
 				当前提成表：{{period['commission_month']}}　
 				状态：<span class="commission_status">{{period['status_name']}}</span>
 				参与人数：<span id="commission_employee_count">{{period['employee_count']}}</span>　匹配人数：<span id="commission_matched_count">{{period['matched_count']}}</span>　提成合计：<span id="commission_total_amount">{{period['total_amount']}}</span>
+				{% if period['can_edit'] %}<span class="commission_data_import_actions"><a class="commission_btn commission_btn_gray" href="{{helper.createUrl(['p':'salary/commissiondatatemplate','id':period['id']])}}">数据模板下载</a><button id="commission_data_import_button" class="commission_btn" type="button" data-upload-url="{{helper.createUrl(['p':'salary/uploadcommissiondata'])}}" onclick="openCommissionDataImport();">数据导入</button><input id="commission_data_file" type="file" accept=".xls,.xlsx" style="display:none;" onchange="uploadCommissionData(this);" /></span>{% endif %}
 			</div>
+			<div id="commission_data_import_result" class="commission_data_import_result"></div>
 			{% if editRow and period['can_edit'] %}
 			<div class="commission_edit_box">
 				<strong>修改员工适配提成项目：{{editRow['employee_name']}}</strong>
@@ -152,5 +152,87 @@ function updateCommissionPayrollSummary(data) {
 	if (employeeCount && typeof data.employee_count != 'undefined') { employeeCount.innerHTML = data.employee_count; }
 	if (matchedCount && typeof data.matched_count != 'undefined') { matchedCount.innerHTML = data.matched_count; }
 	if (totalAmount && typeof data.total_amount != 'undefined') { totalAmount.innerHTML = data.total_amount; }
+}
+function commissionImportResultCell(row, value) {
+	var cell = document.createElement('td');
+	cell.appendChild(document.createTextNode(value === null || typeof value === 'undefined' ? '' : String(value)));
+	row.appendChild(cell);
+}
+function renderCommissionDataImportResult(data, isError, message) {
+	var box = document.getElementById('commission_data_import_result');
+	if (!box) { return; }
+	while (box.firstChild) { box.removeChild(box.firstChild); }
+	box.className = 'commission_data_import_result' + (isError ? ' error' : '');
+	box.style.display = 'block';
+	if (!message && !isError && data) {
+		message = '导入完成：更新' + (data.updated_cell_count || 0) + '个完成量，涉及' + (data.employee_count || 0) + '名员工；跳过空白单元格' + (data.skipped_blank_count || 0) + '个。';
+	}
+	var summary = document.createElement('div');
+	summary.appendChild(document.createTextNode(message || '导入完成'));
+	box.appendChild(summary);
+	var errors = data && data.errors && data.errors.length ? data.errors : [];
+	if (errors.length) {
+		var note = document.createElement('div');
+		note.style.marginTop = '6px';
+		note.appendChild(document.createTextNode('以下' + errors.length + '条内容未导入：'));
+		box.appendChild(note);
+		var table = document.createElement('table'), head = document.createElement('tr');
+		var titles = ['Excel行', '姓名', '手机号', '原因'];
+		for (var i = 0; i < titles.length; i++) { var th = document.createElement('th'); th.appendChild(document.createTextNode(titles[i])); head.appendChild(th); }
+		table.appendChild(head);
+		for (var j = 0; j < errors.length; j++) {
+			var row = document.createElement('tr');
+			commissionImportResultCell(row, errors[j].row || '');
+			commissionImportResultCell(row, errors[j].name || '');
+			commissionImportResultCell(row, errors[j].mobile || '');
+			commissionImportResultCell(row, errors[j].reason || '');
+			table.appendChild(row);
+		}
+		box.appendChild(table);
+	}
+}
+function openCommissionDataImport() {
+	if (!confirm('请确认Excel中“姓名”和“手机号”均与当前提成表一致；仅非空完成量会写入，空白单元格不会覆盖原数据。')) { return; }
+	var input = document.getElementById('commission_data_file');
+	if (input) { input.click(); }
+}
+function uploadCommissionData(input) {
+	if (!input || !input.files || !input.files.length) { return; }
+	var button = document.getElementById('commission_data_import_button');
+	var form = document.querySelector('form[action*="savecommissionpayroll"]');
+	var periodId = form && form.elements['id'] ? parseInt(form.elements['id'].value, 10) || 0 : 0;
+	var file = input.files[0], fileName = String(file.name || '').toLowerCase();
+	if (!periodId) { alert('没有找到当前提成核算表'); input.value = ''; return; }
+	if (!/\.(xls|xlsx)$/.test(fileName)) { alert('请选择xls或xlsx格式的Excel文件'); input.value = ''; return; }
+	var data = new FormData();
+	data.append('id', periodId);
+	data.append('salary_ajax', '1');
+	data.append('commission_data_file', file);
+	if (button) { button.disabled = true; button.innerHTML = '导入中...'; }
+	renderCommissionDataImportResult(null, false, '正在导入并按提成规则重新计算金额...');
+	var request = new XMLHttpRequest();
+	request.open('POST', button.getAttribute('data-upload-url'), true);
+	request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	request.onreadystatechange = function() {
+		if (request.readyState !== 4) { return; }
+		if (button) { button.disabled = false; button.innerHTML = '数据导入'; }
+		input.value = '';
+		var result = null;
+		try { result = JSON.parse(request.responseText); } catch (error) { result = null; }
+		if (request.status < 200 || request.status >= 300 || !result || result.status !== 'y') {
+			renderCommissionDataImportResult(result && result.data ? result.data : null, true, result && result.error ? result.error : '导入响应异常，请重试');
+			return;
+		}
+		var resultData = result.data || {};
+		renderCommissionDataImportResult(resultData, false, '导入完成，已按提成规则重新计算金额。请点击“刷新查看结果”查看最新表格。');
+		var refreshButton = document.createElement('button');
+		refreshButton.type = 'button';
+		refreshButton.className = 'commission_btn';
+		refreshButton.style.marginTop = '7px';
+		refreshButton.appendChild(document.createTextNode('刷新查看结果'));
+		refreshButton.onclick = function() { window.location.href = resultData.reload_url || window.location.href; };
+		document.getElementById('commission_data_import_result').appendChild(refreshButton);
+	};
+	request.send(data);
 }
 </script>

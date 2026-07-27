@@ -50,7 +50,6 @@ class SalaryProjectModel extends BaseModel
 		return array(
 			'earning' => '应发类',
 			'deduction' => '应扣类',
-			'statistic' => '统计类',
 			'data' => '数据类',
 			'note' => '说明类',
 		);
@@ -87,7 +86,7 @@ class SalaryProjectModel extends BaseModel
 			array(
 				'code' => 'earning_total',
 				'name' => '应发总额',
-				'direction_label' => '统计类',
+				'direction_label' => '系统汇总',
 				'source_type_label' => '系统固定项',
 				'calculation_mode_label' => '所有应发类项目合计',
 				'formula_text' => '应发类项目合计',
@@ -95,7 +94,7 @@ class SalaryProjectModel extends BaseModel
 			array(
 				'code' => 'deduction_total',
 				'name' => '应扣总额',
-				'direction_label' => '统计类',
+				'direction_label' => '系统汇总',
 				'source_type_label' => '系统固定项',
 				'calculation_mode_label' => '所有应扣类项目合计',
 				'formula_text' => '应扣类项目合计',
@@ -103,7 +102,7 @@ class SalaryProjectModel extends BaseModel
 			array(
 				'code' => 'net_total',
 				'name' => '实发总额',
-				'direction_label' => '统计类',
+				'direction_label' => '系统汇总',
 				'source_type_label' => '系统固定项',
 				'calculation_mode_label' => '应发总额 - 应扣总额',
 				'formula_text' => '应发总额 - 应扣总额',
@@ -139,6 +138,85 @@ class SalaryProjectModel extends BaseModel
 			' and deleted_at=0 order by sort_order asc,id asc';
 		$items = $this->getDB()->query($sql)->fetchAll();
 		return $this->formatProjectItems($items);
+	}
+
+	public function saveCompanyProjectOrder($companyId, $direction, $projectIds)
+	{
+		$companyId = intval($companyId);
+		$direction = self::normalizeDirection($direction);
+		if ($companyId <= 0 || !in_array($direction, array('earning', 'deduction', 'data', 'note', 'other'))) {
+			$this->_lastError = '工资项目排序参数不正确';
+			return false;
+		}
+
+		$orderedIds = $this->normalizeProjectOrderIds($projectIds);
+		$sql = 'select * from `' . $this->getSource() . '` where company_id=' . $companyId .
+			' and deleted_at=0 order by sort_order asc,id asc';
+		$items = $this->getDB()->query($sql)->fetchAll();
+		$groupItems = array();
+		$groupPositions = array();
+		foreach ($items as $index => $item) {
+			$itemDirection = isset($item['direction']) && $item['direction'] != '' ? self::normalizeDirection($item['direction']) : 'other';
+			if ($item['status'] == 'active' && $itemDirection == $direction) {
+				$groupItems[intval($item['id'])] = $item;
+				$groupPositions[] = $index;
+			}
+		}
+		if (!$this->isCompleteProjectOrder($orderedIds, $groupItems)) {
+			$this->_lastError = '工资项目已经发生变化，请刷新页面后重新排序';
+			return false;
+		}
+
+		foreach ($groupPositions as $positionIndex => $itemIndex) {
+			$items[$itemIndex] = $groupItems[$orderedIds[$positionIndex]];
+		}
+
+		$db = $this->getDB();
+		$db->begin();
+		$now = time();
+		try {
+			foreach ($items as $index => $item) {
+				$db->execute(
+					'update `' . $this->getSource() . '` set sort_order=' . (($index + 1) * 10) .
+					',updated_at=' . $now . ' where company_id=' . $companyId .
+					' and id=' . intval($item['id']) . ' and deleted_at=0'
+				);
+			}
+			$db->commit();
+		} catch (\Exception $exception) {
+			$db->rollback();
+			$this->_lastError = '工资项目排序保存失败，请稍后重试';
+			return false;
+		}
+		return true;
+	}
+
+	protected function normalizeProjectOrderIds($projectIds)
+	{
+		if (!is_array($projectIds)) {
+			$projectIds = explode(',', trim((string)$projectIds));
+		}
+		$return = array();
+		foreach ($projectIds as $projectId) {
+			$projectId = intval($projectId);
+			if ($projectId > 0 && !in_array($projectId, $return)) {
+				$return[] = $projectId;
+			}
+		}
+		return $return;
+	}
+
+	protected function isCompleteProjectOrder($orderedIds, $groupItems)
+	{
+		if (count($orderedIds) != count($groupItems)) {
+			return false;
+		}
+		foreach ($orderedIds as $projectId) {
+			if (!isset($groupItems[$projectId])) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public function getCompanyTemplateProjectMap($companyId, $includeDeleted = false)
@@ -216,7 +294,7 @@ class SalaryProjectModel extends BaseModel
 			'template_id' => intval($template['id']),
 			'name' => $template['name'],
 			'source_type' => self::normalizeSourceType($template['source_type']),
-			'direction' => $template['direction'],
+			'direction' => self::normalizeDirection($template['direction']),
 			'calculation_mode' => $template['calculation_mode'],
 			'linked_module' => $template['linked_module'],
 			'formula_text' => '',
@@ -230,6 +308,29 @@ class SalaryProjectModel extends BaseModel
 			'deleted_at' => 0,
 			'updated_at' => intval($now),
 		);
+	}
+
+	public function enableCompanyTemplateProject($companyId, $templateId)
+	{
+		$companyId = intval($companyId);
+		$templateId = intval($templateId);
+		$template = $this->getDB()->query('select * from `' . $this->getTableName('salary_project_templates') . '` where id=' . $templateId . ' and status="active" limit 1')->fetch();
+		if ($companyId <= 0 || !$template) {
+			$this->_lastError = '通用工资项目不存在';
+			return false;
+		}
+
+		$now = time();
+		$item = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
+		if ($item) {
+			return $item->save(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
+		}
+
+		$data = $this->buildTemplateProjectData($companyId, $template, $now);
+		$data['status'] = 'active';
+		$data['created_at'] = $now;
+		$model = new SalaryProjectModel();
+		return $model->save($data);
 	}
 
 	public function saveCustomProject($companyId, $postData)
@@ -266,10 +367,13 @@ class SalaryProjectModel extends BaseModel
 		$directions = self::getDirectionLabels();
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
-		$direction = isset($postData['direction']) ? trim($postData['direction']) : 'earning';
+		$direction = self::normalizeDirection(isset($postData['direction']) ? $postData['direction'] : 'earning');
 		$sourceType = self::normalizeSourceType(isset($postData['source_type']) ? trim($postData['source_type']) : 'number');
 		$calculationMode = self::defaultCalculationMode($sourceType, isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : '');
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
+		if ($templateId <= 0) {
+			$status = 'active';
+		}
 		if (!isset($directions[$direction]) || !isset($sourceTypes[$sourceType]) || !isset($calculationModes[$calculationMode]) || !isset($statusLabels[$status])) {
 			$this->_lastError = '工资项目参数不正确';
 			return false;
@@ -348,6 +452,15 @@ class SalaryProjectModel extends BaseModel
 			return 'number';
 		}
 		return $sourceType;
+	}
+
+	public static function normalizeDirection($direction)
+	{
+		$direction = trim((string)$direction);
+		if ($direction == 'statistic') {
+			return 'data';
+		}
+		return $direction;
 	}
 
 	public static function defaultCalculationMode($sourceType, $currentMode = '')
@@ -433,6 +546,10 @@ class SalaryProjectModel extends BaseModel
 			$this->_lastError = '工资项目不存在';
 			return false;
 		}
+		if (intval($item->template_id) <= 0) {
+			$this->_lastError = '自定义项目不能停用，如不再使用请删除';
+			return false;
+		}
 		return $item->save(array(
 			'status' => 'inactive',
 			'updated_at' => time(),
@@ -446,6 +563,9 @@ class SalaryProjectModel extends BaseModel
 		$calculationModes = self::getCalculationModeLabels();
 		$statusLabels = self::getStatusLabels();
 		foreach ($items as $key => $item) {
+			if (empty($item['template_id'])) {
+				$item['status'] = 'active';
+			}
 			if (!isset($item['default_number'])) {
 				$item['default_number'] = '0.00';
 			}
@@ -453,6 +573,7 @@ class SalaryProjectModel extends BaseModel
 				$item['default_text'] = '';
 			}
 			$sourceType = self::normalizeSourceType($item['source_type']);
+			$item['direction'] = self::normalizeDirection($item['direction']);
 			$item['source_type_label'] = self::label($sourceTypes, $item['source_type']);
 			$item['direction_label'] = self::label($directions, $item['direction']);
 			$item['calculation_mode_label'] = self::label($calculationModes, $item['calculation_mode']);

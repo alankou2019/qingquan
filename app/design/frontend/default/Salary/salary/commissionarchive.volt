@@ -12,15 +12,8 @@
 .inline_form{display:inline-block;margin:0;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a></li>
-			<li><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a></li>
-			<li><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a></li>
-			<li class="on"><a href="{{helper.createUrl(['p':'salary/commissionarchive'])}}">提成归档记录</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a href="{{helper.createUrl(['p':'salary/commission'])}}">提成项目设置</a><a href="{{helper.createUrl(['p':'salary/commissionestimate'])}}">月收入测算</a><a href="{{helper.createUrl(['p':'salary/commissionpayroll'])}}">月提成核算</a><a class="on" href="#">提成归档记录</a></div>
 	<div class="commission_archive_page">
 		<div id="salary_inline_delete_message" style="display:none;margin:0 0 12px 0;padding:8px 12px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;"></div>
 		<form class="commission_filter" method="get" action="{{helper.createUrl(['p':'salary/commissionarchive'])}}">
@@ -42,6 +35,7 @@
 				<td>{{item['total_amount']}}</td>
 				<td>
 					<a class="commission_link" href="{{helper.createUrl(['p':'salary/commissionarchiveview','id':item['id']])}}">查看</a>
+					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/importcommissiontopayroll'])}}" onsubmit="return confirm('将按归档月份、手机号和姓名匹配员工，把归档提成合计覆盖导入同月工资核算表的“提成奖”项目。仅可导入未提交审核的工资表，确认继续吗？');"><input type="hidden" name="archive_id" value="{{item['id']}}" /><button class="commission_link" type="submit">导入工资核算表</button></form>
 					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/restorecommissionarchive'])}}" onsubmit="return confirm('恢复后将回到月提成核算，当前归档记录会移除。确认恢复吗？');"><input type="hidden" name="id" value="{{item['id']}}" /><button class="commission_link" type="submit">恢复</button></form>
 					<button class="commission_link" type="button" data-delete-url="{{helper.createUrl(['p':'salary/deletecommissionarchive'])}}" data-delete-row-id="commission_archive_row_{{item['id']}}" data-delete-confirm="删除后归档记录不再显示，服务器保留备份六个月。确认删除吗？" onclick="return salaryInlineDelete(this, {id:{{item['id']}}});">删除</button>
 				</td>

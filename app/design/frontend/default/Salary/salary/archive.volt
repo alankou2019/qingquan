@@ -11,16 +11,14 @@
 .inline_form{display:inline-block;margin:0 8px 4px 0;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">工资表归档记录</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation">
+		<a class="on" href="#">归档记录</a>
+		<a href="{{helper.createUrl(['p':'salary/payslip'])}}">工资条发放</a>
+		<a href="{{helper.createUrl(['p':'salary/report'])}}">报表统计</a>
+		<a href="{{helper.createUrl(['p':'salary/log'])}}">操作日志</a>
 	</div>
 	<div class="salary_page">
-		<div class="salary_toolbar">
-			<a class="btn" href="{{helper.createUrl(['p':'salary/payroll'])}}">返回工资表核算</a>
-		</div>
 		{% if periods is empty %}
 		<div class="salary_empty">暂无归档工资表。</div>
 		{% else %}
@@ -51,9 +49,9 @@
 					{% if period['unconfirmed_count'] > 0 %}<br />未确认 {{period['unconfirmed_count']}} 人{% endif %}
 				</td>
 				<td>
+					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/archiveview','id':period['id']])}}">查看</a>
 					{% if canSendPayslip %}
 					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipconfirm','id':period['payroll_period_id'],'archive_id':period['id'],'from':'archive'])}}">发工资条</a>
-					<a class="salary_link_btn" href="{{helper.createUrl(['p':'salary/payslipdetail','id':period['payroll_period_id'],'from':'archive'])}}">查看确认</a>
 					{% endif %}
 					<form class="inline_form" method="post" action="{{helper.createUrl(['p':'salary/restorearchive'])}}" onsubmit="return confirm('确定恢复到工资表核算重新核算吗？');">
 						<input type="hidden" name="id" value="{{period['id']}}" />

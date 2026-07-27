@@ -53,6 +53,7 @@ class SalaryprojectController extends AdminBaseController
 			if (empty($item)) {
 				Utils::showMsg('工资项目不存在', $this->getHelper()->createUrl(array('p' => 'salaryproject/index')));
 			}
+			$item->direction = SalaryProjectModel::normalizeDirection($item->direction);
 			$this->view->setVar('item', $item);
 		}
 
@@ -84,7 +85,7 @@ class SalaryprojectController extends AdminBaseController
 		$statusLabels = SalaryProjectModel::getStatusLabels();
 
 		$sourceType = isset($postData['source_type']) ? trim($postData['source_type']) : 'fixed';
-		$direction = isset($postData['direction']) ? trim($postData['direction']) : 'earning';
+		$direction = isset($postData['direction']) ? SalaryProjectModel::normalizeDirection($postData['direction']) : 'earning';
 		$calculationMode = isset($postData['calculation_mode']) ? trim($postData['calculation_mode']) : 'manual';
 		$status = isset($postData['status']) ? trim($postData['status']) : 'active';
 
@@ -237,6 +238,7 @@ class SalaryprojectController extends AdminBaseController
 		$statusLabels = SalaryProjectModel::getStatusLabels();
 
 		foreach ($items as $key => $item) {
+			$item['direction'] = SalaryProjectModel::normalizeDirection($item['direction']);
 			$item['source_type_label'] = SalaryProjectModel::label($sourceTypes, $item['source_type']);
 			$item['direction_label'] = SalaryProjectModel::label($directions, $item['direction']);
 			$item['calculation_mode_label'] = SalaryProjectModel::label($calculationModes, $item['calculation_mode']);

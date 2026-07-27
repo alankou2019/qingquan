@@ -214,6 +214,405 @@ class SalaryPayrollImportModel extends BaseModel
 		return array('employee_count' => count($amountPost['amount']));
 	}
 
+	public function importPayrollDataFromExcel($companyId, $periodId, $filePath, $operatorId)
+	{
+		$this->_lastErrors = array();
+		$companyId = intval($companyId);
+		$periodId = intval($periodId);
+		$operatorId = intval($operatorId);
+		$periodModel = PayrollPeriodModel::factory();
+		$period = $periodModel->getCompanyPeriod($companyId, $periodId);
+		if (!$period) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '工资核算表不存在或不属于当前企业');
+			return false;
+		}
+		if (!PayrollPeriodModel::canEdit($period['status'])) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '当前工资核算表不能导入数据');
+			return false;
+		}
+
+		$parsed = $this->parseExcel($filePath);
+		if (!$parsed) {
+			return false;
+		}
+		$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($companyId, $periodId);
+		$dataProjects = self::getImportableDataProjects($projects);
+		if (empty($dataProjects)) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '当前工资核算表没有可导入的数据类工资项目');
+			return false;
+		}
+
+		$projectMap = array();
+		foreach ($dataProjects as $project) {
+			$key = $this->normalizeHeader($project['name']);
+			if (!isset($projectMap[$key])) {
+				$projectMap[$key] = array();
+			}
+			$projectMap[$key][] = $project;
+		}
+		$importProjects = array();
+		$importHeaderMap = array();
+		foreach ($parsed['project_headers'] as $header) {
+			$key = $this->normalizeHeader($header['name']);
+			if (!isset($projectMap[$key])) {
+				$this->_lastErrors[] = array(
+					'row' => 1,
+					'name' => '',
+					'mobile' => '',
+					'reason' => '“' . $header['name'] . '”不是当前工资核算表中可导入的数据类项目，已跳过',
+				);
+				continue;
+			}
+			if (count($projectMap[$key]) != 1) {
+				$this->_lastErrors[] = array(
+					'row' => 1,
+					'name' => '',
+					'mobile' => '',
+					'reason' => '当前工资核算表存在多个同名数据项目“' . $header['name'] . '”，无法安全导入',
+				);
+				continue;
+			}
+			if (isset($importHeaderMap[$key])) {
+				$this->_lastErrors[] = array(
+					'row' => 1,
+					'name' => '',
+					'mobile' => '',
+					'reason' => 'Excel中数据项目“' . $header['name'] . '”重复，只按最后一列读取',
+				);
+				continue;
+			}
+			$importHeaderMap[$key] = 1;
+			$importProjects[] = array('header' => $header, 'project' => $projectMap[$key][0]);
+		}
+		if (empty($importProjects)) {
+			$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => 'Excel中没有与当前工资核算表匹配的数据类项目');
+			return false;
+		}
+
+		$payrollRows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($companyId, $periodId);
+		$mobileMap = array();
+		foreach ($payrollRows as $rowIndex => $payrollRow) {
+			$mobile = $this->normalizeMobile($payrollRow['employee_no']);
+			if ($mobile == '') {
+				continue;
+			}
+			if (!isset($mobileMap[$mobile])) {
+				$mobileMap[$mobile] = array();
+			}
+			$mobileMap[$mobile][] = $rowIndex;
+		}
+
+		$matchedEmployees = array();
+		$updatedCells = 0;
+		$skippedBlanks = 0;
+		foreach ($parsed['rows'] as $excelRow) {
+			$name = trim($excelRow['name']);
+			$mobile = $this->normalizeMobile($excelRow['mobile']);
+			if ($mobile == '') {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => '', 'reason' => '手机号为空，未导入');
+				continue;
+			}
+			if ($name == '') {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => '', 'mobile' => $mobile, 'reason' => '姓名为空，未导入');
+				continue;
+			}
+			if (!isset($mobileMap[$mobile]) || empty($mobileMap[$mobile])) {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => '手机号没有匹配到当前工资核算表员工');
+				continue;
+			}
+
+			$matchedIndex = false;
+			if (count($mobileMap[$mobile]) == 1) {
+				$matchedIndex = $mobileMap[$mobile][0];
+			} else {
+				$nameKey = $this->normalizeName($name);
+				$nameMatches = array();
+				foreach ($mobileMap[$mobile] as $candidateIndex) {
+					if ($this->normalizeName($payrollRows[$candidateIndex]['employee_name']) == $nameKey) {
+						$nameMatches[] = $candidateIndex;
+					}
+				}
+				if (count($nameMatches) == 1) {
+					$matchedIndex = $nameMatches[0];
+				}
+			}
+			if ($matchedIndex === false) {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => '该手机号对应多名员工，姓名未能唯一匹配');
+				continue;
+			}
+
+			$employeeId = intval($payrollRows[$matchedIndex]['employee_id']);
+			$rowUpdated = false;
+			foreach ($importProjects as $item) {
+				$header = $item['header'];
+				$project = $item['project'];
+				$valueInfo = isset($excelRow['values'][$header['key']]) ? $excelRow['values'][$header['key']] : array('raw' => '');
+				$raw = isset($valueInfo['raw']) ? trim((string)$valueInfo['raw']) : '';
+				if ($raw === '') {
+					$skippedBlanks++;
+					continue;
+				}
+				$projectId = intval($project['id']);
+				if (SalaryProjectModel::isTextProject($project)) {
+					$payrollRows[$matchedIndex]['values'][$projectId] = $raw;
+				} else {
+					$amount = $this->parseAmount($raw);
+					if ($amount === false) {
+						$this->_lastErrors[] = array(
+							'row' => $excelRow['excel_row'],
+							'name' => $name,
+							'mobile' => $mobile,
+							'reason' => '数据项目“' . $header['name'] . '”不是有效数字，已跳过',
+						);
+						continue;
+					}
+					$payrollRows[$matchedIndex]['values'][$projectId] = sprintf('%.2f', round($amount, 2));
+				}
+				$rowUpdated = true;
+				$updatedCells++;
+			}
+			if ($rowUpdated) {
+				$matchedEmployees[$employeeId] = 1;
+			}
+		}
+
+		if ($updatedCells <= 0) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '没有可更新的数据；空白单元格不会覆盖原数据');
+			return false;
+		}
+
+		$rows = array();
+		foreach ($payrollRows as $payrollRow) {
+			$rows[] = array(
+				'employee' => array(
+					'id' => intval($payrollRow['employee_id']),
+					'name' => $payrollRow['employee_name'],
+					'mobile' => $payrollRow['employee_no'],
+					'department_name' => $payrollRow['department_name'],
+					'position_name' => $payrollRow['position_name'],
+				),
+				'values' => $payrollRow['values'],
+			);
+		}
+		$savedPeriodId = $periodModel->savePayrollMatrix(
+			$companyId,
+			$period['payroll_month'],
+			$projects,
+			$rows,
+			$operatorId,
+			$period['source_type'],
+			$period['source_name'],
+			$periodId
+		);
+		if (!$savedPeriodId) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => $periodModel->getLastError());
+			return false;
+		}
+		return array(
+			'period_id' => intval($savedPeriodId),
+			'payroll_month' => $period['payroll_month'],
+			'employee_count' => count($matchedEmployees),
+			'updated_cell_count' => $updatedCells,
+			'skipped_blank_count' => $skippedBlanks,
+		);
+	}
+
+	/**
+	 * Import completion values for the current monthly commission matrix.
+	 * The Excel employee must match the matrix by both name and mobile number.
+	 */
+	public function importCommissionDataFromExcel($companyId, $periodId, $filePath, $operatorId)
+	{
+		$this->_lastErrors = array();
+		$companyId = intval($companyId);
+		$periodId = intval($periodId);
+		$operatorId = intval($operatorId);
+		$periodModel = CommissionPeriodModel::factory();
+		$period = $periodModel->getCompanyPeriod($companyId, $periodId);
+		if (!$period) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '提成核算表不存在或不属于当前企业');
+			return false;
+		}
+		if (!in_array($period['status'], array('draft', 'calculated'))) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '当前提成核算表已归档或不可编辑，不能导入数据');
+			return false;
+		}
+
+		$parsed = $this->parseExcel($filePath);
+		if (!$parsed) {
+			return false;
+		}
+		$projects = CommissionProjectModel::factory()->getCompanyProjects($companyId);
+		$projectMap = array();
+		foreach ($projects as $project) {
+			if ($project['status'] != 'active' || intval($project['deleted_at']) != 0) {
+				continue;
+			}
+			$key = $this->normalizeHeader($project['name']);
+			if (!isset($projectMap[$key])) {
+				$projectMap[$key] = array();
+			}
+			$projectMap[$key][] = $project;
+		}
+		$importProjects = array();
+		$importHeaderMap = array();
+		foreach ($parsed['project_headers'] as $header) {
+			$key = $this->normalizeHeader($header['name']);
+			if (!isset($projectMap[$key])) {
+				$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => '提成项目“' . $header['name'] . '”未在当前提成项目设置中启用，已跳过');
+				continue;
+			}
+			if (count($projectMap[$key]) != 1) {
+				$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => '当前企业存在多个同名提成项目“' . $header['name'] . '”，为避免错写未导入');
+				continue;
+			}
+			if (isset($importHeaderMap[$key])) {
+				$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => 'Excel中提成项目“' . $header['name'] . '”重复，已跳过重复列');
+				continue;
+			}
+			$importHeaderMap[$key] = 1;
+			$importProjects[] = array('header' => $header, 'project' => $projectMap[$key][0]);
+		}
+		if (empty($importProjects)) {
+			$this->_lastErrors[] = array('row' => 1, 'name' => '', 'mobile' => '', 'reason' => 'Excel中没有可导入的提成项目列，请使用数据模板或核对项目名称');
+			return false;
+		}
+
+		$currentRows = $periodModel->getCommissionMatrix($companyId, $periodId);
+		$employeePairMap = array();
+		foreach ($currentRows as $rowIndex => $row) {
+			$pairKey = $this->normalizeName($row['employee_name']) . '|' . $this->normalizeMobile($row['employee_no']);
+			if ($pairKey == '|' || substr($pairKey, -1) == '|') {
+				continue;
+			}
+			if (!isset($employeePairMap[$pairKey])) {
+				$employeePairMap[$pairKey] = array();
+			}
+			$employeePairMap[$pairKey][] = $rowIndex;
+		}
+
+		$updates = array();
+		$matchedEmployees = array();
+		$updatedCells = 0;
+		$skippedBlanks = 0;
+		foreach ($parsed['rows'] as $excelRow) {
+			$name = trim($excelRow['name']);
+			$mobile = $this->normalizeMobile($excelRow['mobile']);
+			if ($name == '' || $mobile == '') {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => '姓名和手机号均为必填项，未导入');
+				continue;
+			}
+			$pairKey = $this->normalizeName($name) . '|' . $mobile;
+			if (!isset($employeePairMap[$pairKey]) || count($employeePairMap[$pairKey]) != 1) {
+				$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => isset($employeePairMap[$pairKey]) ? '姓名和手机号匹配到多名员工，未导入' : '当前提成核算表中未找到姓名和手机号同时匹配的员工');
+				continue;
+			}
+			$rowIndex = $employeePairMap[$pairKey][0];
+			$employeeId = intval($currentRows[$rowIndex]['employee_id']);
+			$rowUpdated = false;
+			foreach ($importProjects as $item) {
+				$header = $item['header'];
+				$project = $item['project'];
+				$valueInfo = isset($excelRow['values'][$header['key']]) ? $excelRow['values'][$header['key']] : array('raw' => '');
+				$raw = isset($valueInfo['raw']) ? trim((string)$valueInfo['raw']) : '';
+				if ($raw === '') {
+					$skippedBlanks++;
+					continue;
+				}
+				$projectId = intval($project['id']);
+				if (!isset($currentRows[$rowIndex]['item_map'][$projectId])) {
+					$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => '员工不适用提成项目“' . $header['name'] . '”，未导入该单元格');
+					continue;
+				}
+				$amount = $this->parseAmount($raw);
+				if ($amount === false) {
+					$this->_lastErrors[] = array('row' => $excelRow['excel_row'], 'name' => $name, 'mobile' => $mobile, 'reason' => '提成项目“' . $header['name'] . '”的完成量不是有效数字，已跳过');
+					continue;
+				}
+				if (!isset($updates[$employeeId])) {
+					$updates[$employeeId] = array();
+				}
+				$updates[$employeeId][$projectId] = sprintf('%.2f', round($amount, 2));
+				$rowUpdated = true;
+				$updatedCells++;
+			}
+			if ($rowUpdated) {
+				$matchedEmployees[$employeeId] = 1;
+			}
+		}
+		if ($updatedCells <= 0) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '没有可更新的数据；空白单元格不会覆盖原数据');
+			return false;
+		}
+
+		$activeProjects = array();
+		foreach ($projects as $project) {
+			if ($project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$activeProjects[intval($project['id'])] = $project;
+			}
+		}
+		$rows = array();
+		foreach ($currentRows as $currentRow) {
+			$employeeId = intval($currentRow['employee_id']);
+			$items = array();
+			$values = array();
+			foreach ($currentRow['items'] as $currentItem) {
+				$projectId = intval($currentItem['commission_project_id']);
+				if (isset($activeProjects[$projectId])) {
+					$items[] = $activeProjects[$projectId];
+					$values[$projectId] = $currentItem['input_value'];
+				}
+			}
+			if (isset($updates[$employeeId])) {
+				foreach ($updates[$employeeId] as $projectId => $value) {
+					$values[$projectId] = $value;
+				}
+			}
+			$rows[] = array(
+				'employee' => array(
+					'id' => $employeeId,
+					'name' => $currentRow['employee_name'],
+					'mobile' => $currentRow['employee_no'],
+					'department_id' => $currentRow['department_id'],
+					'department_name' => $currentRow['department_name'],
+					'position_name' => $currentRow['position_name'],
+				),
+				'items' => $items,
+				'values' => $values,
+				'remark' => $currentRow['remark'],
+			);
+		}
+		$savedPeriodId = $periodModel->saveCommissionMatrix($companyId, $period['commission_month'], $rows, $operatorId, $periodId);
+		if (!$savedPeriodId) {
+			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => $periodModel->getLastError());
+			return false;
+		}
+		return array(
+			'period_id' => intval($savedPeriodId),
+			'commission_month' => $period['commission_month'],
+			'employee_count' => count($matchedEmployees),
+			'updated_cell_count' => $updatedCells,
+			'skipped_blank_count' => $skippedBlanks,
+		);
+	}
+
+	public static function getImportableDataProjects($projects)
+	{
+		$return = array();
+		foreach ($projects as $project) {
+			$direction = isset($project['direction']) ? SalaryProjectModel::normalizeDirection($project['direction']) : '';
+			if (
+				$direction == 'data' &&
+				isset($project['status']) && $project['status'] == 'active' &&
+				intval($project['deleted_at']) == 0 &&
+				!SalaryProjectModel::isFormulaProject($project)
+			) {
+				$return[] = $project;
+			}
+		}
+		return $return;
+	}
+
 	public static function getDefaultTemplateHeaders($projects)
 	{
 		$headers = array('姓名', '手机号');
@@ -615,7 +1014,7 @@ class SalaryPayrollImportModel extends BaseModel
 	protected function guessDirection($name)
 	{
 		if ($this->summaryType($name)) {
-			return 'statistic';
+			return 'data';
 		}
 		$deductionWords = array('扣', '税', '社保', '公积金', '罚', '借款', '缺勤', '请假', '迟到', '早退', '代扣');
 		foreach ($deductionWords as $word) {
@@ -623,10 +1022,10 @@ class SalaryPayrollImportModel extends BaseModel
 				return 'deduction';
 			}
 		}
-		$statisticWords = array('天数', '工时', '基数', '余额');
-		foreach ($statisticWords as $word) {
+		$dataWords = array('天数', '工时', '基数', '余额');
+		foreach ($dataWords as $word) {
 			if (strpos($name, $word) !== false) {
-				return 'statistic';
+				return 'data';
 			}
 		}
 		return 'earning';
@@ -634,7 +1033,7 @@ class SalaryPayrollImportModel extends BaseModel
 
 	protected function directionName($direction)
 	{
-		$map = array('earning' => '应发类', 'deduction' => '应扣类', 'statistic' => '统计类', 'data' => '数据类', 'note' => '说明类');
+		$map = array('earning' => '应发类', 'deduction' => '应扣类', 'data' => '数据类', 'note' => '说明类');
 		return isset($map[$direction]) ? $map[$direction] : $direction;
 	}
 

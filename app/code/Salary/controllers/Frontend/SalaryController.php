@@ -10,6 +10,7 @@ use ScshuxCms\Core\Helper\Utils;
 use ScshuxCms\Dacang\Model\CompanyModel;
 use ScshuxCms\Dacang\Model\CompanyUserModel;
 use ScshuxCms\Dacang\Model\DepartmentModel;
+use ScshuxCms\Dacang\Model\PlatformUserIdentityModel;
 use ScshuxCms\Salary\Model\CompanyModuleAuthModel;
 use ScshuxCms\Salary\Model\CommissionArchiveModel;
 use ScshuxCms\Salary\Model\CommissionEstimateModel;
@@ -52,14 +53,27 @@ class SalaryController extends FrontendBaseController
 				}
 			}
 		}
+		$scopeOptions = $model->getScopeOptions($this->companyId);
+		foreach (array('departments' => 'scope_department_ids', 'positions' => 'scope_position_values', 'employees' => 'scope_employee_ids') as $group => $selectionKey) {
+			foreach ($scopeOptions[$group] as $key => $item) {
+				$value = $group == 'positions' ? (string)$item['value'] : (string)intval($item['id']);
+				$scopeOptions[$group][$key]['selected'] = $editItem && isset($editItem[$selectionKey][$value]) ? 1 : 0;
+			}
+		}
 		$this->view->setVar('projects', $projects);
-		$this->view->setVar('scopeOptions', $model->getScopeOptions($this->companyId));
+		$this->view->setVar('scopeOptions', $scopeOptions);
 		$this->view->setVar('editItem', $editItem);
 		$this->view->setVar('metricLabels', CommissionProjectModel::getMetricLabels());
 		$this->view->setVar('modeLabels', CommissionProjectModel::getModeLabels());
 		$this->view->setVar('scopeLabels', CommissionProjectModel::getScopeLabels());
 		$this->view->setVar('statusLabels', CommissionProjectModel::getStatusLabels());
 		$this->view->setVar('rateTypeLabels', CommissionProjectModel::getRateTypeLabels());
+		$statusResult = trim($this->request->get('commission_status'));
+		$statusMessages = array(
+			'active' => '提成项目已启用，后续月提成测算将纳入该项目。',
+			'inactive' => '提成项目已停用，后续月提成测算将不再纳入该项目；历史数据不受影响。',
+		);
+		$this->view->setVar('commissionStatusMessage', isset($statusMessages[$statusResult]) ? $statusMessages[$statusResult] : '');
 	}
 
 	public function commissionsaveAction()
@@ -91,6 +105,28 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_project_delete', 'commission_project', $projectId, '', '删除提成项目规则');
 		$this->respondSalaryDeleteSuccess('提成项目已删除', $backUrl, array('project_id' => $projectId));
+	}
+
+	public function commissionstatusAction()
+	{
+		$this->checkFeature('commission');
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commission'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$projectId = intval($this->request->getPost('id'));
+		$status = trim($this->request->getPost('status'));
+		$model = CommissionProjectModel::factory();
+		if (!$model->updateProjectStatus($this->companyId, $projectId, $status)) {
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$action = $status == 'active' ? '启用' : '停用';
+		$this->addSalaryLog('commission_project_status', 'commission_project', $projectId, '', $action . '提成项目规则');
+		$this->response->redirect(Helper::factory()->createUrl(array(
+			'p' => 'salary/commission',
+			'commission_status' => $status,
+		)), true);
+		return $this->response;
 	}
 
 	public function commissionestimateAction()
@@ -150,6 +186,43 @@ class SalaryController extends FrontendBaseController
 			$this->sendErrorResult($model->getLastError());
 		}
 		$this->sendSuccessResult($estimate);
+	}
+
+	/**
+	 * Update a project's calculation rule from the live estimate and recalculate it.
+	 */
+	public function commissionestimatesaveruleAction()
+	{
+		$this->checkFeature('commission');
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('Unsupported request method');
+		}
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$estimateModel = CommissionEstimateModel::factory();
+		if (!$estimateModel->getEmployee($this->companyId, $employeeId)) {
+			$this->sendErrorResult('员工不存在或不属于当前企业');
+		}
+
+		$projectId = intval($this->request->getPost('project_id'));
+		$projectModel = CommissionProjectModel::factory();
+		$project = $projectModel->saveCalculationRule($this->companyId, $projectId, $_POST);
+		if (!$project) {
+			$this->sendErrorResult($projectModel->getLastError());
+		}
+
+		$inputValues = isset($_POST['estimate']) && is_array($_POST['estimate']) ? $_POST['estimate'] : array();
+		$estimate = $estimateModel->calculateEstimate($this->companyId, $employeeId, $inputValues);
+		if (!$estimate) {
+			$this->sendErrorResult($estimateModel->getLastError());
+		}
+		$this->addSalaryLog('commission_project_rule_save', 'commission_project', $projectId, '', '在提成测算中修改提成项目规则：' . $project['name'] . '，新规则：' . $project['rule_summary']);
+		$this->sendSuccessResult(array(
+			'estimate' => $estimate,
+			'project' => array(
+				'id' => intval($project['id']),
+				'rule_summary' => $project['rule_summary'],
+			),
+		));
 	}
 
 	public function deletecommissionestimateAction()
@@ -246,6 +319,78 @@ class SalaryController extends FrontendBaseController
 		Utils::showMsg('月提成核算表已保存', $backUrl);
 	}
 
+	public function commissiondatatemplateAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->get('id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$period) {
+			Utils::showMsg('提成核算表不存在', $backUrl);
+		}
+		if (!in_array($period['status'], array('draft', 'calculated'))) {
+			Utils::showMsg('当前提成核算表不能下载导入模板', $backUrl);
+		}
+		$projects = array();
+		foreach (CommissionProjectModel::factory()->getCompanyProjects($this->companyId) as $project) {
+			if ($project['status'] == 'active' && intval($project['deleted_at']) == 0) {
+				$projects[] = $project;
+			}
+		}
+		if (empty($projects)) {
+			Utils::showMsg('当前没有已启用的提成项目，无法生成导入模板', $backUrl);
+		}
+		$rows = CommissionPeriodModel::factory()->getCommissionMatrix($this->companyId, $periodId);
+		$this->addSalaryLog('commission_data_template_download', 'commission_period', $periodId, $period['commission_month'], '下载提成核算数据导入模板，人数' . count($rows));
+		$this->outputCommissionDataTemplate($period, $projects, $rows);
+	}
+
+	public function uploadcommissiondataAction()
+	{
+		$this->checkFeature('commission');
+		$periodId = intval($this->request->getPost('id'));
+		$period = CommissionPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/commissionpayroll', 'commission_month' => $period ? $period['commission_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			$this->sendJson(array('status' => 'n', 'error' => '不支持的请求方式', 'data' => array('errors' => array())));
+		}
+		if (!$period) {
+			$this->sendJson(array('status' => 'n', 'error' => '提成核算表不存在', 'data' => array('errors' => array())));
+		}
+		if (!in_array($period['status'], array('draft', 'calculated'))) {
+			$this->sendJson(array('status' => 'n', 'error' => '当前提成核算表不能导入数据', 'data' => array('errors' => array())));
+		}
+		if (empty($_FILES['commission_data_file']['name'])) {
+			$this->sendJson(array('status' => 'n', 'error' => '请先选择提成数据Excel文件', 'data' => array('errors' => array())));
+		}
+		$extname = strtolower(pathinfo($_FILES['commission_data_file']['name'], PATHINFO_EXTENSION));
+		if (!in_array($extname, array('xls', 'xlsx'))) {
+			$this->sendJson(array('status' => 'n', 'error' => '请上传xls或xlsx格式的Excel文件', 'data' => array('errors' => array())));
+		}
+		$file = $this->savePayrollUpload('commission_data_file', $extname);
+		if (!$file) {
+			$this->sendJson(array('status' => 'n', 'error' => '文件上传失败，请重新上传', 'data' => array('errors' => array())));
+		}
+		$fullPath = WEBROOT . $file;
+		$model = SalaryPayrollImportModel::factory();
+		$result = $model->importCommissionDataFromExcel($this->companyId, $periodId, $fullPath, $this->getOperatorId());
+		$errors = $model->getLastErrors();
+		if (file_exists($fullPath)) {
+			@unlink($fullPath);
+		}
+		if (!$result) {
+			$message = '提成核算数据导入失败';
+			if (!empty($errors) && !empty($errors[0]['reason'])) {
+				$message = $errors[0]['reason'];
+			}
+			$this->sendJson(array('status' => 'n', 'error' => $message, 'data' => array('errors' => $errors)));
+		}
+		$result['errors'] = $errors;
+		$result['reload_url'] = $backUrl;
+		$this->addSalaryLog('commission_data_import', 'commission_period', $periodId, $period['commission_month'], '导入提成核算数据，员工' . intval($result['employee_count']) . '人，更新' . intval($result['updated_cell_count']) . '个单元格，异常' . count($errors) . '条');
+		$this->sendSuccessResult($result);
+	}
+
 	public function savecommissionemployeeprojectsAction()
 	{
 		$this->checkFeature('commission');
@@ -331,6 +476,31 @@ class SalaryController extends FrontendBaseController
 		}
 		$this->addSalaryLog('commission_archive', 'commission_archive', intval($archiveId), $period ? $period['commission_month'] : '', 'Archive monthly commission calculation sheet');
 		Utils::showMsg('Commission calculation sheet archived', Helper::factory()->createUrl(array('p' => 'salary/commissionarchive')));
+	}
+
+	/**
+	 * Import one archived monthly commission result into the same-month editable payroll sheet.
+	 */
+	public function importcommissiontopayrollAction()
+	{
+		$this->checkFeature('commission');
+		$this->checkFeature('payroll');
+		$archiveId = intval($this->request->getPost('archive_id'));
+		$archive = CommissionArchiveModel::factory()->getArchive($this->companyId, $archiveId);
+		$backUrl = Helper::factory()->createUrl(array(
+			'p' => 'salary/commissionarchive',
+			'commission_month' => $archive ? $archive['commission_month'] : date('Y-m'),
+		));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$result = CommissionArchiveModel::factory()->importArchiveToPayroll($this->companyId, $archiveId, $this->getOperatorId());
+		if (!$result) {
+			Utils::showMsg(CommissionArchiveModel::factory()->getLastError(), $backUrl);
+		}
+		$summary = '从提成归档导入工资表提成奖：匹配' . intval($result['matched_count']) . '人，未匹配' . intval($result['unmatched_count']) . '人，重复' . intval($result['duplicate_count']) . '人，导入合计' . $result['imported_total'];
+		$this->addSalaryLog('commission_import_payroll', 'payroll_period', intval($result['payroll_period_id']), $result['payroll_month'], $summary);
+		Utils::showMsg($summary, Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $result['payroll_month'])));
 	}
 
 	public function restorecommissionarchiveAction()
@@ -441,10 +611,6 @@ class SalaryController extends FrontendBaseController
 		foreach ($templates as $key => $template) {
 			$templateId = intval($template['id']);
 			$companyProject = isset($templateProjectMap[$templateId]) ? $templateProjectMap[$templateId] : false;
-			if ($companyProject && intval($companyProject['deleted_at']) > 0) {
-				unset($templates[$key]);
-				continue;
-			}
 			if ($companyProject) {
 				foreach (array('name', 'source_type', 'direction', 'calculation_mode', 'linked_module', 'formula_text', 'default_number', 'default_text', 'sort_order', 'status') as $field) {
 					if (isset($companyProject[$field])) {
@@ -454,6 +620,7 @@ class SalaryController extends FrontendBaseController
 			}
 			$templates[$key]['project_id'] = $companyProject ? intval($companyProject['id']) : 0;
 			$templates[$key]['is_selected'] = $companyProject && $companyProject['status'] == 'active' ? 1 : 0;
+			$templates[$key]['direction'] = SalaryProjectModel::normalizeDirection($templates[$key]['direction']);
 			$templates[$key]['direction_label'] = SalaryProjectModel::label($directions, $templates[$key]['direction']);
 			$templates[$key]['source_type_label'] = SalaryProjectModel::label($sourceTypeLabels, $templates[$key]['source_type']);
 		}
@@ -484,26 +651,25 @@ class SalaryController extends FrontendBaseController
 				}
 			}
 		}
+		if ($editItem) {
+			$editItem->direction = SalaryProjectModel::normalizeDirection($editItem->direction);
+			if (intval($editItem->template_id) <= 0) {
+				$editItem->status = 'active';
+			}
+		}
 
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
-		$formulaProjects = array();
-		$editProjectId = $editItem ? intval($editItem->id) : 0;
+		$companyProjectsForView = array();
 		foreach ($projects as $project) {
-			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
-				continue;
+			if (empty($project['template_id']) || $project['status'] == 'active') {
+				$companyProjectsForView[] = $project;
 			}
-			if ($editProjectId > 0 && intval($project['id']) == $editProjectId) {
-				continue;
-			}
-			if (SalaryProjectModel::isTextProject($project)) {
-				continue;
-			}
-			$formulaProjects[] = $project;
 		}
+		$formulaProjects = $this->getSalaryFormulaReferenceProjects($editItem ? intval($editItem->id) : 0, $projects);
 
 		$this->view->setVar('templates', $templates);
 		$this->view->setVar('fixedProjects', SalaryProjectModel::getFixedSummaryProjects());
-		$this->view->setVar('projects', $projects);
+		$this->view->setVar('projects', $companyProjectsForView);
 		$this->view->setVar('formulaProjects', $formulaProjects);
 		$this->view->setVar('editItem', $editItem);
 		$this->view->setVar('sourceTypes', $sourceTypes);
@@ -511,9 +677,41 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('calculationModes', SalaryProjectModel::getCalculationModeLabels());
 		$this->view->setVar('statusLabels', SalaryProjectModel::getStatusLabels());
 		$initialTable = EmployeeSalaryStructureModel::factory()->getInitialSalaryTable($this->companyId);
+		$initialDepartments = array();
+		$initialPositions = array();
+		foreach ($initialTable['employees'] as $employee) {
+			$departmentName = trim($employee['department_name']);
+			$positionName = trim($employee['position_name']);
+			$departmentName = $departmentName == '' ? '未设置部门' : $departmentName;
+			$positionName = $positionName == '' ? '未设置岗位' : $positionName;
+			$initialDepartments[$departmentName] = $departmentName;
+			$initialPositions[$positionName] = $positionName;
+		}
+		$initialDepartments = array_values($initialDepartments);
+		$initialPositions = array_values($initialPositions);
+		sort($initialDepartments);
+		sort($initialPositions);
 		$this->view->setVar('initialProjects', $initialTable['projects']);
 		$this->view->setVar('initialEmployees', $initialTable['employees']);
 		$this->view->setVar('excludedInitialEmployees', $initialTable['excluded_employees']);
+		$this->view->setVar('initialDepartments', $initialDepartments);
+		$this->view->setVar('initialPositions', $initialPositions);
+	}
+
+	/**
+	 * Return existing project data for the in-page project editor.
+	 */
+	public function projecteditdataAction()
+	{
+		$this->checkModule();
+		$data = $this->getSalaryProjectEditorData(
+			intval($this->request->get('id')),
+			intval($this->request->get('template_id'))
+		);
+		if (!$data) {
+			$this->sendErrorResult('工资项目不存在或已被删除');
+		}
+		$this->sendSuccessResult($data);
 	}
 
 	public function projectsavetemplatesAction()
@@ -529,6 +727,41 @@ class SalaryController extends FrontendBaseController
 		Utils::showMsg('通用工资项目已保存', $backUrl);
 	}
 
+	public function projectenabletemplateAction()
+	{
+		$this->checkModule();
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
+		if (!$this->request->isPost()) {
+			Utils::showMsg('不支持的请求方式', $backUrl);
+		}
+		$templateId = intval($this->request->getPost('template_id'));
+		$model = SalaryProjectModel::factory();
+		if (!$model->enableCompanyTemplateProject($this->companyId, $templateId)) {
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult($model->getLastError());
+			}
+			Utils::showMsg($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('project_template_enable', 'salary_project', $templateId, '', '启用通用工资项目');
+		if ($this->isSalaryAjaxRequest()) {
+			$project = false;
+			$projects = $model->getCompanyProjects($this->companyId);
+			foreach ($projects as $item) {
+				if (intval($item['template_id']) == $templateId && $item['status'] == 'active') {
+					$project = $item;
+					break;
+				}
+			}
+			if (!$project) {
+				$this->sendErrorResult('通用工资项目已启用，但页面数据获取失败，请刷新后查看');
+			}
+			$project['edit_url'] = Helper::factory()->createUrl(array('p' => 'salary/project', 'id' => intval($project['id'])));
+			$project['disable_url'] = Helper::factory()->createUrl(array('p' => 'salary/projectdisable'));
+			$this->sendSuccessResult(array('message' => '通用工资项目已启用', 'project' => $project));
+		}
+		Utils::showMsg('通用工资项目已启用，并已纳入企业工资项目', $backUrl);
+	}
+
 	public function projectsaveAction()
 	{
 		$this->checkModule();
@@ -536,12 +769,56 @@ class SalaryController extends FrontendBaseController
 		if (!$this->request->isPost()) {
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
-		$result = SalaryProjectModel::factory()->saveCustomProject($this->companyId, $_POST);
+		$model = SalaryProjectModel::factory();
+		$result = $model->saveCustomProject($this->companyId, $_POST);
 		if (!$result) {
-			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult($model->getLastError());
+			}
+			Utils::showMsg($model->getLastError(), $backUrl);
 		}
-		$this->addSalaryLog('project_save', 'salary_project', intval(isset($_POST['id']) ? $_POST['id'] : 0), '', '保存工资项目');
+		$projectId = intval(isset($_POST['id']) ? $_POST['id'] : 0);
+		$templateId = intval(isset($_POST['template_id']) ? $_POST['template_id'] : 0);
+		$editorData = $this->getSalaryProjectEditorData($projectId, $templateId);
+		$recalculatedPeriodCount = 0;
+		if ($editorData && !empty($editorData['project']['is_formula_project']) && !empty($editorData['project']['id'])) {
+			$recalculatedPeriodCount = PayrollPeriodModel::factory()->recalculateOpenPeriodsForProject(
+				$this->companyId,
+				intval($editorData['project']['id']),
+				$this->getOperatorId()
+			);
+			if ($recalculatedPeriodCount === false) {
+				$this->addSalaryLog('project_formula_recalculate_failed', 'salary_project', intval($editorData['project']['id']), '', '工资项目公式已保存，但未归档工资表重新核算失败');
+			} elseif ($recalculatedPeriodCount > 0) {
+				$this->addSalaryLog('project_formula_recalculate', 'salary_project', intval($editorData['project']['id']), '', '修改核算公式后重新核算未归档工资表，数量：' . intval($recalculatedPeriodCount));
+			}
+		}
+		$this->addSalaryLog('project_save', 'salary_project', $projectId, '', '保存工资项目');
+		if ($this->isSalaryAjaxRequest()) {
+			$data = $editorData;
+			if (!$data) {
+				$this->sendErrorResult('工资项目已保存，但无法读取最新数据，请刷新页面查看');
+			}
+			$data['message'] = $recalculatedPeriodCount > 0 ? '工资项目已保存，已重新核算 ' . intval($recalculatedPeriodCount) . ' 张未归档工资表' : '工资项目已保存';
+			$this->sendSuccessResult($data);
+		}
 		Utils::showMsg('工资项目已保存', $backUrl);
+	}
+
+	public function saveprojectorderAction()
+	{
+		$this->checkModule();
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+		$direction = trim($this->request->getPost('direction'));
+		$projectIds = $this->request->getPost('project_ids');
+		$model = SalaryProjectModel::factory();
+		if (!$model->saveCompanyProjectOrder($this->companyId, $direction, $projectIds)) {
+			$this->sendErrorResult($model->getLastError());
+		}
+		$this->addSalaryLog('project_order_save', 'salary_project', 0, '', '调整初始工资表工资项目顺序');
+		$this->sendSuccessResult(array('message' => '项目顺序已保存'));
 	}
 
 	public function projectdeleteAction()
@@ -570,14 +847,36 @@ class SalaryController extends FrontendBaseController
 		$this->checkModule();
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
 		if (!$this->request->isPost()) {
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult('不支持的请求方式');
+			}
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
-		$projectId = intval($this->request->get('id'));
-		$result = SalaryProjectModel::factory()->disableCompanyProject($this->companyId, $projectId);
+		$projectId = intval($this->request->getPost('id'));
+		$model = SalaryProjectModel::factory();
+		$project = $model->findFirst('id=' . $projectId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		if (!$project) {
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult('工资项目不存在');
+			}
+			Utils::showMsg('工资项目不存在', $backUrl);
+		}
+		$templateId = intval($project->template_id);
+		$result = $model->disableCompanyProject($this->companyId, $projectId);
 		if (!$result) {
-			Utils::showMsg(SalaryProjectModel::factory()->getLastError(), $backUrl);
+			if ($this->isSalaryAjaxRequest()) {
+				$this->sendErrorResult($model->getLastError());
+			}
+			Utils::showMsg($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('project_disable', 'salary_project', $projectId, '', '停用工资项目');
+		if ($this->isSalaryAjaxRequest()) {
+			$this->sendSuccessResult(array(
+				'message' => '通用工资项目已停用',
+				'project_id' => $projectId,
+				'template_id' => $templateId,
+			));
+		}
 		Utils::showMsg('工资项目已停用', $backUrl);
 	}
 
@@ -586,15 +885,16 @@ class SalaryController extends FrontendBaseController
 		$this->checkModule();
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/project'));
 		if (!$this->request->isPost()) {
-			Utils::showMsg('不支持的请求方式', $backUrl);
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
 		}
-		$result = EmployeeSalaryStructureModel::factory()->saveInitialSalaryTable($this->companyId, $_POST, $this->getOperatorId());
+		$model = EmployeeSalaryStructureModel::factory();
+		$result = $model->saveInitialSalaryTable($this->companyId, $_POST, $this->getOperatorId());
 		if (!$result) {
-			Utils::showMsg(EmployeeSalaryStructureModel::factory()->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$employeeId = intval($this->request->getPost('initial_salary_employee_id'));
 		$this->addSalaryLog('initial_salary_employee_save', 'employee_salary_structure', $employeeId, '', '保存员工初始工资数据');
-		Utils::showMsg('员工初始工资数据已保存', $backUrl);
+		$this->respondSalaryDeleteSuccess('员工初始工资数据已保存', $backUrl, array('employee_id' => $employeeId));
 	}
 
 	public function deleteinitialsalaryemployeeAction()
@@ -678,19 +978,37 @@ class SalaryController extends FrontendBaseController
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
 		$rows = array();
 		if ($period) {
+			$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($this->companyId, intval($period['id']));
 			$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, intval($period['id']));
 			$period['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
-			$period['can_edit'] = in_array($period['status'], array('draft', 'calculated', 'rejected')) ? 1 : 0;
-			$period['can_submit_audit'] = PayrollPeriodModel::canSubmitAudit($period['status']) ? 1 : 0;
-			$period['can_publish'] = PayrollPeriodModel::canPublishPayslip($period['status']) ? 1 : 0;
+			$period['can_edit'] = PayrollPeriodModel::canEdit($period['status']) ? 1 : 0;
 			$period['can_archive'] = PayrollPeriodModel::canArchive($period['status']) ? 1 : 0;
 		}
+		$displayProjects = EmployeeSalaryStructureModel::factory()->buildSalaryTableDisplayProjects($projects);
+		$departments = array();
+		$positions = array();
+		foreach ($rows as $key => $row) {
+			$rows[$key]['values']['summary_earning_total'] = sprintf('%.2f', floatval($row['earning_total']));
+			$rows[$key]['values']['summary_deduction_total'] = sprintf('%.2f', floatval($row['deduction_total']));
+			$rows[$key]['values']['summary_net_total'] = sprintf('%.2f', floatval($row['net_amount']));
+			$departmentName = trim($row['department_name']) == '' ? '未设置部门' : trim($row['department_name']);
+			$positionName = trim($row['position_name']) == '' ? '未设置岗位' : trim($row['position_name']);
+			$departments[$departmentName] = $departmentName;
+			$positions[$positionName] = $positionName;
+		}
+		$departments = array_values($departments);
+		$positions = array_values($positions);
+		sort($departments);
+		sort($positions);
 		$this->view->setVar('payrollMonth', $payrollMonth);
 		$this->view->setVar('period', $period);
 		$this->view->setVar('projects', $projects);
-		$this->view->setVar('payrollProjectGroups', SalaryProjectModel::groupPayrollProjects($projects));
+		$this->view->setVar('payrollDisplayProjects', $displayProjects);
 		$this->view->setVar('payrollRows', $rows);
-		$this->view->setVar('canSendPayslip', $this->isSalaryFeatureEnabled('payslip'));
+		$this->view->setVar('payrollDepartments', $departments);
+		$this->view->setVar('payrollPositions', $positions);
+		$this->view->setVar('payrollDataProjects', SalaryPayrollImportModel::getImportableDataProjects($projects));
+		$this->view->setVar('canExportPayroll', $this->canExportSalaryData());
 		$this->view->setVar('defaultPayrollMonth', date('Y-m'));
 	}
 
@@ -776,9 +1094,15 @@ class SalaryController extends FrontendBaseController
 		}
 		$result = PayrollPeriodModel::factory()->generateFromInitial($this->companyId, $payrollMonth, $this->getOperatorId());
 		if (!$result) {
-			Utils::showMsg(PayrollPeriodModel::factory()->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError(PayrollPeriodModel::factory()->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('payroll_generate', 'payroll_period', intval($result), $payrollMonth, '从初始工资表生成工资表');
+		if ($this->isSalaryAjaxRequest()) {
+			$this->respondSalaryDeleteSuccess('已从初始工资表生成本月工资表', $backUrl, array(
+				'payroll_month' => $payrollMonth,
+				'reload_url' => $backUrl,
+			));
+		}
 		Utils::showMsg('已从初始工资表生成本月工资表', $backUrl);
 	}
 
@@ -791,12 +1115,100 @@ class SalaryController extends FrontendBaseController
 		if (!$this->request->isPost()) {
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
-		$result = PayrollPeriodModel::factory()->savePayrollMatrixFromPost($this->companyId, $periodId, $_POST, $this->getOperatorId());
+		$model = PayrollPeriodModel::factory();
+		$result = $model->savePayrollMatrixFromPost($this->companyId, $periodId, $_POST, $this->getOperatorId());
 		if (!$result) {
-			Utils::showMsg(PayrollPeriodModel::factory()->getLastError(), $backUrl);
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
 		}
 		$this->addSalaryLog('payroll_save', 'payroll_period', $periodId, $period ? $period['payroll_month'] : '', '保存工资表核算数据');
+		if ($this->isSalaryAjaxRequest()) {
+			$savedPeriod = $model->getCompanyPeriod($this->companyId, $periodId);
+			$employeeId = intval($this->request->getPost('payroll_employee_id'));
+			$savedRow = false;
+			foreach (PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, $periodId) as $row) {
+				if (intval($row['employee_id']) == $employeeId) {
+					$savedRow = $row;
+					break;
+				}
+			}
+			$this->respondSalaryDeleteSuccess('工资表数据已保存', $backUrl, array(
+				'employee_id' => $employeeId,
+				'earning_total' => $savedRow ? $savedRow['earning_total'] : '0.00',
+				'deduction_total' => $savedRow ? $savedRow['deduction_total'] : '0.00',
+				'net_amount' => $savedRow ? $savedRow['net_amount'] : '0.00',
+				'period_earning_total' => $savedPeriod ? $savedPeriod['earning_total'] : '0.00',
+				'period_deduction_total' => $savedPeriod ? $savedPeriod['deduction_total'] : '0.00',
+				'period_net_total' => $savedPeriod ? $savedPeriod['net_total'] : '0.00',
+			));
+		}
 		Utils::showMsg('工资表已保存', $backUrl);
+	}
+
+	public function savepayrollprojectorderAction()
+	{
+		$this->checkFeature('payroll');
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+		$periodId = intval($this->request->getPost('id'));
+		$direction = trim($this->request->getPost('direction'));
+		$projectIds = $this->request->getPost('project_ids');
+		$model = PayrollEmployeeRowModel::factory();
+		if (!$model->savePayrollProjectOrder($this->companyId, $periodId, $direction, $projectIds)) {
+			$this->sendErrorResult($model->getLastError());
+		}
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$this->addSalaryLog(
+			'payroll_project_order_save',
+			'payroll_period',
+			$periodId,
+			$period ? $period['payroll_month'] : '',
+			'调整当前月工资核算表项目顺序'
+		);
+		$this->sendSuccessResult(array('message' => '当前月项目顺序已保存'));
+	}
+
+	public function deletepayrollemployeeAction()
+	{
+		$this->checkFeature('payroll');
+		$periodId = intval($this->request->getPost('id'));
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period ? $period['payroll_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			$this->respondSalaryDeleteError('不支持的请求方式', $backUrl);
+		}
+		$model = PayrollPeriodModel::factory();
+		if (!$model->deletePayrollEmployee($this->companyId, $periodId, $employeeId)) {
+			$this->respondSalaryDeleteError($model->getLastError(), $backUrl);
+		}
+		$this->addSalaryLog('payroll_employee_delete', 'payroll_period', $periodId, $period ? $period['payroll_month'] : '', '从工资核算表删除员工，员工ID：' . $employeeId);
+		$savedPeriod = $model->getCompanyPeriod($this->companyId, $periodId);
+		$this->respondSalaryDeleteSuccess('员工已从当前工资核算表删除，不影响初始工资表和人事档案', $backUrl, array(
+			'employee_id' => $employeeId,
+			'employee_count' => $savedPeriod ? intval($savedPeriod['employee_count']) : 0,
+			'period_earning_total' => $savedPeriod ? $savedPeriod['earning_total'] : '0.00',
+			'period_deduction_total' => $savedPeriod ? $savedPeriod['deduction_total'] : '0.00',
+			'period_net_total' => $savedPeriod ? $savedPeriod['net_total'] : '0.00',
+		));
+	}
+
+	public function exportpayrollAction()
+	{
+		$this->checkFeature('payroll');
+		$periodId = intval($this->request->get('id'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period ? $period['payroll_month'] : date('Y-m')));
+		if (!$period) {
+			Utils::showMsg('工资表不存在', $backUrl);
+		}
+		if (!$this->canExportSalaryData()) {
+			Utils::showMsg('当前账号没有薪酬数据导出权限', $backUrl);
+		}
+		$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($this->companyId, $periodId);
+		$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, $periodId);
+		$this->addSalaryLog('payroll_export', 'payroll_period', $periodId, $period['payroll_month'], '导出工资核算表，人数' . count($rows));
+		$this->outputPayrollExport($period, $projects, $rows);
 	}
 
 	public function payrolltemplateAction()
@@ -839,6 +1251,81 @@ class SalaryController extends FrontendBaseController
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
+	}
+
+	public function payrolldatatemplateAction()
+	{
+		$this->checkFeature('payroll');
+		$periodId = intval($this->request->get('id'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period ? $period['payroll_month'] : date('Y-m')));
+		if (!$period) {
+			Utils::showMsg('工资核算表不存在', $backUrl);
+		}
+		if (!$this->canExportSalaryData()) {
+			Utils::showMsg('当前账号没有下载员工数据模板的权限', $backUrl);
+		}
+		$projects = SalaryPayrollImportModel::getImportableDataProjects(
+			PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($this->companyId, $periodId)
+		);
+		if (empty($projects)) {
+			Utils::showMsg('当前工资核算表没有可导入的数据类项目', $backUrl);
+		}
+		$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, $periodId);
+		$this->addSalaryLog('payroll_data_template_download', 'payroll_period', $periodId, $period['payroll_month'], '下载工资核算数据导入模板，人数' . count($rows));
+		$this->outputPayrollDataTemplate($period, $projects, $rows);
+	}
+
+	public function uploadpayrolldataAction()
+	{
+		$this->checkFeature('payroll');
+		$periodId = intval($this->request->getPost('id'));
+		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);
+		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period ? $period['payroll_month'] : date('Y-m')));
+		if (!$this->request->isPost()) {
+			$this->sendJson(array('status' => 'n', 'error' => '不支持的请求方式', 'data' => array('errors' => array())));
+		}
+		if (!$period) {
+			$this->sendJson(array('status' => 'n', 'error' => '工资核算表不存在', 'data' => array('errors' => array())));
+		}
+		if (!PayrollPeriodModel::canEdit($period['status'])) {
+			$this->sendJson(array('status' => 'n', 'error' => '当前工资核算表不能导入数据', 'data' => array('errors' => array())));
+		}
+		if (empty($_FILES['payroll_data_file']['name'])) {
+			$this->sendJson(array('status' => 'n', 'error' => '请先选择数据Excel文件', 'data' => array('errors' => array())));
+		}
+		$extname = strtolower(pathinfo($_FILES['payroll_data_file']['name'], PATHINFO_EXTENSION));
+		if (!in_array($extname, array('xls', 'xlsx'))) {
+			$this->sendJson(array('status' => 'n', 'error' => '请上传xls或xlsx格式的Excel文件', 'data' => array('errors' => array())));
+		}
+		$file = $this->savePayrollUpload('payroll_data_file', $extname);
+		if (!$file) {
+			$this->sendJson(array('status' => 'n', 'error' => '文件上传失败，请重新上传', 'data' => array('errors' => array())));
+		}
+		$fullPath = WEBROOT . $file;
+		$model = SalaryPayrollImportModel::factory();
+		$result = $model->importPayrollDataFromExcel($this->companyId, $periodId, $fullPath, $this->getOperatorId());
+		$errors = $model->getLastErrors();
+		if (file_exists($fullPath)) {
+			@unlink($fullPath);
+		}
+		if (!$result) {
+			$message = '工资核算数据导入失败';
+			if (!empty($errors) && !empty($errors[0]['reason'])) {
+				$message = $errors[0]['reason'];
+			}
+			$this->sendJson(array('status' => 'n', 'error' => $message, 'data' => array('errors' => $errors)));
+		}
+		$result['errors'] = $errors;
+		$result['reload_url'] = $backUrl;
+		$this->addSalaryLog(
+			'payroll_data_import',
+			'payroll_period',
+			$periodId,
+			$period['payroll_month'],
+			'导入工资核算数据，员工' . intval($result['employee_count']) . '人，更新' . intval($result['updated_cell_count']) . '个单元格，异常' . count($errors) . '条'
+		);
+		$this->sendSuccessResult($result);
 	}
 
 	public function uploadpayrollAction()
@@ -980,7 +1467,7 @@ class SalaryController extends FrontendBaseController
 				Utils::showMsg('归档记录不存在', Helper::factory()->createUrl(array('p' => 'salary/archive')));
 			}
 		} elseif (!PayrollPeriodModel::canPublishPayslip($period['status'])) {
-			Utils::showMsg('只有审核通过或已归档的工资表可以发工资条', $backUrl);
+			Utils::showMsg('请先归档工资表，再从归档记录发工资条', $backUrl);
 		}
 
 		$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, $periodId);
@@ -1062,7 +1549,7 @@ class SalaryController extends FrontendBaseController
 		}
 		$backUrl = Helper::factory()->createUrl(array('p' => 'salary/payroll', 'payroll_month' => $period['payroll_month']));
 		if (!PayrollPeriodModel::canArchive($period['status'])) {
-			Utils::showMsg('只有审核通过的工资表可以归档', $backUrl);
+			Utils::showMsg('当前工资表状态不能归档', $backUrl);
 		}
 		$archiveId = PayrollArchiveModel::factory()->createFromPeriod($this->companyId, $periodId, $this->getOperatorId());
 		if (!$archiveId) {
@@ -1087,6 +1574,27 @@ class SalaryController extends FrontendBaseController
 		$periods = $this->appendPayslipConfirmStats($periods, 'payroll_period_id');
 		$this->view->setVar('periods', $periods);
 		$this->view->setVar('canSendPayslip', $this->isSalaryFeatureEnabled('payslip'));
+	}
+
+	public function archiveviewAction()
+	{
+		$this->checkFeature('payroll');
+		$archiveId = intval($this->request->get('id'));
+		$model = PayrollArchiveModel::factory();
+		$snapshot = $model->getArchiveSnapshot($this->companyId, $archiveId);
+		if (!$snapshot) {
+			Utils::showMsg($model->getLastError(), Helper::factory()->createUrl(array('p' => 'salary/archive')));
+		}
+		$displayProjects = EmployeeSalaryStructureModel::factory()->buildSalaryTableDisplayProjects($snapshot['projects']);
+		$rows = $snapshot['rows'];
+		foreach ($rows as $key => $row) {
+			$rows[$key]['values']['summary_earning_total'] = sprintf('%.2f', floatval($row['earning_total']));
+			$rows[$key]['values']['summary_deduction_total'] = sprintf('%.2f', floatval($row['deduction_total']));
+			$rows[$key]['values']['summary_net_total'] = sprintf('%.2f', floatval($row['net_amount']));
+		}
+		$this->view->setVar('archiveItem', $snapshot['archive']);
+		$this->view->setVar('archiveDisplayProjects', $displayProjects);
+		$this->view->setVar('archiveRows', $rows);
 	}
 
 	public function restorearchiveAction()
@@ -1125,7 +1633,7 @@ class SalaryController extends FrontendBaseController
 				'name' => '钉钉',
 				'status' => '已接通旧系统同步',
 				'desc' => '继续使用原有考核系统的钉钉组织和员工同步能力。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/async')),
+				'url' => $this->getHelper()->createUrl(array('p' => 'department/async', 'from' => 'salary')),
 				'action' => '进入同步',
 			),
 			'wecom' => array(
@@ -1139,15 +1647,17 @@ class SalaryController extends FrontendBaseController
 				'name' => '飞书',
 				'status' => '预留',
 				'desc' => '飞书接口尚未接入，当前先保留企业平台选项和后续接入口。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/index')),
-				'action' => '去部门管理',
+				'url' => '',
+				'action' => '',
 			),
 			'manual' => array(
 				'name' => '手工/Excel',
 				'status' => '可用',
 				'desc' => '适合暂未接入第三方通讯平台的企业，员工资料通过后台导入或维护。',
-				'url' => $this->getHelper()->createUrl(array('p' => 'department/index')),
-				'action' => '去部门管理',
+				'url' => '',
+				'action' => '',
+				'upload_url' => $this->getHelper()->createUrl(array('p' => 'department/uploadexcel', 'from' => 'salary')),
+				'template_url' => $this->getHelper()->createUrl(array('p' => 'department/exportexceltpl')),
 			),
 		);
 
@@ -1156,6 +1666,151 @@ class SalaryController extends FrontendBaseController
 		$this->view->setVar('platformName', isset($platformOptions[$platform]) ? $platformOptions[$platform] : $platform);
 		$this->view->setVar('syncItems', $syncItems);
 		$this->view->setVar('userItems', $this->getCompanyUsers());
+		$this->view->setVar('departmentItems', $this->getSalaryEmployeeDepartments());
+	}
+
+	public function employeesaveAction()
+	{
+		$this->checkModule();
+		$this->requireSalaryEmployeeManager();
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$userInfo = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and id=' . $employeeId);
+		if (!$userInfo) {
+			$this->sendErrorResult('员工不存在或不属于当前企业');
+		}
+
+		$name = trim($this->request->getPost('name'));
+		$mobile = trim($this->request->getPost('mobile'));
+		$positionName = trim($this->request->getPost('position_name'));
+		$departmentId = intval($this->request->getPost('department_id'));
+		if ($name == '') {
+			$this->sendErrorResult('员工姓名不能为空');
+		}
+		if (function_exists('mb_strlen') && mb_strlen($name, 'UTF-8') > 80) {
+			$this->sendErrorResult('员工姓名不能超过80个字符');
+		}
+		if ($mobile != '' && !preg_match('/^\d{6,20}$/', $mobile)) {
+			$this->sendErrorResult('手机号应为6至20位数字');
+		}
+		if (function_exists('mb_strlen') && mb_strlen($positionName, 'UTF-8') > 100) {
+			$this->sendErrorResult('岗位不能超过100个字符');
+		}
+
+		$departmentMap = $this->getSalaryEmployeeDepartmentMap();
+		if ($departmentId > 0 && !isset($departmentMap[$departmentId])) {
+			$this->sendErrorResult('所选部门不存在或不属于当前企业');
+		}
+
+		$userTable = CompanyUserModel::factory()->getSource();
+		$employeeDepartmentModel = SalaryEmployeeDepartmentModel::factory();
+		$mobileColumn = $employeeDepartmentModel->getEmployeeMobileColumn($userTable);
+		$positionColumn = $employeeDepartmentModel->getEmployeePositionColumn($userTable);
+		if ($mobileColumn != '' && $mobile != '') {
+			$duplicate = $this->getDI()->get('db')->query(
+				'select id from `' . $userTable . '` where company_id=' . intval($this->companyId) .
+				' and id<>' . $employeeId .
+				' and `' . $mobileColumn . '`="' . addslashes($mobile) . '" limit 1'
+			)->fetch();
+			if ($duplicate) {
+				$this->sendErrorResult('该手机号已被其他员工使用');
+			}
+		}
+
+		$saveData = array(
+			'name' => $name,
+			'department_id' => $departmentId,
+		);
+		if ($mobileColumn != '') {
+			$saveData[$mobileColumn] = $mobile;
+		}
+		if ($positionColumn != '') {
+			$saveData[$positionColumn] = $positionName;
+		}
+		if (!$userInfo->save($saveData)) {
+			$this->sendErrorResult('员工信息保存失败，请稍后重试');
+		}
+
+		$departmentName = $departmentId > 0 && isset($departmentMap[$departmentId])
+			? $departmentMap[$departmentId]['name']
+			: '-';
+		$this->addSalaryLog('salary_employee_save', 'company_user', $employeeId, '', '编辑员工信息：' . $name);
+		$this->sendSuccessResult(array(
+			'message' => '员工信息已保存',
+			'employee' => array(
+				'id' => $employeeId,
+				'name' => $name,
+				'mobile' => $mobile,
+				'department_id' => $departmentId,
+				'department_name' => $departmentName,
+				'position_name' => $positionName,
+			),
+		));
+	}
+
+	public function employeedeleteAction()
+	{
+		$this->checkModule();
+		$this->requireSalaryEmployeeManager();
+		if (!$this->request->isPost()) {
+			$this->sendErrorResult('不支持的请求方式');
+		}
+
+		$employeeId = intval($this->request->getPost('employee_id'));
+		$userInfo = CompanyUserModel::findFirst('company_id=' . intval($this->companyId) . ' and id=' . $employeeId);
+		if (!$userInfo) {
+			$this->sendErrorResult('员工不存在或已经删除');
+		}
+		if (intval($userInfo->is_admin) == 1) {
+			$this->sendErrorResult('企业管理员不能删除');
+		}
+		if ($employeeId == $this->getSalaryRoleUserId()) {
+			$this->sendErrorResult('不能删除当前登录员工');
+		}
+		if (intval($userInfo->addreport) == 1) {
+			$this->sendErrorResult('该员工正在使用绩效考核，不能在薪酬页面直接删除');
+		}
+
+		$employeeName = $userInfo->name;
+		$db = $this->getDI()->get('db');
+		$db->begin();
+		try {
+			SalaryViewRoleModel::factory()->deleteBySql(
+				'company_id=' . intval($this->companyId) .
+				' and (user_id=' . $employeeId .
+				' or (scope_type="employee" and target_id=' . $employeeId . '))'
+			);
+			$db->execute(
+				'delete from `' . SalaryPayrollAuditModel::factory()->getRoleTable() . '`' .
+				' where company_id=' . intval($this->companyId) . ' and reviewer_id=' . $employeeId
+			);
+			$platformIdentityTable = PlatformUserIdentityModel::factory()->getSource();
+			if ($this->tableExists($platformIdentityTable)) {
+				$db->execute(
+					'delete from `' . $platformIdentityTable . '` where company_id=' .
+					intval($this->companyId) . ' and company_user_id=' . $employeeId
+				);
+			}
+			if (!$db->execute(
+				'delete from `' . CompanyUserModel::factory()->getSource() . '` where company_id=' .
+				intval($this->companyId) . ' and id=' . $employeeId
+			)) {
+				throw new \Exception('员工删除失败');
+			}
+			$db->commit();
+		} catch (\Exception $exception) {
+			$db->rollback();
+			$this->sendErrorResult('员工删除失败，请稍后重试');
+		}
+
+		$this->addSalaryLog('salary_employee_delete', 'company_user', $employeeId, '', '删除员工：' . $employeeName . '；历史薪酬记录保留');
+		$this->sendSuccessResult(array(
+			'message' => '员工已删除，历史薪酬记录仍然保留',
+			'employee_id' => $employeeId,
+		));
 	}
 
 	public function authAction()
@@ -1249,6 +1904,79 @@ class SalaryController extends FrontendBaseController
 	protected function isSalaryAjaxRequest()
 	{
 		return $this->request->isAjax() || intval($this->request->getPost('salary_ajax')) == 1;
+	}
+
+	/**
+	 * Build editor data while keeping each company's projects isolated.
+	 */
+	protected function getSalaryProjectEditorData($projectId, $templateId)
+	{
+		$projectId = intval($projectId);
+		$templateId = intval($templateId);
+		$projectModel = SalaryProjectModel::factory();
+		$project = false;
+		if ($projectId > 0) {
+			$project = $projectModel->findFirst('id=' . $projectId . ' and company_id=' . intval($this->companyId) . ' and deleted_at=0');
+		} elseif ($templateId > 0) {
+			$project = $projectModel->findFirst('company_id=' . intval($this->companyId) . ' and template_id=' . $templateId . ' and deleted_at=0');
+			if (!$project) {
+				$template = SalaryProjectTemplateModel::factory()->findFirst('id=' . $templateId . ' and status="active"');
+				if (!$template) {
+					return false;
+				}
+				$templateData = $template->toArray();
+				$project = array(
+					'id' => 0,
+					'template_id' => $templateId,
+					'name' => $templateData['name'],
+					'source_type' => SalaryProjectModel::normalizeSourceType($templateData['source_type']),
+					'direction' => SalaryProjectModel::normalizeDirection($templateData['direction']),
+					'calculation_mode' => $templateData['calculation_mode'],
+					'linked_module' => $templateData['linked_module'],
+					'formula_text' => '',
+					'default_number' => '0.00',
+					'default_text' => '',
+					'include_earning' => intval($templateData['include_earning']),
+					'include_deduction' => intval($templateData['include_deduction']),
+					'include_net' => intval($templateData['include_net']),
+					'sort_order' => intval($templateData['sort_order']),
+					'status' => 'inactive',
+					'deleted_at' => 0,
+				);
+			}
+		}
+		if (!$project) {
+			return false;
+		}
+
+		$projectData = is_array($project) ? $project : $project->toArray();
+		$formattedProjects = $projectModel->formatProjectItems(array($projectData));
+		$formulaProjects = $this->getSalaryFormulaReferenceProjects(intval($projectData['id']));
+		return array('project' => $formattedProjects[0], 'formula_projects' => $formulaProjects);
+	}
+
+	/**
+	 * Formula editors may reference every enabled company project except themselves
+	 * and the three system summary totals, which are calculated after all items.
+	 */
+	protected function getSalaryFormulaReferenceProjects($excludeProjectId = 0, $companyProjects = null)
+	{
+		if ($companyProjects === null) {
+			$companyProjects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
+		}
+		$excludeProjectId = intval($excludeProjectId);
+		$summaryNames = array('应发总额' => 1, '应扣总额' => 1, '实发总额' => 1);
+		$formulaProjects = array();
+		foreach ($companyProjects as $project) {
+			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0 || intval($project['id']) == $excludeProjectId) {
+				continue;
+			}
+			if (isset($summaryNames[$project['name']])) {
+				continue;
+			}
+			$formulaProjects[] = array('id' => intval($project['id']), 'name' => $project['name']);
+		}
+		return $formulaProjects;
 	}
 
 	protected function respondSalaryDeleteError($message, $backUrl)
@@ -1406,6 +2134,146 @@ class SalaryController extends FrontendBaseController
 		header("Content-Transfer-Encoding: binary");
 		header("Pragma: public");
 		header("Cache-Control:max-age=0");
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
+	}
+
+	protected function outputPayrollExport($period, $projects, $rows)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('工资核算表');
+		$displayProjects = EmployeeSalaryStructureModel::factory()->buildSalaryTableDisplayProjects($projects);
+		$headers = array('员工姓名', '手机号', '部门', '岗位');
+		foreach ($displayProjects as $project) {
+			$headers[] = $project['name'];
+		}
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueByColumnAndRow($index, 1, $header);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 4 ? 16 : 14);
+		}
+		$rowNumber = 2;
+		foreach ($rows as $row) {
+			$sheet->setCellValueByColumnAndRow(0, $rowNumber, $row['employee_name']);
+			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueByColumnAndRow(2, $rowNumber, $row['department_name']);
+			$sheet->setCellValueByColumnAndRow(3, $rowNumber, $row['position_name']);
+			$summaryValues = array(
+				'summary_earning_total' => $row['earning_total'],
+				'summary_deduction_total' => $row['deduction_total'],
+				'summary_net_total' => $row['net_amount'],
+			);
+			foreach ($displayProjects as $projectIndex => $project) {
+				$valueKey = $project['value_key'];
+				if (!empty($project['is_summary_project'])) {
+					$value = isset($summaryValues[$valueKey]) ? $summaryValues[$valueKey] : '0.00';
+				} else {
+					$value = isset($row['values'][intval($project['id'])]) ? $row['values'][intval($project['id'])] : (empty($project['is_text_project']) ? '0.00' : '');
+				}
+				$sheet->setCellValueByColumnAndRow(4 + $projectIndex, $rowNumber, $value);
+			}
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('A2');
+
+		ob_clean();
+		header('Content-Description: File Transfer');
+		header('Content-type:application/vnd.ms-excel; charset=utf-8');
+		header('Content-Disposition:attachment;filename=salary_payroll_' . str_replace('-', '', $period['payroll_month']) . '.xls');
+		header('Content-Transfer-Encoding: binary');
+		header('Pragma: public');
+		header('Cache-Control:max-age=0');
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
+	}
+
+	protected function outputPayrollDataTemplate($period, $projects, $rows)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('工资核算数据导入');
+		$headers = array('手机号', '姓名');
+		foreach ($projects as $project) {
+			$headers[] = $project['name'];
+		}
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueExplicitByColumnAndRow($index, 1, $header, \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 2 ? 16 : 14);
+		}
+		$rowNumber = 2;
+		foreach ($rows as $row) {
+			$sheet->setCellValueExplicitByColumnAndRow(0, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_name'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('C2');
+
+		ob_clean();
+		header('Content-Description: File Transfer');
+		header('Content-type:application/vnd.ms-excel; charset=utf-8');
+		header('Content-Disposition:attachment;filename=salary_payroll_data_' . str_replace('-', '', $period['payroll_month']) . '.xls');
+		header('Content-Transfer-Encoding: binary');
+		header('Pragma: public');
+		header('Cache-Control:max-age=0');
+		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer->save('php://output');
+		error_reporting($oldReporting);
+		exit();
+	}
+
+	protected function outputCommissionDataTemplate($period, $projects, $rows)
+	{
+		$oldReporting = error_reporting();
+		error_reporting($oldReporting & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
+		$objPHPExcel = \Phalcon\Di\FactoryDefault::getDefault()->get('phpexcel');
+		$sheet = $objPHPExcel->setActiveSheetIndex(0);
+		$sheet->setTitle('提成核算数据导入');
+		$headers = array('姓名', '手机号');
+		foreach ($projects as $project) {
+			$headers[] = $project['name'];
+		}
+		foreach ($headers as $index => $header) {
+			$sheet->setCellValueExplicitByColumnAndRow($index, 1, $header, \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 2 ? 16 : 18);
+		}
+		$rowNumber = 2;
+		foreach ($rows as $row) {
+			$sheet->setCellValueExplicitByColumnAndRow(0, $rowNumber, $row['employee_name'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$rowNumber++;
+		}
+		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastRow = max(2, $rowNumber - 1);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->freezePane('C2');
+
+		ob_clean();
+		header('Content-Description: File Transfer');
+		header('Content-type:application/vnd.ms-excel; charset=utf-8');
+		header('Content-Disposition:attachment;filename=commission_data_' . str_replace('-', '', $period['commission_month']) . '.xls');
+		header('Content-Transfer-Encoding: binary');
+		header('Pragma: public');
+		header('Cache-Control:max-age=0');
 		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
@@ -1682,18 +2550,16 @@ class SalaryController extends FrontendBaseController
 		$authMap = $this->checkModule();
 		$items = array(
 			array('code' => 'project', 'name' => '工资项目设置', 'url' => 'salary/project', 'desc' => '选择平台通用工资项目，维护企业自定义工资项目。'),
-			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '导入或核算工资表，提交审核，审核通过后发工资条并归档。'),
+			array('code' => 'payroll', 'name' => '工资表核算', 'url' => 'salary/payroll', 'desc' => '生成并核算月份工资表，可导出Excel复核，完成后直接归档。'),
 			array('code' => 'payslip', 'name' => '工资条发放', 'url' => 'salary/payslip', 'desc' => '查看工资条发放记录、员工查看确认进度和未确认记录。'),
 			array('code' => 'archive', 'name' => '工资表归档记录', 'url' => 'salary/archive', 'desc' => '查看已归档工资表，可按归档数据发工资条或恢复重新核算。'),
-			array('code' => 'report', 'name' => '薪酬统计报表', 'url' => 'salary/report', 'desc' => '按月份、部门、员工查询薪酬汇总和明细，按授权范围控制查看和导出。'),
-			array('code' => 'log', 'name' => '薪酬操作日志', 'url' => 'salary/log', 'desc' => '记录工资项目、核算、审核、发放、归档、恢复和授权等关键操作。'),
 			array('code' => 'commission', 'name' => '提成核算', 'url' => 'salary/commission', 'desc' => '设置提成项目与适用范围，后续按项目规则完成月度提成核算。'),
 			array('code' => 'performance_salary', 'name' => '绩效工资核算', 'url' => 'salary/performance', 'desc' => '预留绩效结果联动工资核算入口。'),
 		);
 		foreach ($items as $key => $item) {
-			if ($item['code'] == 'project' || $item['code'] == 'log') {
+			if ($item['code'] == 'project') {
 				$items[$key]['enabled'] = 1;
-			} elseif ($item['code'] == 'archive' || $item['code'] == 'report') {
+			} elseif ($item['code'] == 'archive') {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', 'payroll') ? 1 : 0;
 			} else {
 				$items[$key]['enabled'] = CompanyModuleAuthModel::isEnabled($authMap, 'salary', $item['code']) ? 1 : 0;
@@ -1827,11 +2693,62 @@ class SalaryController extends FrontendBaseController
 	protected function getCompanyUsers()
 	{
 		$userTable = CompanyUserModel::factory()->getSource();
-		$departmentSql = SalaryEmployeeDepartmentModel::factory()->getDepartmentSql($this->companyId, 'u');
-		$sql = 'select u.id,u.name,u.department_id,u.is_admin,u.is_leader,' . $departmentSql['select'] . ' as departmentname ' .
+		$employeeDepartmentModel = SalaryEmployeeDepartmentModel::factory();
+		$departmentSql = $employeeDepartmentModel->getDepartmentSql($this->companyId, 'u');
+		$mobileColumn = $employeeDepartmentModel->getEmployeeMobileColumn($userTable);
+		$positionColumn = $employeeDepartmentModel->getEmployeePositionColumn($userTable);
+		$mobileSelect = $mobileColumn ? 'u.`' . $mobileColumn . '`' : '""';
+		$positionSelect = $positionColumn ? 'u.`' . $positionColumn . '`' : '""';
+		$sql = 'select u.id,u.name,u.department_id,u.is_admin,u.is_leader,' .
+			$mobileSelect . ' as mobile,' . $positionSelect . ' as position_name,' .
+			$departmentSql['select'] . ' as departmentname ' .
 			'from `' . $userTable . '` u ' .
 			$departmentSql['join'] .
-			'where u.company_id=' . intval($this->companyId) . ' order by u.id asc';
+			'where u.company_id=' . intval($this->companyId) . ' order by departmentname asc,u.id asc';
 		return $this->getDI()->get('db')->query($sql)->fetchAll();
+	}
+
+	protected function getSalaryEmployeeDepartments()
+	{
+		return array_values($this->getSalaryEmployeeDepartmentMap());
+	}
+
+	protected function getSalaryEmployeeDepartmentMap()
+	{
+		$return = array();
+		$platform = SalaryEmployeeDepartmentModel::factory()->getCompanyPlatform($this->companyId);
+		$items = DepartmentModel::find(array(
+			'conditions' => 'company_id=' . intval($this->companyId),
+			'order' => 'id asc',
+		));
+		foreach ($items as $item) {
+			$value = $platform == 'dingding' ? intval($item->dingding_id) : intval($item->id);
+			if ($value <= 0) {
+				$value = intval($item->id);
+			}
+			$return[$value] = array(
+				'value' => $value,
+				'name' => $item->name,
+			);
+		}
+		return $return;
+	}
+
+	protected function requireSalaryEmployeeManager()
+	{
+		$user = Helper::factory()->getSession()->get('_user');
+		if (empty($user->is_admin)) {
+			$this->sendErrorResult('只有企业管理员可以编辑或删除员工');
+		}
+		return true;
+	}
+
+	protected function tableExists($tableName)
+	{
+		$item = $this->getDI()->get('db')->query(
+			'select count(*) as num from information_schema.tables where table_schema=database()' .
+			' and table_name="' . addslashes($tableName) . '"'
+		)->fetch();
+		return $item && intval($item['num']) > 0;
 	}
 }

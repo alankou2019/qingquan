@@ -32,6 +32,8 @@ class EmployeeSalaryStructureModel extends BaseModel
 		$values = $this->getInitialValueMap($companyId);
 		foreach ($employees as $key => $employee) {
 			$rowValues = array();
+			$nameAmountMap = array();
+			$formulaProjects = array();
 			$earningTotal = 0;
 			$deductionTotal = 0;
 			foreach ($projects as $project) {
@@ -39,21 +41,36 @@ class EmployeeSalaryStructureModel extends BaseModel
 					continue;
 				}
 				$projectId = intval($project['id']);
+				if (SalaryProjectModel::isFormulaProject($project)) {
+					$formulaProjects[] = $project;
+					continue;
+				}
 				if (isset($values[intval($employee['id'])][$projectId])) {
 					$rowValues[$projectId] = $values[intval($employee['id'])][$projectId];
 				} elseif (SalaryProjectModel::isTextProject($project)) {
 					$rowValues[$projectId] = isset($project['default_text']) ? $project['default_text'] : '';
-				} elseif (SalaryProjectModel::isFormulaProject($project)) {
-					$rowValues[$projectId] = '0.00';
 				} else {
 					$rowValues[$projectId] = isset($project['default_number']) ? sprintf('%.2f', floatval($project['default_number'])) : '0.00';
 				}
 				if (!SalaryProjectModel::isTextProject($project)) {
-					if ($project['direction'] == 'earning') {
+					$nameAmountMap[$project['name']] = $this->formatMoney($rowValues[$projectId]);
+					if (intval($project['include_earning'])) {
 						$earningTotal += floatval($rowValues[$projectId]);
-					} elseif ($project['direction'] == 'deduction') {
+					}
+					if (intval($project['include_deduction'])) {
 						$deductionTotal += floatval($rowValues[$projectId]);
 					}
+				}
+			}
+			foreach ($formulaProjects as $project) {
+				$projectId = intval($project['id']);
+				$rowValues[$projectId] = $this->calculateFormulaAmount($project['formula_text'], $nameAmountMap);
+				$nameAmountMap[$project['name']] = $rowValues[$projectId];
+				if (intval($project['include_earning'])) {
+					$earningTotal += floatval($rowValues[$projectId]);
+				}
+				if (intval($project['include_deduction'])) {
+					$deductionTotal += floatval($rowValues[$projectId]);
 				}
 			}
 			$rowValues['summary_earning_total'] = $this->formatMoney($earningTotal);
@@ -63,6 +80,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 		}
 		return array(
 			'projects' => $this->buildInitialDisplayProjects($projects),
+			'payroll_projects' => $projects,
 			'employees' => $employees,
 			'excluded_employees' => $this->getExcludedInitialSalaryEmployees($companyId),
 		);
@@ -286,11 +304,12 @@ class EmployeeSalaryStructureModel extends BaseModel
 
 	protected function buildInitialDisplayProjects($projects)
 	{
-		$groups = array('earning' => array(), 'deduction' => array(), 'statistic' => array(), 'data' => array(), 'note' => array(), 'other' => array());
+		$groups = array('earning' => array(), 'deduction' => array(), 'data' => array(), 'note' => array(), 'other' => array());
 		foreach ($projects as $project) {
 			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
 				continue;
 			}
+			$project['direction'] = SalaryProjectModel::normalizeDirection($project['direction']);
 			$group = isset($groups[$project['direction']]) ? $project['direction'] : 'other';
 			$project['initial_group'] = $group;
 			$project['value_key'] = intval($project['id']);
@@ -302,7 +321,12 @@ class EmployeeSalaryStructureModel extends BaseModel
 		$return[] = $this->buildSummaryProject('summary_deduction_total', '应扣总额');
 		$return = array_merge($return, $groups['deduction']);
 		$return[] = $this->buildSummaryProject('summary_net_total', '实发总额');
-		return array_merge($return, $groups['statistic'], $groups['data'], $groups['note'], $groups['other']);
+		return array_merge($return, $groups['data'], $groups['note'], $groups['other']);
+	}
+
+	public function buildSalaryTableDisplayProjects($projects)
+	{
+		return $this->buildInitialDisplayProjects($projects);
 	}
 
 	protected function buildSummaryProject($key, $name)

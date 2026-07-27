@@ -352,6 +352,18 @@ class CommissionPeriodModel extends BaseModel
 		if ($type == 'all') {
 			return true;
 		}
+		if ($type == 'multi') {
+			$config = isset($project['scope_config_items']) && is_array($project['scope_config_items']) ? $project['scope_config_items'] : json_decode(isset($project['scope_config']) ? $project['scope_config'] : '', true);
+			if (!is_array($config)) { return false; }
+			$employeeId = intval(isset($employee['id']) ? $employee['id'] : 0);
+			foreach (isset($config['employees']) ? $config['employees'] : array() as $item) { if (intval(isset($item['id']) ? $item['id'] : 0) == $employeeId) { return true; } }
+			$departmentId = trim(isset($employee['department_id']) ? $employee['department_id'] : '');
+			$departmentName = trim(isset($employee['department_name']) ? $employee['department_name'] : '');
+			foreach (isset($config['departments']) ? $config['departments'] : array() as $item) { if (($departmentId !== '' && $departmentId == (string)$item['id']) || ($departmentName !== '' && $departmentName == $item['label'])) { return true; } }
+			$positionName = trim(isset($employee['position_name']) ? $employee['position_name'] : '');
+			foreach (isset($config['positions']) ? $config['positions'] : array() as $item) { if ($positionName !== '' && ($positionName == $item['value'] || $positionName == $item['label'])) { return true; } }
+			return false;
+		}
 		if ($type == 'employee') {
 			return intval($value) == intval($employee['id']);
 		}

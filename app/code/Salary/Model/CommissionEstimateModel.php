@@ -57,18 +57,28 @@ class CommissionEstimateModel extends BaseModel
 		foreach ($projects as $project) {
 			$projectId = intval($project['id']);
 			$values = isset($inputValues[$projectId]) && is_array($inputValues[$projectId]) ? $inputValues[$projectId] : array();
+			$enabled = !isset($values['enabled']) || intval($values['enabled']) == 1;
+			$tierEditorItems = isset($project['tier_items']) ? $project['tier_items'] : array();
+			while (count($tierEditorItems) < 3) {
+				$tierEditorItems[] = array('min' => '', 'max' => '', 'rate' => '');
+			}
 			$row = array(
 				'project_id' => $projectId,
 				'project_name' => $project['name'],
 				'metric_name' => $project['metric_name'],
+				'commission_mode' => $project['commission_mode'],
 				'mode_label' => $project['mode_label'],
+				'rate_type' => isset($project['rate_type']) ? $project['rate_type'] : 'percent',
+				'rate_value' => isset($project['rate_value']) ? $project['rate_value'] : '0',
+				'tier_editor_items' => $tierEditorItems,
+				'enabled' => $enabled ? 1 : 0,
 				'position_name' => isset($employee['position_name']) && $employee['position_name'] !== '' ? $employee['position_name'] : '未设置',
 				'rule_summary' => $project['rule_summary'],
 				'rule_snapshot' => $projectModel->buildRuleSnapshot($project),
 			);
 			foreach ($levels as $level) {
 				$value = isset($values[$level]) ? $this->money($values[$level]) : '0.00';
-				$amount = $projectModel->calculateAmount($project, $value);
+				$amount = $enabled ? $projectModel->calculateAmount($project, $value) : '0.00';
 				$row[$level . '_value'] = $value;
 				$row[$level . '_amount'] = $amount;
 				$totals[$level] += floatval($amount);

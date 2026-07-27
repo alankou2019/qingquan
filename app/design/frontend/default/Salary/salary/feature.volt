@@ -5,12 +5,8 @@
 .module_notice a{display:inline-block;background:#4560e6;color:#fff;padding:0 16px;line-height:30px;height:30px;text-decoration:none;margin-top:10px;}
 </style>
 <div class="full_box">
-	<div class="head_tab clear">
-		<ul>
-			<li class="on"><a href="#">{{featureName}}</a></li>
-			<li style="float:right;width:140px;border-left:1px solid #efefef;border-right:0;"><a href="{{helper.createUrl(['p':'salary/index'])}}">返回薪酬首页</a></li>
-		</ul>
-	</div>
+	{{ partial('salary_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a class="on" href="#">{{featureName}}</a></div>
 	<div class="module_feature">
 		<div class="module_notice">
 			<h3>{{featureName}}</h3>
