@@ -160,7 +160,7 @@
 				<div class="salary_project_editor_head"><span id="salary_project_editor_title">编辑工资项目</span><button class="salary_project_editor_close" type="button" onclick="closeSalaryProjectEditor();" title="关闭">&times;</button></div>
 				<div class="salary_project_editor_body">
 					<div id="salary_project_editor_error" class="salary_project_editor_error"></div>
-					<form id="salary_project_editor_form" class="salary_form" method="post" action="{{helper.createUrl(['p':'salary/projectsave'])}}" onsubmit="return saveSalaryProjectEditor(this);">
+					<form id="salary_project_editor_form" class="salary_form" method="post" action="{{helper.createUrl(['p':'salary/projectsave'])}}" onsubmit="if(typeof event!='undefined'&&event){event.preventDefault();}return saveSalaryProjectEditor(this);">
 						<input type="hidden" id="salary_project_editor_id" name="id" value="0" />
 						<input type="hidden" id="salary_project_editor_template_id" name="template_id" value="0" />
 						<input type="hidden" id="salary_project_editor_status" name="status" value="active" />

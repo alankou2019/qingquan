@@ -528,23 +528,12 @@ class SalaryController extends FrontendBaseController
 
 		$projects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
 		$companyProjectsForView = array();
-		$formulaProjects = array();
-		$editProjectId = $editItem ? intval($editItem->id) : 0;
 		foreach ($projects as $project) {
 			if (empty($project['template_id']) || $project['status'] == 'active') {
 				$companyProjectsForView[] = $project;
 			}
-			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0) {
-				continue;
-			}
-			if ($editProjectId > 0 && intval($project['id']) == $editProjectId) {
-				continue;
-			}
-			if (SalaryProjectModel::isTextProject($project)) {
-				continue;
-			}
-			$formulaProjects[] = $project;
 		}
+		$formulaProjects = $this->getSalaryFormulaReferenceProjects($editItem ? intval($editItem->id) : 0, $projects);
 
 		$this->view->setVar('templates', $templates);
 		$this->view->setVar('fixedProjects', SalaryProjectModel::getFixedSummaryProjects());
@@ -1830,18 +1819,32 @@ class SalaryController extends FrontendBaseController
 
 		$projectData = is_array($project) ? $project : $project->toArray();
 		$formattedProjects = $projectModel->formatProjectItems(array($projectData));
-		$companyProjects = $projectModel->getCompanyProjects($this->companyId);
-		$formulaProjects = array();
-		foreach ($companyProjects as $companyProject) {
-			if ($companyProject['status'] != 'active' || intval($companyProject['deleted_at']) > 0 || intval($companyProject['id']) == intval($projectData['id'])) {
-				continue;
-			}
-			if (SalaryProjectModel::isTextProject($companyProject)) {
-				continue;
-			}
-			$formulaProjects[] = array('id' => intval($companyProject['id']), 'name' => $companyProject['name']);
-		}
+		$formulaProjects = $this->getSalaryFormulaReferenceProjects(intval($projectData['id']));
 		return array('project' => $formattedProjects[0], 'formula_projects' => $formulaProjects);
+	}
+
+	/**
+	 * Formula editors may reference every enabled company project except themselves
+	 * and the three system summary totals, which are calculated after all items.
+	 */
+	protected function getSalaryFormulaReferenceProjects($excludeProjectId = 0, $companyProjects = null)
+	{
+		if ($companyProjects === null) {
+			$companyProjects = SalaryProjectModel::factory()->getCompanyProjects($this->companyId);
+		}
+		$excludeProjectId = intval($excludeProjectId);
+		$summaryNames = array('应发总额' => 1, '应扣总额' => 1, '实发总额' => 1);
+		$formulaProjects = array();
+		foreach ($companyProjects as $project) {
+			if ($project['status'] != 'active' || intval($project['deleted_at']) > 0 || intval($project['id']) == $excludeProjectId) {
+				continue;
+			}
+			if (isset($summaryNames[$project['name']])) {
+				continue;
+			}
+			$formulaProjects[] = array('id' => intval($project['id']), 'name' => $project['name']);
+		}
+		return $formulaProjects;
 	}
 
 	protected function respondSalaryDeleteError($message, $backUrl)
