@@ -19,9 +19,9 @@ if [[ ! -d "php-${version}" ]]; then
 fi
 
 cd "php-${version}"
-export PKG_CONFIG_PATH="${dependency_prefix}/lib/pkgconfig"
+export PKG_CONFIG_PATH="${dependency_prefix}/lib/pkgconfig:${dependency_prefix}/lib64/pkgconfig"
 export CPPFLAGS="-I${dependency_prefix}/include"
-export LDFLAGS="-L${dependency_prefix}/lib -Wl,-rpath,${dependency_prefix}/lib"
+export LDFLAGS="-L${dependency_prefix}/lib -L${dependency_prefix}/lib64 -Wl,-rpath,${dependency_prefix}/lib -Wl,-rpath,${dependency_prefix}/lib64"
 
 ./configure \
     --prefix="${prefix}" \

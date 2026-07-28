@@ -33,6 +33,7 @@ cd build
 export PKG_CONFIG_PATH="${prefix}/lib/pkgconfig"
 "${cmake_bin}" .. \
     -DCMAKE_INSTALL_PREFIX="${prefix}" \
+    -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_PREFIX_PATH="${prefix}" \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=ON \
@@ -46,4 +47,5 @@ export PKG_CONFIG_PATH="${prefix}/lib/pkgconfig"
 "${cmake_bin}" --build . -- -j2
 make install
 
-PKG_CONFIG_PATH="${prefix}/lib/pkgconfig" pkg-config --modversion libzip
+PKG_CONFIG_PATH="${prefix}/lib/pkgconfig:${prefix}/lib64/pkgconfig" \
+    pkg-config --modversion libzip
