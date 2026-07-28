@@ -49,6 +49,8 @@ export LDFLAGS="-L${dependency_prefix}/lib -L${dependency_prefix}/lib64 -Wl,-rpa
     --with-zip \
     --with-mysqli=mysqlnd \
     --with-pdo-mysql=mysqlnd \
+    --without-sqlite3 \
+    --without-pdo-sqlite \
     --enable-mbstring \
     --enable-bcmath \
     --enable-soap \
