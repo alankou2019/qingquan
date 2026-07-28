@@ -130,9 +130,12 @@ class Utils
             ["22" => "射手座"],
             ["22" => "摩羯座"],
         ];
-        list($sign_start, $sign_name) = each($signs[(int)$month - 1]);
+        $currentSign = $signs[(int)$month - 1];
+        $sign_start = key($currentSign);
+        $sign_name = current($currentSign);
         if ($day < $sign_start) {
-            list($sign_start, $sign_name) = each($signs[($month - 2 < 0) ? $month = 11 : $month -= 2]);
+            $previousSign = $signs[((int)$month + 10) % 12];
+            $sign_name = current($previousSign);
         }
         return $sign_name;
     }
@@ -477,12 +480,18 @@ class Utils
     {
         $key = Constants::DES_KEY;
         // 根據 PKCS#7 RFC 5652 Cryptographic Message Syntax (CMS) 修正 Message 加入 Padding
-        $block   = mcrypt_get_block_size(MCRYPT_DES, MCRYPT_MODE_ECB);
+        $block   = 8;
         $pad     = $block - (strlen($encrypt) % $block);
         $encrypt .= str_repeat(chr($pad), $pad);
 
         // 不需要設定 IV 進行加密
-        $passcrypt = mcrypt_encrypt(MCRYPT_DES, $key, $encrypt, MCRYPT_MODE_ECB);
+        $key = substr(str_pad($key, 8, "\0"), 0, 8);
+        $tripleKey = $key . $key . $key;
+        $passcrypt = openssl_encrypt($encrypt, 'DES-EDE3', $tripleKey, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+        if ($passcrypt === false) {
+            return false;
+        }
+
         $result    = base64_encode($passcrypt);
         return urlencode($result);
     }
@@ -500,10 +509,22 @@ class Utils
         $decrypt = urldecode($decrypt);
 
         // 不需要設定 IV
-        $str = mcrypt_decrypt(MCRYPT_DES, $key, base64_decode($decrypt), MCRYPT_MODE_ECB);
+        $ciphertext = base64_decode($decrypt, true);
+        if ($ciphertext === false) {
+            return false;
+        }
+        $key = substr(str_pad($key, 8, "\0"), 0, 8);
+        $tripleKey = $key . $key . $key;
+        $str = openssl_decrypt($ciphertext, 'DES-EDE3', $tripleKey, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING);
+        if ($str === false || $str === '') {
+            return false;
+        }
 
         // 根據 PKCS#7 RFC 5652 Cryptographic Message Syntax (CMS) 修正 Message 移除 Padding
         $pad = ord($str[strlen($str) - 1]);
+        if ($pad < 1 || $pad > 8) {
+            return false;
+        }
         return substr($str, 0, strlen($str) - $pad);
     }
 
@@ -718,7 +739,7 @@ class Utils
         //不能删除
         $phpexcel = FactoryDefault::getDefault()->get('phpexcel');
 
-        $objPHPExcel  = \PHPExcel_IOFactory::load($file);
+        $objPHPExcel  = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
         $currentSheet = $objPHPExcel->getSheet(0);
         $allColumn    = $currentSheet->getHighestColumn();
         $allRow       = $currentSheet->getHighestRow();

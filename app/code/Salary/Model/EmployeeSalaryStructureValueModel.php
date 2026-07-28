@@ -10,9 +10,9 @@ class EmployeeSalaryStructureValueModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("employee_salary_structure_values");
+		$this->setSource($this->getTableName("employee_salary_structure_values"));
 	}
 
 	public static function factory()

@@ -89,7 +89,7 @@ class  Bootstrap
 
 			$this->application = new \Phalcon\Mvc\Application($this->di);
 			$this->initDispatcher();
-			$response = $this->application->handle();
+			$response = $this->application->handle(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/');
 			echo Seo::handle($response->getContent());//seo设置
 			
 		} catch (\Exception $e) {
@@ -167,6 +167,10 @@ class  Bootstrap
 		$this->di->setShared('session', function ()use ($di){
 
 			$config = $di->get('config');
+			if (class_exists('\Phalcon\Session\Manager')) {
+				return \ScshuxCms\Core\Session\SessionFactory::create($config);
+			}
+
 			if($config->session->adapter == 'Files'){
 				$seesionPath = WEBROOT.'/var/session/';
 				if(!file_exists($seesionPath)){
@@ -198,6 +202,13 @@ class  Bootstrap
 	private function initCache()
 	{
 		$config = $this->di->get('config');
+		if (class_exists('\Phalcon\Cache\Cache')) {
+			$this->di->set('cache', function() use ($config) {
+				return \ScshuxCms\Core\Cache\CacheFactory::create($config);
+			});
+			return;
+		}
+
 		$this->di->set('cache', function() use ($config){
 			
 			if (!isset($config->cache->lifetime)){
@@ -277,7 +288,8 @@ class  Bootstrap
 		 	 }
 		 }
 		//注册加载
-	 	$loader = new \Phalcon\Loader();
+		$loaderClass = class_exists('\Phalcon\Autoload\Loader') ? '\Phalcon\Autoload\Loader' : '\Phalcon\Loader';
+		$loader = new $loaderClass();
 	 	$loader->registerNamespaces($autoLoadNameSpaces);
 	 	$loader->register();
 
@@ -453,7 +465,7 @@ class  Bootstrap
     			   		if(empty($moduleInfo))
     			   		{
     			   			$modleModel = new ModuleModel();
-    			   		    $modleModel->save(array(
+						$modleModel->saveData(array(
     			   			   'name' => $module,
     			   			   'version' => $version,
     			   			   'created' => Helper::factory()->getTime()->gmtime(),
@@ -497,7 +509,7 @@ class  Bootstrap
 									{
 										include_once $sqldir.$file;
 										$moduleInfo  = ModuleModel::factory()->findFirst("name='{$module}'");
-										$moduleInfo->save(array(
+										$moduleInfo->saveData(array(
 											'version' => $fileversion,
 											'created' => Helper::factory()->getTime()->gmtime(),
 											'description' => $description
@@ -523,8 +535,8 @@ class  Bootstrap
     {
     	$di = $this->di	;
     	$di->set('phpexcel', function(){
-    		require_once WEBROOT.'/lib/phpexcel/PHPExcel.php';
-    		return new \PHPExcel();
+            require_once WEBROOT.'/vendor/autoload.php';
+            return new \PhpOffice\PhpSpreadsheet\Spreadsheet();
     	});
     }
 

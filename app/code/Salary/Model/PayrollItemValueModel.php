@@ -10,9 +10,9 @@ class PayrollItemValueModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("payroll_item_values");
+		$this->setSource($this->getTableName("payroll_item_values"));
 	}
 
 	public static function factory()

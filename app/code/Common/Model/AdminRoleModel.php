@@ -11,9 +11,9 @@ class AdminRoleModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("admin_role");
+		$this->setSource($this->getTableName("admin_role"));
 	}
 
 	/**

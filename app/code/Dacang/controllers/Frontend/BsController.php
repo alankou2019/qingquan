@@ -942,7 +942,7 @@ class  BsController extends FrontendBaseController
                 $this->sendErrorResult('此点评不存在');
             }
 
-            $res = $quotaComment->save($data);
+			$res = $quotaComment->saveData($data);
         } else {
             //验证当前是否已经进行点评过
             $isExists = QuotaCommentModel::factory()->isExists($this->userId, $quotaId, $rId);
@@ -951,7 +951,7 @@ class  BsController extends FrontendBaseController
             }
 
             $data['created_at'] = Helper::factory()->getTime()->gmtime();
-            $res                = QuotaCommentModel::factory()->save($data);
+			$res                = QuotaCommentModel::factory()->saveData($data);
         }
 
         if ($res) {

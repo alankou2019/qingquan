@@ -11,9 +11,9 @@ class AnnouncementModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("announcement");
+		$this->setSource($this->getTableName("announcement"));
 	}
 
 	/**

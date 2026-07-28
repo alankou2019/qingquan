@@ -106,14 +106,14 @@ class UserController extends FrontendBaseController
                 $data['created']    = Helper::factory()->getTime()->gmtime();
                 $data['reg_ip']     = Utils::getIP();
 
-                $result = UserModel::factory()->save($data);
+				$result = UserModel::factory()->saveData($data);
 
             } else {
                 $item = UserModel::factory()->findFirst('user_id=' . $id);
                 if (empty($item)) {
                     Utils::showMsg('修改的记录不存在!', $backUrl);
                 }
-                $result = $item->save($data);
+				$result = $item->saveData($data);
             }
             if ($result) {
                 Utils::showMsg('操作成功!', $backUrl);
@@ -192,7 +192,7 @@ class UserController extends FrontendBaseController
                     'depart_id'  => $role,
                     'created_at' => $nowtime,
                 ];
-                $res     = UserManageRoleModel::factory()->save($dataArr);
+				$res     = UserManageRoleModel::factory()->saveData($dataArr);
                 UserManageRoleModel::delFactory();
             }
         }
@@ -263,7 +263,7 @@ class UserController extends FrontendBaseController
                     'depart_id'  => $role,
                     'created_at' => $nowtime,
                 ];
-                $res     = UserViewRoleModel::factory()->save($dataArr);
+				$res     = UserViewRoleModel::factory()->saveData($dataArr);
                 UserViewRoleModel::delFactory();
             }
         }

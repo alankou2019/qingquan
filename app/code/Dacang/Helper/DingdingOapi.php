@@ -400,11 +400,11 @@ class  DingdingOapi
 			if(empty($companyDepartModel))
 			{
 				$companyDepartModel = new  CompanyDepartModel();
-				$companyDepartModel->save($data);
+				$companyDepartModel->saveData($data);
 				$currentIds[] = $companyDepartModel->id;
 			}else
 			{
-				$companyDepartModel->save($data);
+				$companyDepartModel->saveData($data);
 				$currentIds[] = $companyDepartModel->id;
 			}
 		}
@@ -450,12 +450,12 @@ class  DingdingOapi
 				{
 					$companyUser = new CompanyUserModel();
 					$data['created'] =  Helper::factory()->getTime()->gmtime();
-					$companyUser->save($data);
+					$companyUser->saveData($data);
 					$userids[] = $companyUser->id ;
 				}
 				else 
 				{
-					$companyUser->save($data) ;
+					$companyUser->saveData($data) ;
 					$userids[] = $companyUser->id ;
 				}
 			}

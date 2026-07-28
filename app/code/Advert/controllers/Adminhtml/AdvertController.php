@@ -99,7 +99,7 @@ class  AdvertController extends AdminBaseController
 
 				$postData['created'] = $this->getHelper()->getTime()->gmtime();
 				unset($postData['id']);
-				$result = AdvertModel::factory()->save($postData);
+				$result = AdvertModel::factory()->saveData($postData);
 
 			}else{
 
@@ -108,7 +108,7 @@ class  AdvertController extends AdminBaseController
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result =$item->save($postData);
+				$result =$item->saveData($postData);
 
 			}
 			if($result){

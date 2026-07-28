@@ -7,9 +7,9 @@ class PlatformIntegrationModel extends BaseModel
 {
     protected static $_instance = null;
 
-    public function getSource()
+    public function initialize()
     {
-        return $this->getTableName('platform_integration');
+        $this->setSource($this->getTableName('platform_integration'));
     }
 
     public static function factory()

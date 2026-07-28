@@ -86,7 +86,7 @@ class AppController extends  AdminBaseController
     			$postData['app_key'] = md5(microtime(true));
     			$postData['created'] = $this->getHelper()->getTime()->gmtime();
     			unset($postData['id']);
-    			$result = AppModel::factory()->save($postData);
+				$result = AppModel::factory()->saveData($postData);
     			
 
     		}else{ //编辑
@@ -103,7 +103,7 @@ class AppController extends  AdminBaseController
     			{
     				Utils::showMsg('修改的记录不存在!',$backUrl);
     			}
-    			$result =$appModel->save($postData);
+				$result =$appModel->saveData($postData);
 
     		}
     		if($result){

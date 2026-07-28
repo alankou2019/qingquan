@@ -27,6 +27,18 @@ class BaseModel extends  Model
 		}
 		return $prefix.$tableName;
 	}
+
+	/**
+	 * Assign model data before saving (required by Phalcon 4+).
+	 *
+	 * @param array $data
+	 * @return boolean
+	 */
+	public function saveData(array $data)
+	{
+		$this->assign($data);
+		return $this->save();
+	}
 	
 	/**
 	 * 获取最后一次错误信息

@@ -97,14 +97,14 @@ class  AdvertpositionController extends AdminBaseController
 
 			if(empty($postData['id'])){
 				unset($postData['id']);
-				$result = AdvertPositionModel::factory()->save($postData);
+				$result = AdvertPositionModel::factory()->saveData($postData);
 			}else{
 				$item = AdvertPositionModel::factory()->findFirst('id='.intval($postData['id']));
 				if(empty($item))
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result =$item->save($postData);
+				$result =$item->saveData($postData);
 
 			}
 			if($result){

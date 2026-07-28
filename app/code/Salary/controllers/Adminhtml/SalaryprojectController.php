@@ -125,10 +125,10 @@ class SalaryprojectController extends AdminBaseController
 			if (empty($item)) {
 				Utils::showMsg('工资项目不存在', $backUrl);
 			}
-			$result = $item->save($data);
+			$result = $item->saveData($data);
 		} else {
 			$data['created_at'] = $now;
-			$result = SalaryProjectModel::factory()->save($data);
+			$result = SalaryProjectModel::factory()->saveData($data);
 		}
 
 		Utils::showMsg($result ? '操作成功' : '操作失败', $backUrl);
@@ -161,7 +161,7 @@ class SalaryprojectController extends AdminBaseController
 			}
 
 			$model = new SalaryProjectModel();
-			$result = $model->save(array(
+			$result = $model->saveData(array(
 				'company_id' => $companyId,
 				'template_id' => intval($template->id),
 				'name' => $template->name,
@@ -264,7 +264,7 @@ class SalaryprojectController extends AdminBaseController
 		$now = $this->getHelper()->getTime()->gmtime();
 		$items = SalaryProjectModel::factory()->find('id in(' . $ids . ') and deleted_at=0');
 		foreach ($items as $item) {
-			$item->save(array(
+			$item->saveData(array(
 				'deleted_at' => $now,
 				'updated_at' => $now,
 			));

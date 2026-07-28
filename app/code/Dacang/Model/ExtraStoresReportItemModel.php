@@ -15,9 +15,9 @@ class  ExtraStoresReportItemModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
-	{	
-		return $this->getTableName("extra_stores_report_item");
+	public function initialize()
+	{
+		$this->setSource($this->getTableName("extra_stores_report_item"));
 	}
 	
 	

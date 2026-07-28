@@ -10,9 +10,9 @@ class CommissionProjectModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName('salary_commission_projects');
+		$this->setSource($this->getTableName('salary_commission_projects'));
 	}
 
 	public static function factory()
@@ -157,13 +157,13 @@ class CommissionProjectModel extends BaseModel
 			if (!$statusProvided) {
 				$data['status'] = $item->status;
 			}
-			return $item->save($data);
+			return $item->saveData($data);
 		}
 
 		$data['created_by'] = intval($operatorId);
 		$data['created_at'] = $now;
 		$item = new CommissionProjectModel();
-		return $item->save($data);
+		return $item->saveData($data);
 	}
 
 	/**
@@ -204,7 +204,7 @@ class CommissionProjectModel extends BaseModel
 		}
 
 		$item = self::factory()->findFirst('id=' . $projectId . ' and company_id=' . $companyId . ' and deleted_at=0');
-		if (!$item || !$item->save($data)) {
+		if (!$item || !$item->saveData($data)) {
 			$this->_lastError = '提成规则保存失败，请稍后重试';
 			return false;
 		}
@@ -218,7 +218,7 @@ class CommissionProjectModel extends BaseModel
 			$this->_lastError = '提成项目不存在';
 			return false;
 		}
-		return $item->save(array('status' => 'inactive', 'deleted_at' => time(), 'updated_at' => time()));
+		return $item->saveData(array('status' => 'inactive', 'deleted_at' => time(), 'updated_at' => time()));
 	}
 
 	public function updateProjectStatus($companyId, $projectId, $status)

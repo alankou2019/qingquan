@@ -122,7 +122,7 @@ class UserController extends AdminBaseController
     			$postData['created'] = $this->getHelper()->getTime()->gmtime();
     			$postData['reg_ip'] = $this->getHelper()->getIp();
     			unset($postData['user_id']);
-    			$result = UserModel::factory()->save($postData);
+				$result = UserModel::factory()->saveData($postData);
     		}else{
 
     			$UserModel = UserModel::factory()->findFirst('user_id='.intval($postData['user_id']));
@@ -140,7 +140,7 @@ class UserController extends AdminBaseController
     			{
     				Utils::showMsg('修改的记录不存在!',$backUrl);
     			}
-    			$result =$UserModel->save($postData);
+				$result =$UserModel->saveData($postData);
 
     		}
     		if($result){

@@ -106,7 +106,7 @@ class  PagecategoryController extends AdminBaseController
 				}
 				unset($postData['id']);
 				$postData['created'] = $this->getHelper()->getTime()->localDate('Y-m-d H:i:s');
-				$result = PagecategoryModel::factory()->save($postData);
+				$result = PagecategoryModel::factory()->saveData($postData);
 				
 			}else{
 				
@@ -119,7 +119,7 @@ class  PagecategoryController extends AdminBaseController
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result =$item->save($postData);
+				$result =$item->saveData($postData);
 
 			}
 			if($result){
@@ -162,7 +162,7 @@ class  PagecategoryController extends AdminBaseController
 		$offset = ($page-1)*$pagesize;
 		$items = PageCategoryModel::query()
 		->where($where)
-		->order('sort')
+		->orderBy('sort')
 		->limit($pagesize,$offset)
 		->execute()
 		->toArray();

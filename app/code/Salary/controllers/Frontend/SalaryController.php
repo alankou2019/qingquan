@@ -1222,22 +1222,22 @@ class SalaryController extends FrontendBaseController
 		$sheet = $objPHPExcel->setActiveSheetIndex(0);
 		$sheet->setTitle('工资表模板');
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueByColumnAndRow($index, 1, $header);
+			$sheet->setCellValue(array(($index) + 1, 1), $header);
 			if ($index == 0) {
-				$sheet->setCellValueByColumnAndRow($index, 2, '张三');
-				$sheet->getColumnDimensionByColumn($index)->setWidth(14);
+				$sheet->setCellValue(array(($index) + 1, 2), '张三');
+				$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth(14);
 			} elseif ($index == 1) {
-				$sheet->setCellValueByColumnAndRow($index, 2, '13800000000');
-				$sheet->getColumnDimensionByColumn($index)->setWidth(16);
+				$sheet->setCellValue(array(($index) + 1, 2), '13800000000');
+				$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth(16);
 			} else {
-				$sheet->setCellValueByColumnAndRow($index, 2, 0);
-				$sheet->getColumnDimensionByColumn($index)->setWidth(14);
+				$sheet->setCellValue(array(($index) + 1, 2), 0);
+				$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth(14);
 			}
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
-		$sheet->getStyle('A1:' . $lastColumn . '2')->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . '2')->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
 		$sheet->freezePane('A2');
 
 		ob_clean();
@@ -1247,7 +1247,7 @@ class SalaryController extends FrontendBaseController
 		header("Content-Transfer-Encoding: binary");
 		header("Pragma: public");
 		header("Cache-Control:max-age=0");
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
@@ -1730,7 +1730,7 @@ class SalaryController extends FrontendBaseController
 		if ($positionColumn != '') {
 			$saveData[$positionColumn] = $positionName;
 		}
-		if (!$userInfo->save($saveData)) {
+		if (!$userInfo->saveData($saveData)) {
 			$this->sendErrorResult('员工信息保存失败，请稍后重试');
 		}
 
@@ -2103,27 +2103,27 @@ class SalaryController extends FrontendBaseController
 		$sheet->setTitle('薪酬报表');
 		$headers = array('工资月份', '员工姓名', '手机号', '部门', '状态', '来源', '应发总额', '应扣总额', '实发总额');
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueByColumnAndRow($index, 1, $header);
-			$sheet->getColumnDimensionByColumn($index)->setWidth($index >= 6 ? 14 : 16);
+			$sheet->setCellValue(array(($index) + 1, 1), $header);
+			$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth($index >= 6 ? 14 : 16);
 		}
 		$rowNumber = 2;
 		foreach ($rows as $row) {
-			$sheet->setCellValueByColumnAndRow(0, $rowNumber, $row['payroll_month']);
-			$sheet->setCellValueByColumnAndRow(1, $rowNumber, $row['employee_name']);
-			$sheet->setCellValueByColumnAndRow(2, $rowNumber, $row['employee_no']);
-			$sheet->setCellValueByColumnAndRow(3, $rowNumber, $row['department_name']);
-			$sheet->setCellValueByColumnAndRow(4, $rowNumber, $row['status_name']);
-			$sheet->setCellValueByColumnAndRow(5, $rowNumber, $row['source_label']);
-			$sheet->setCellValueByColumnAndRow(6, $rowNumber, $row['earning_total']);
-			$sheet->setCellValueByColumnAndRow(7, $rowNumber, $row['deduction_total']);
-			$sheet->setCellValueByColumnAndRow(8, $rowNumber, $row['net_amount']);
+			$sheet->setCellValue(array((0) + 1, $rowNumber), $row['payroll_month']);
+			$sheet->setCellValue(array((1) + 1, $rowNumber), $row['employee_name']);
+			$sheet->setCellValue(array((2) + 1, $rowNumber), $row['employee_no']);
+			$sheet->setCellValue(array((3) + 1, $rowNumber), $row['department_name']);
+			$sheet->setCellValue(array((4) + 1, $rowNumber), $row['status_name']);
+			$sheet->setCellValue(array((5) + 1, $rowNumber), $row['source_label']);
+			$sheet->setCellValue(array((6) + 1, $rowNumber), $row['earning_total']);
+			$sheet->setCellValue(array((7) + 1, $rowNumber), $row['deduction_total']);
+			$sheet->setCellValue(array((8) + 1, $rowNumber), $row['net_amount']);
 			$rowNumber++;
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$lastRow = max(2, $rowNumber - 1);
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
-		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
 		$sheet->freezePane('A2');
 
 		$fileMonth = empty($filter['payroll_month']) ? date('Ym') : str_replace('-', '', $filter['payroll_month']);
@@ -2134,7 +2134,7 @@ class SalaryController extends FrontendBaseController
 		header("Content-Transfer-Encoding: binary");
 		header("Pragma: public");
 		header("Cache-Control:max-age=0");
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
@@ -2153,15 +2153,15 @@ class SalaryController extends FrontendBaseController
 			$headers[] = $project['name'];
 		}
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueByColumnAndRow($index, 1, $header);
-			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 4 ? 16 : 14);
+			$sheet->setCellValue(array(($index) + 1, 1), $header);
+			$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth($index < 4 ? 16 : 14);
 		}
 		$rowNumber = 2;
 		foreach ($rows as $row) {
-			$sheet->setCellValueByColumnAndRow(0, $rowNumber, $row['employee_name']);
-			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
-			$sheet->setCellValueByColumnAndRow(2, $rowNumber, $row['department_name']);
-			$sheet->setCellValueByColumnAndRow(3, $rowNumber, $row['position_name']);
+			$sheet->setCellValue(array((0) + 1, $rowNumber), $row['employee_name']);
+			$sheet->setCellValueExplicit(array((1) + 1, $rowNumber), $row['employee_no'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+			$sheet->setCellValue(array((2) + 1, $rowNumber), $row['department_name']);
+			$sheet->setCellValue(array((3) + 1, $rowNumber), $row['position_name']);
 			$summaryValues = array(
 				'summary_earning_total' => $row['earning_total'],
 				'summary_deduction_total' => $row['deduction_total'],
@@ -2174,15 +2174,15 @@ class SalaryController extends FrontendBaseController
 				} else {
 					$value = isset($row['values'][intval($project['id'])]) ? $row['values'][intval($project['id'])] : (empty($project['is_text_project']) ? '0.00' : '');
 				}
-				$sheet->setCellValueByColumnAndRow(4 + $projectIndex, $rowNumber, $value);
+				$sheet->setCellValue(array((4 + $projectIndex) + 1, $rowNumber), $value);
 			}
 			$rowNumber++;
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$lastRow = max(2, $rowNumber - 1);
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
-		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
 		$sheet->freezePane('A2');
 
 		ob_clean();
@@ -2192,7 +2192,7 @@ class SalaryController extends FrontendBaseController
 		header('Content-Transfer-Encoding: binary');
 		header('Pragma: public');
 		header('Cache-Control:max-age=0');
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
@@ -2210,20 +2210,20 @@ class SalaryController extends FrontendBaseController
 			$headers[] = $project['name'];
 		}
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueExplicitByColumnAndRow($index, 1, $header, \PHPExcel_Cell_DataType::TYPE_STRING);
-			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 2 ? 16 : 14);
+			$sheet->setCellValueExplicit(array(($index) + 1, 1), $header, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+			$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth($index < 2 ? 16 : 14);
 		}
 		$rowNumber = 2;
 		foreach ($rows as $row) {
-			$sheet->setCellValueExplicitByColumnAndRow(0, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
-			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_name'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueExplicit(array((0) + 1, $rowNumber), $row['employee_no'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+			$sheet->setCellValueExplicit(array((1) + 1, $rowNumber), $row['employee_name'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
 			$rowNumber++;
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$lastRow = max(2, $rowNumber - 1);
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
-		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
 		$sheet->freezePane('C2');
 
 		ob_clean();
@@ -2233,7 +2233,7 @@ class SalaryController extends FrontendBaseController
 		header('Content-Transfer-Encoding: binary');
 		header('Pragma: public');
 		header('Cache-Control:max-age=0');
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
@@ -2251,20 +2251,20 @@ class SalaryController extends FrontendBaseController
 			$headers[] = $project['name'];
 		}
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueExplicitByColumnAndRow($index, 1, $header, \PHPExcel_Cell_DataType::TYPE_STRING);
-			$sheet->getColumnDimensionByColumn($index)->setWidth($index < 2 ? 16 : 18);
+			$sheet->setCellValueExplicit(array(($index) + 1, 1), $header, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+			$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth($index < 2 ? 16 : 18);
 		}
 		$rowNumber = 2;
 		foreach ($rows as $row) {
-			$sheet->setCellValueExplicitByColumnAndRow(0, $rowNumber, $row['employee_name'], \PHPExcel_Cell_DataType::TYPE_STRING);
-			$sheet->setCellValueExplicitByColumnAndRow(1, $rowNumber, $row['employee_no'], \PHPExcel_Cell_DataType::TYPE_STRING);
+			$sheet->setCellValueExplicit(array((0) + 1, $rowNumber), $row['employee_name'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+			$sheet->setCellValueExplicit(array((1) + 1, $rowNumber), $row['employee_no'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
 			$rowNumber++;
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$lastRow = max(2, $rowNumber - 1);
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
-		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
 		$sheet->freezePane('C2');
 
 		ob_clean();
@@ -2274,7 +2274,7 @@ class SalaryController extends FrontendBaseController
 		header('Content-Transfer-Encoding: binary');
 		header('Pragma: public');
 		header('Cache-Control:max-age=0');
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
@@ -2489,29 +2489,29 @@ class SalaryController extends FrontendBaseController
 		$sheet->setTitle('工资条确认结果');
 		$headers = array('工资月份', '员工姓名', '手机号', '部门', '应发总额', '应扣总额', '实发总额', '发放时间', '查看时间', '确认时间', '确认状态');
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueByColumnAndRow($index, 1, $header);
-			$sheet->getColumnDimensionByColumn($index)->setWidth($index >= 7 ? 18 : 14);
+			$sheet->setCellValue(array(($index) + 1, 1), $header);
+			$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth($index >= 7 ? 18 : 14);
 		}
 		$rowNumber = 2;
 		foreach ($items as $item) {
-			$sheet->setCellValueByColumnAndRow(0, $rowNumber, $period['payroll_month']);
-			$sheet->setCellValueByColumnAndRow(1, $rowNumber, $item['employee_name']);
-			$sheet->setCellValueByColumnAndRow(2, $rowNumber, $item['employee_no']);
-			$sheet->setCellValueByColumnAndRow(3, $rowNumber, $item['department_name']);
-			$sheet->setCellValueByColumnAndRow(4, $rowNumber, $item['earning_total']);
-			$sheet->setCellValueByColumnAndRow(5, $rowNumber, $item['deduction_total']);
-			$sheet->setCellValueByColumnAndRow(6, $rowNumber, $item['net_amount']);
-			$sheet->setCellValueByColumnAndRow(7, $rowNumber, $item['published_time']);
-			$sheet->setCellValueByColumnAndRow(8, $rowNumber, $item['viewed_time']);
-			$sheet->setCellValueByColumnAndRow(9, $rowNumber, $item['confirmed_time']);
-			$sheet->setCellValueByColumnAndRow(10, $rowNumber, $item['confirm_status']);
+			$sheet->setCellValue(array((0) + 1, $rowNumber), $period['payroll_month']);
+			$sheet->setCellValue(array((1) + 1, $rowNumber), $item['employee_name']);
+			$sheet->setCellValue(array((2) + 1, $rowNumber), $item['employee_no']);
+			$sheet->setCellValue(array((3) + 1, $rowNumber), $item['department_name']);
+			$sheet->setCellValue(array((4) + 1, $rowNumber), $item['earning_total']);
+			$sheet->setCellValue(array((5) + 1, $rowNumber), $item['deduction_total']);
+			$sheet->setCellValue(array((6) + 1, $rowNumber), $item['net_amount']);
+			$sheet->setCellValue(array((7) + 1, $rowNumber), $item['published_time']);
+			$sheet->setCellValue(array((8) + 1, $rowNumber), $item['viewed_time']);
+			$sheet->setCellValue(array((9) + 1, $rowNumber), $item['confirmed_time']);
+			$sheet->setCellValue(array((10) + 1, $rowNumber), $item['confirm_status']);
 			$rowNumber++;
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$lastRow = max(2, $rowNumber - 1);
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
-		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PHPExcel_Style_Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setRGB('CBD5E1');
 		$sheet->freezePane('A2');
 
 		ob_clean();
@@ -2521,7 +2521,7 @@ class SalaryController extends FrontendBaseController
 		header("Content-Transfer-Encoding: binary");
 		header("Pragma: public");
 		header("Cache-Control:max-age=0");
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();
@@ -2626,21 +2626,21 @@ class SalaryController extends FrontendBaseController
 		$sheet = $objPHPExcel->setActiveSheetIndex(0);
 		$sheet->setTitle('工资表模板');
 		foreach ($headers as $index => $header) {
-			$sheet->setCellValueByColumnAndRow($index, 1, $header);
+			$sheet->setCellValue(array(($index) + 1, 1), $header);
 			if ($index == 0) {
-				$sheet->setCellValueByColumnAndRow($index, 2, '张三');
-				$sheet->getColumnDimensionByColumn($index)->setWidth(14);
+				$sheet->setCellValue(array(($index) + 1, 2), '张三');
+				$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth(14);
 			} elseif ($index == 1) {
-				$sheet->setCellValueByColumnAndRow($index, 2, '13800000000');
-				$sheet->getColumnDimensionByColumn($index)->setWidth(16);
+				$sheet->setCellValue(array(($index) + 1, 2), '13800000000');
+				$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth(16);
 			} else {
-				$sheet->setCellValueByColumnAndRow($index, 2, 0);
-				$sheet->getColumnDimensionByColumn($index)->setWidth(14);
+				$sheet->setCellValue(array(($index) + 1, 2), 0);
+				$sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(($index) + 1))->setWidth(14);
 			}
 		}
-		$lastColumn = \PHPExcel_Cell::stringFromColumnIndex(count($headers) - 1);
+		$lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
 		$sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
-		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
+		$sheet->getStyle('A1:' . $lastColumn . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('EAF1FF');
 		$sheet->freezePane('A2');
 		ob_clean();
 		header("Content-Description: File Transfer");
@@ -2649,7 +2649,7 @@ class SalaryController extends FrontendBaseController
 		header("Content-Transfer-Encoding: binary");
 		header("Pragma: public");
 		header("Cache-Control:max-age=0");
-		$writer = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5');
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($objPHPExcel, 'Xls');
 		$writer->save('php://output');
 		error_reporting($oldReporting);
 		exit();

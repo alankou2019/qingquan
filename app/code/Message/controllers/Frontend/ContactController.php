@@ -51,7 +51,7 @@ class  ContactController  extends FrontendBaseController
 		{
 			$this->sendErrorResult("验证码错误，请重新输入！");
 		}
-		$result = MessageModel::factory()->save($data);
+		$result = MessageModel::factory()->saveData($data);
 		if($result)
 		{
 			$this->sendSuccessResult("预约提交成功！");

@@ -12,9 +12,9 @@ class CompanyUserModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("company_user");
+		$this->setSource($this->getTableName("company_user"));
 	}
 
 

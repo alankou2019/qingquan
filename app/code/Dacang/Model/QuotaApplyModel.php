@@ -14,9 +14,9 @@ class QuotaApplyModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("quota_apply");
+		$this->setSource($this->getTableName("quota_apply"));
 	}
 
 
@@ -74,7 +74,7 @@ class QuotaApplyModel extends BaseModel
 				'type'=>$apply->type,
 				'depart_id' =>$apply->depart_id,
 		);
-		$res=QuotaModel::factory()->save($quotaData);
+		$res=QuotaModel::factory()->saveData($quotaData);
 		if (!$res)
 		{
 			return false;

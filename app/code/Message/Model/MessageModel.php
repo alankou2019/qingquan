@@ -11,9 +11,9 @@ class MessageModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("message");
+		$this->setSource($this->getTableName("message"));
 	}
 
 	/**

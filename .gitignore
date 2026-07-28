@@ -19,3 +19,4 @@ install.php
 ceshi.php
 mysqlbackup.sh
 *.exe
+/vendor/

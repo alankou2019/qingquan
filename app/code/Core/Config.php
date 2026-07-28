@@ -23,7 +23,8 @@ class  Config
 		$configArr['controllerFiles'] = array();
 		$configArr['defaultControllerNameSpace'] = '';
 
-		return  new \Phalcon\Config($configArr);
+		$configClass = class_exists('\Phalcon\Config\Config') ? '\Phalcon\Config\Config' : '\Phalcon\Config';
+		return new $configClass($configArr);
 	}
 
 

@@ -12,9 +12,9 @@ class CommissionEstimateModel extends BaseModel
 	protected static $_instance = null;
 	protected static $_tableColumnMap = array();
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName('salary_commission_estimates');
+		$this->setSource($this->getTableName('salary_commission_estimates'));
 	}
 
 	public static function factory()

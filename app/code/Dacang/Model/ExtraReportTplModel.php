@@ -12,9 +12,9 @@ class  ExtraReportTplModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("extra_report_item_tpl");
+		$this->setSource($this->getTableName("extra_report_item_tpl"));
 	}
 	
 	
@@ -57,7 +57,7 @@ class  ExtraReportTplModel extends BaseModel
 					'report_user_id' => $user
 			) ;
 				
-			self::factory()->save($data) ;
+			self::factory()->saveData($data) ;
 				
 				
 			self::delFactory() ;

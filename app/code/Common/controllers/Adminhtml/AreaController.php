@@ -133,7 +133,7 @@ class AreaController extends AdminBaseController
     				$postData['path'] = join('_', $pathArr);
     				$postData['parent_id'] = $pathArr[count($pathArr)-1];
     			}
-    			$result = AreaModel::factory()->save($postData);
+				$result = AreaModel::factory()->saveData($postData);
     			$backUrl = $this->getHelper()->createUrl(array('p'=>'area/index','parent_id'=>$postData['parent_id']));
 
     		}else{
@@ -142,7 +142,7 @@ class AreaController extends AdminBaseController
     			{
     				Utils::showMsg('修改的记录不存在!',$backUrl);
     			}
-    			$result =$areaModel->save($postData);
+				$result =$areaModel->saveData($postData);
     		}
     		if($result){
     			Utils::showMsg('操作成功!',$backUrl);

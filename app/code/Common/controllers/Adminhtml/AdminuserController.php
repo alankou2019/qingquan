@@ -102,7 +102,7 @@ class AdminuserController extends AdminBaseController
 
     			$postData['created'] = $this->getHelper()->getTime()->gmtime();
     			unset($postData['user_id']);
-    			$result = AdminUserModel::factory()->save($postData);
+				$result = AdminUserModel::factory()->saveData($postData);
 
     		}else{
 
@@ -112,7 +112,7 @@ class AdminuserController extends AdminBaseController
     				Utils::showMsg('修改的记录不存在!',$backUrl);
     			}
     			$postData['modified'] = $this->getHelper()->getTime()->gmtime();
-    			$result =$adminUserModel->save($postData);
+				$result =$adminUserModel->saveData($postData);
 
     		}
     		if($result){

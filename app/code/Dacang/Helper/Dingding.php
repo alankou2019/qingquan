@@ -134,11 +134,11 @@ class  Dingding
 		{
 			$companyUser = new CompanyUserModel();
 			$data['created'] =  Helper::factory()->getTime()->gmtime();
-			$companyUser->save($data);
+			$companyUser->saveData($data);
 		}
 		else
 		{
-			$companyUser->save($data) ;
+			$companyUser->saveData($data) ;
 		}
 		return  $companyUser;
 	}
@@ -362,7 +362,7 @@ class  Dingding
 				$companyData['status'] = 1;
 				$companyData['hash_key'] = md5(microtime(true));
 				$companyModel = CompanyModel::factory();
-				$companyModel->save($companyData);
+				$companyModel->saveData($companyData);
 				$company_id = $companyModel->id;
 				
 				//生成一个顶级部门
@@ -373,12 +373,12 @@ class  Dingding
 						'company_id' => $company_id
 				);
 				$companyDepartModel= new CompanyDepartModel();
-				$companyDepartModel->save($data);
+				$companyDepartModel->saveData($data);
 				
 			}else
 			{
 				$company_id = $companyModel->id;
-				$companyModel->save($companyData);
+				$companyModel->saveData($companyData);
 			}
 			
 			//查询当前是否有管理员
@@ -386,7 +386,7 @@ class  Dingding
 			if(empty($userModel))
 			{
 				$userModel = UserModel::factory();
-				$result = $userModel->save(array(
+				$result = $userModel->saveData(array(
 					'is_admin' => 1,
 					'company_id' => $company_id,
 					'created' => Helper::factory()->getTime()->gmtime(),
@@ -395,7 +395,7 @@ class  Dingding
 				
 				if($result)
 				{
-					$userModel->save(array(
+					$userModel->saveData(array(
 						'user_name' => 'dacang'.$userModel->user_id,
 						'password'  => md5('dacang2017')
 					));
@@ -650,11 +650,11 @@ class  Dingding
 			if(empty($companyDepartModel))
 			{
 				$companyDepartModel = new  CompanyDepartModel();
-				$companyDepartModel->save($data);
+				$companyDepartModel->saveData($data);
 				$currentIds[] = $companyDepartModel->id;
 			}else
 			{
-				$companyDepartModel->save($data);
+				$companyDepartModel->saveData($data);
 				$currentIds[] = $companyDepartModel->id;
 			}
 		}

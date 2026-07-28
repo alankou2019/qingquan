@@ -10,9 +10,9 @@ class PagecategoryModel extends BaseModel
 {
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("page_category");
+		$this->setSource($this->getTableName("page_category"));
 	}
 
 	/**

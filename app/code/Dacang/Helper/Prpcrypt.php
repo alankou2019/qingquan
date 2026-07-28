@@ -25,21 +25,19 @@ class Prpcrypt
 			$random = $this->getRandomStr();
 			$text = $random . pack("N", strlen($text)) . $text . $corpid;
 			// 网络字节序
-			$size = mcrypt_get_block_size(MCRYPT_RIJNDAEL_128, MCRYPT_MODE_CBC);
-			$module = mcrypt_module_open(MCRYPT_RIJNDAEL_128, '', MCRYPT_MODE_CBC, '');
 			$iv = substr($this->key, 0, 16);
 			//使用自定义的填充方式对明文进行补位填充
 			$pkc_encoder = new PKCS7Encoder;
 			$text = $pkc_encoder->encode($text);
-			mcrypt_generic_init($module, $this->key, $iv);
 			//加密
-			$encrypted = mcrypt_generic($module, $text);
-			mcrypt_generic_deinit($module);
-			mcrypt_module_close($module);
+			$encrypted = openssl_encrypt($text, 'AES-256-CBC', $this->key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING, $iv);
+			if ($encrypted === false) {
+				return array(ErrorCode::$EncryptAESError, null);
+			}
 			//print(base64_encode($encrypted));
 			//使用BASE64对加密后的字符串进行编码
 			return array(ErrorCode::$OK, base64_encode($encrypted));
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			print $e;
 			return array(ErrorCode::$EncryptAESError, null);
 		}
@@ -47,14 +45,16 @@ class Prpcrypt
 	public function decrypt($encrypted, $corpid)
 	{
 		try {
-			$ciphertext_dec = base64_decode($encrypted);
-			$module = mcrypt_module_open(MCRYPT_RIJNDAEL_128, '', MCRYPT_MODE_CBC, '');
+			$ciphertext_dec = base64_decode($encrypted, true);
+			if ($ciphertext_dec === false) {
+				return array(ErrorCode::$DecryptAESError, null);
+			}
 			$iv = substr($this->key, 0, 16);
-			mcrypt_generic_init($module, $this->key, $iv);
-			$decrypted = mdecrypt_generic($module, $ciphertext_dec);
-			mcrypt_generic_deinit($module);
-			mcrypt_module_close($module);
-		} catch (Exception $e) {
+			$decrypted = openssl_decrypt($ciphertext_dec, 'AES-256-CBC', $this->key, OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING, $iv);
+			if ($decrypted === false) {
+				return array(ErrorCode::$DecryptAESError, null);
+			}
+		} catch (\Exception $e) {
 			return array(ErrorCode::$DecryptAESError, null);
 		}
 		try {
@@ -69,7 +69,7 @@ class Prpcrypt
 			$xml_len = $len_list[1];
 			$xml_content = substr($content, 4, $xml_len);
 			$from_corpid = substr($content, $xml_len + 4);
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			print $e;
 			return array(ErrorCode::$DecryptAESError, null);
 		}

@@ -11,9 +11,9 @@ class SalaryOperationLogModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("salary_operation_log");
+		$this->setSource($this->getTableName("salary_operation_log"));
 	}
 
 	public static function factory()
@@ -57,7 +57,7 @@ class SalaryOperationLogModel extends BaseModel
 		}
 		$summary = $this->cleanSummary($summary);
 		$item = new SalaryOperationLogModel();
-		return $item->save(array(
+		return $item->saveData(array(
 			'company_id' => $companyId,
 			'operator_id' => intval($operatorId),
 			'action_code' => substr(trim($actionCode), 0, 50),

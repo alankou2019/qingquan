@@ -12,9 +12,9 @@ class  ReportModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("report");
+		$this->setSource($this->getTableName("report"));
 	}
 	
 	

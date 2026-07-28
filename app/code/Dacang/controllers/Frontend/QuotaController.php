@@ -125,7 +125,7 @@ class QuotaController extends FrontendBaseController
 				
 				$data['company_id'] = $this->companyId;
 				
-				$result = QuotaModel::factory()->save($data);
+				$result = QuotaModel::factory()->saveData($data);
 				
 			}else{
 				$item = QuotaModel::factory()->findFirst('id='.$id);
@@ -133,7 +133,7 @@ class QuotaController extends FrontendBaseController
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result = $item->save($data);
+				$result = $item->saveData($data);
 			}
 			if($result){
 				Utils::showMsg('操作成功!',$backUrl);
@@ -266,7 +266,7 @@ class QuotaController extends FrontendBaseController
 						'company_id' => $this->companyId
 				);
 				
-				QuotaModel::factory()->save($data) ;
+				QuotaModel::factory()->saveData($data) ;
 				QuotaModel::delFactory() ;
 			}
 			$this->sendSuccessResult('成功') ;
@@ -650,7 +650,7 @@ class QuotaController extends FrontendBaseController
 			) ;
 			
 			$quotamodel = QuotaModel::factory();
-			$res = $quotamodel->save($data) ;
+			$res = $quotamodel->saveData($data) ;
 			if ($res)
 			{
 				self::$_callbankarr['id'] .= self::$_callbankarr['id'] ? ','.$quotamodel->id : $quotamodel->id ;

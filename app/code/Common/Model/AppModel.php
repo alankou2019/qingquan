@@ -11,9 +11,9 @@ class AppModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("app");
+		$this->setSource($this->getTableName("app"));
 	}
 	
 	

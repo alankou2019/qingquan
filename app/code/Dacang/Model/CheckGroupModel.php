@@ -17,9 +17,9 @@ class CheckGroupModel extends BaseModel
 	protected static  $_instance=null;
 	protected static $error='';
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("check_group");
+		$this->setSource($this->getTableName("check_group"));
 	}
 
 

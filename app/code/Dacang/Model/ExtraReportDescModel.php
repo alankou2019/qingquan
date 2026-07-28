@@ -14,9 +14,9 @@ class  ExtraReportDescModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("extra_report_desc");
+		$this->setSource($this->getTableName("extra_report_desc"));
 	}
 	
 	
@@ -66,7 +66,7 @@ class  ExtraReportDescModel extends BaseModel
 				'desc' => $desc
 		) ;
 		
-		$res = self::factory()->save($data) ;
+		$res = self::factory()->saveData($data) ;
 		if ($res)
 		{
 			$return = true ;

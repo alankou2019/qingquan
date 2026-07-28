@@ -76,7 +76,7 @@ class ArticleController extends FrontendBaseController
 			$this->redirect('/');
 		}
 		//修改预览次数
-		$articleItem->save(array(
+		$articleItem->saveData(array(
 				'click' => $articleItem->click+1
 		));
 		$articleItem->created = $this->getHelper()->getTime()->localDate('Y-m-d',$articleItem->created);

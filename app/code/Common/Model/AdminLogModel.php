@@ -12,9 +12,9 @@ class AdminLogModel extends BaseModel
 {
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("admin_log");
+		$this->setSource($this->getTableName("admin_log"));
 	}
 	
 	
@@ -33,7 +33,7 @@ class AdminLogModel extends BaseModel
 		
 		if(empty($admin_id)){$admin_id = '';}
 		
-		return  $this->save(array(
+		return  $this->saveData(array(
 				'content' => $content,
 				'admin_id' => $admin_id,
 				'created' => Helper::factory()->getTime()->gmtime(),

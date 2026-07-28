@@ -11,9 +11,9 @@ class QuotaModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("quota");
+		$this->setSource($this->getTableName("quota"));
 	}
 
 

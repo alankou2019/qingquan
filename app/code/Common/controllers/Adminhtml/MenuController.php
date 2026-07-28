@@ -87,14 +87,14 @@ class MenuController extends  AdminBaseController
 
     		if(empty($postData['id'])){  //添加
     			unset($postData['id']);
-    			$result = MenuModel::factory()->save($postData);
+				$result = MenuModel::factory()->saveData($postData);
     		}else{ //编辑
     			$menuModel = MenuModel::factory()->findFirst('id='.intval($postData['id']));
     			if(empty($menuModel))
     			{
     				Utils::showMsg('修改的记录不存在!',$backUrl);
     			}
-    			$result = $menuModel->save($postData);
+				$result = $menuModel->saveData($postData);
 
     		}
     		if($result){

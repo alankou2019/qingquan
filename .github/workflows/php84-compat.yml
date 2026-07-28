@@ -1,0 +1,28 @@
+name: PHP 8.4 compatibility
+
+on:
+  push:
+    branches:
+      - codex/php84-upgrade
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-crypto:
+    runs-on: ubuntu-latest
+    container: php:8.4-cli
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show PHP version
+        run: php -v
+      - name: Lint application and compatibility tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          find app tests/php84 -type f -name '*.php' -print0 |
+            xargs -0 -n1 php -l >/dev/null
+          php -l index.php >/dev/null
+      - name: Verify crypto compatibility
+        run: php tests/php84/crypto_compat.php

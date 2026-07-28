@@ -13,9 +13,9 @@ class  ReportStoresModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
-	{	
-		return $this->getTableName("report_stores");
+	public function initialize()
+	{
+		$this->setSource($this->getTableName("report_stores"));
 	}
 	
 	

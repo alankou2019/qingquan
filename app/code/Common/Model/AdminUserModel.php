@@ -13,9 +13,9 @@ class AdminUserModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("admin_user");
+		$this->setSource($this->getTableName("admin_user"));
 	}
 	
 	/**
@@ -42,7 +42,7 @@ class AdminUserModel extends BaseModel
 		
 		//保存日志
 		AdminLogModel::factory()->addLog('登录系统!',$adminUser->user_id);//登录日志
-		$adminUser->save(array(
+		$adminUser->saveData(array(
 				'last_ip' => Utils::getIP(),
 				'logdate' => Helper::factory()->getTime()->gmtime(),
 				'lognum'  => $adminUser->lognum+1

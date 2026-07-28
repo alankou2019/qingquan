@@ -10,9 +10,9 @@ class ConfigModel extends BaseModel
 {
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("config");
+		$this->setSource($this->getTableName("config"));
 	}
 	
 	/**

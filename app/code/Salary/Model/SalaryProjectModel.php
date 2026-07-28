@@ -10,9 +10,9 @@ class SalaryProjectModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("salary_projects");
+		$this->setSource($this->getTableName("salary_projects"));
 	}
 
 	/**
@@ -274,13 +274,13 @@ class SalaryProjectModel extends BaseModel
 			if (isset($selected[$templateId])) {
 				if ($project) {
 					// Keep the company's edited name, type, formula and defaults.
-					$project->save(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
+					$project->saveData(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
 				} else {
 					$data = $this->buildTemplateProjectData($companyId, $template, $now);
 					$data['status'] = 'active';
 					$data['created_at'] = $now;
 					$model = new SalaryProjectModel();
-					$model->save($data);
+					$model->saveData($data);
 				}
 			}
 		}
@@ -323,14 +323,14 @@ class SalaryProjectModel extends BaseModel
 		$now = time();
 		$item = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
 		if ($item) {
-			return $item->save(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
+			return $item->saveData(array('status' => 'active', 'deleted_at' => 0, 'updated_at' => $now));
 		}
 
 		$data = $this->buildTemplateProjectData($companyId, $template, $now);
 		$data['status'] = 'active';
 		$data['created_at'] = $now;
 		$model = new SalaryProjectModel();
-		return $model->save($data);
+		return $model->saveData($data);
 	}
 
 	public function saveCustomProject($companyId, $postData)
@@ -425,12 +425,12 @@ class SalaryProjectModel extends BaseModel
 		);
 
 		if ($item) {
-			return $item->save($data);
+			return $item->saveData($data);
 		}
 
 		$data['created_at'] = $now;
 		$model = new SalaryProjectModel();
-		return $model->save($data);
+		return $model->saveData($data);
 	}
 
 	protected function formatDefaultNumber($value)
@@ -511,7 +511,7 @@ class SalaryProjectModel extends BaseModel
 			$this->_lastError = '工资项目不存在';
 			return false;
 		}
-		return $item->save(array(
+		return $item->saveData(array(
 			'status' => 'inactive',
 			'deleted_at' => time(),
 			'updated_at' => time(),
@@ -530,13 +530,13 @@ class SalaryProjectModel extends BaseModel
 		$now = time();
 		$item = self::factory()->findFirst('company_id=' . $companyId . ' and template_id=' . $templateId);
 		if ($item) {
-			return $item->save(array('status' => 'inactive', 'deleted_at' => $now, 'updated_at' => $now));
+			return $item->saveData(array('status' => 'inactive', 'deleted_at' => $now, 'updated_at' => $now));
 		}
 		$data = $this->buildTemplateProjectData($companyId, $template, $now);
 		$data['deleted_at'] = $now;
 		$data['created_at'] = $now;
 		$model = new SalaryProjectModel();
-		return $model->save($data);
+		return $model->saveData($data);
 	}
 
 	public function disableCompanyProject($companyId, $projectId)
@@ -550,7 +550,7 @@ class SalaryProjectModel extends BaseModel
 			$this->_lastError = '自定义项目不能停用，如不再使用请删除';
 			return false;
 		}
-		return $item->save(array(
+		return $item->saveData(array(
 			'status' => 'inactive',
 			'updated_at' => time(),
 		));

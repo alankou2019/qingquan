@@ -10,9 +10,9 @@ class AreaModel extends BaseModel
 {
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("area");
+		$this->setSource($this->getTableName("area"));
 	}
 
 	/**

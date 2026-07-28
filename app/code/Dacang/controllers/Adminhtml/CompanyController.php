@@ -166,7 +166,7 @@ class  CompanyController extends AdminBaseController
 	            $data['status'] = 1 ;
 	            $data['expire_time'] = $nowtime + 2592000;
 	            $companyModel = CompanyModel::factory();
-	            $result = $companyModel->save($data);
+				$result = $companyModel->saveData($data);
 	            if($result)
 	            {
 	            	$data['company_id'] = $companyModel->id ;
@@ -221,7 +221,7 @@ class  CompanyController extends AdminBaseController
 	            {
 	                Utils::showMsg('修改的记录不存在!',$backUrl);
 	            }
-	            $result =$item->save($data);
+				$result =$item->saveData($data);
 	        }
 	        if($result){
 	            Utils::showMsg('操作成功!',$backUrl);

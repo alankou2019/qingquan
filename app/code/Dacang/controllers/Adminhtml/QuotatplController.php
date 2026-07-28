@@ -108,7 +108,7 @@ class QuotatplController extends AdminBaseController
 					Utils::showMsg('当前指标名称已经存在， 请从新输入',$backUrl);
 				}
 
-				$result = QuotatplModel::factory()->save($data);
+				$result = QuotatplModel::factory()->saveData($data);
 
 			}else{
 				$item = QuotatplModel::factory()->findFirst('id='.$id);
@@ -116,7 +116,7 @@ class QuotatplController extends AdminBaseController
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result = $item->save($data);
+				$result = $item->saveData($data);
 			}
 			if($result){
 				Utils::showMsg('操作成功!',$backUrl);

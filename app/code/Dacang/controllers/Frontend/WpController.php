@@ -133,7 +133,7 @@ class  WpController extends FrontendBaseController
 
 
         $newPasswd = md5($newPasswd);
-        $userInfo->save([
+		$userInfo->saveData([
             'passwd' => $newPasswd,
         ]);
 

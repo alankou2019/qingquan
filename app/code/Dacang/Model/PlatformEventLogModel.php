@@ -7,9 +7,9 @@ class PlatformEventLogModel extends BaseModel
 {
     protected static $_instance = null;
 
-    public function getSource()
+    public function initialize()
     {
-        return $this->getTableName('platform_event_log');
+        $this->setSource($this->getTableName('platform_event_log'));
     }
 
     public static function factory()

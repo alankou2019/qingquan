@@ -10,9 +10,9 @@ class CompanyModuleAuthModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("company_module_auth");
+		$this->setSource($this->getTableName("company_module_auth"));
 	}
 
 	/**
@@ -172,12 +172,12 @@ class CompanyModuleAuthModel extends BaseModel
 		);
 
 		if ($item) {
-			return $item->save($data);
+			return $item->saveData($data);
 		}
 
 		$data['created_at'] = $now;
 		$authModel = new CompanyModuleAuthModel();
-		return $authModel->save($data);
+		return $authModel->saveData($data);
 	}
 
 	public static function getEnabledCompanies($companyIds, $moduleCode)

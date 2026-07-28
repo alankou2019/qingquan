@@ -13,9 +13,9 @@ class  PointReportItemModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
-	{	
-		return $this->getTableName("point_report_item");
+	public function initialize()
+	{
+		$this->setSource($this->getTableName("point_report_item"));
 	}
 	
 	

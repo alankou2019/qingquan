@@ -13,9 +13,9 @@ class StoreQuotaCommentModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("store_quota_comment");
+		$this->setSource($this->getTableName("store_quota_comment"));
 	}
 
 

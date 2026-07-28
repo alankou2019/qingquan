@@ -14,9 +14,9 @@ class  UserModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("user");
+		$this->setSource($this->getTableName("user"));
 	}
 
 	/**
@@ -120,7 +120,7 @@ class  UserModel extends BaseModel
 	
 		//保存日志
 		//AdminLogModel::factory()->addLog('登录系统!',$User->user_id);//登录日志
-		$user->save(array(
+		$user->saveData(array(
 				'last_ip' => Utils::getIP(),
 				'last_time' => Helper::factory()->getTime()->gmtime(),
 				'login_num'  => $user->login_num + 1
@@ -202,7 +202,7 @@ class  UserModel extends BaseModel
 				'is_admin'   => 1
 		);
 		
-		return UserModel::factory()->save($adddata) ;
+		return UserModel::factory()->saveData($adddata) ;
 	}
 	
 	

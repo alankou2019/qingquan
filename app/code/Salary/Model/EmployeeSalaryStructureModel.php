@@ -11,9 +11,9 @@ class EmployeeSalaryStructureModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("employee_salary_structures");
+		$this->setSource($this->getTableName("employee_salary_structures"));
 	}
 
 	public static function factory()
@@ -221,7 +221,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 		}
 		$item = self::factory()->findFirst('company_id=' . $companyId . ' and employee_id=' . $employeeId . ' and status="active"');
 		if ($item) {
-			return $item->save(array('status' => 'inactive', 'updated_at' => time()));
+			return $item->saveData(array('status' => 'inactive', 'updated_at' => time()));
 		}
 		$existing = $this->getLatestStructure($companyId, $employeeId);
 		if ($existing) {
@@ -229,7 +229,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 		}
 		$now = time();
 		$model = new EmployeeSalaryStructureModel();
-		return $model->save(array(
+		return $model->saveData(array(
 			'company_id' => $companyId,
 			'employee_id' => $employeeId,
 			'version_no' => 1,
@@ -250,7 +250,7 @@ class EmployeeSalaryStructureModel extends BaseModel
 			$this->_lastError = '未找到已移出的员工';
 			return false;
 		}
-		return $item->save(array('status' => 'active', 'updated_at' => time()));
+		return $item->saveData(array('status' => 'active', 'updated_at' => time()));
 	}
 
 	protected function getOrCreateInitialStructure($companyId, $employeeId, $operatorId = 0)
@@ -263,12 +263,12 @@ class EmployeeSalaryStructureModel extends BaseModel
 		}
 		$inactive = $this->getLatestStructure($companyId, $employeeId);
 		if ($inactive) {
-			$inactive->save(array('status' => 'active', 'updated_at' => time()));
+			$inactive->saveData(array('status' => 'active', 'updated_at' => time()));
 			return intval($inactive->id);
 		}
 		$now = time();
 		$model = new EmployeeSalaryStructureModel();
-		$model->save(array(
+		$model->saveData(array(
 			'company_id' => $companyId,
 			'employee_id' => $employeeId,
 			'version_no' => 1,

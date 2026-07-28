@@ -12,9 +12,9 @@ class PayrollPeriodModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("payroll_periods");
+		$this->setSource($this->getTableName("payroll_periods"));
 	}
 
 	public static function factory()

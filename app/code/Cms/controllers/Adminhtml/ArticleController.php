@@ -101,14 +101,14 @@ class  ArticleController extends AdminBaseController
 			if(empty($postData['id'])){
 				unset($postData['id']);
 				$postData['created'] = $this->getHelper()->getTime()->gmtime();
-				$result = ArticleModel::factory()->save($postData);
+				$result = ArticleModel::factory()->saveData($postData);
 			}else{
 				$item = ArticleModel::factory()->findFirst('id='.intval($postData['id']));
 				if(empty($item))
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result = $item->save($postData);
+				$result = $item->saveData($postData);
 
 			}
 			if($result){

@@ -13,9 +13,9 @@ class AutoRunModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("auto_run");
+		$this->setSource($this->getTableName("auto_run"));
 	}
 
 
@@ -60,7 +60,7 @@ class AutoRunModel extends BaseModel
 		else
 		{
 			$data['created_at']=Helper::factory()->getTime()->gmtime();
-			self::factory()->save($data);
+			self::factory()->saveData($data);
 		}
 		return true;
 	}

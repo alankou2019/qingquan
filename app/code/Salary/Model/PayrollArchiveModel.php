@@ -10,9 +10,9 @@ class PayrollArchiveModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("salary_payroll_archives");
+		$this->setSource($this->getTableName("salary_payroll_archives"));
 	}
 
 	public static function factory()

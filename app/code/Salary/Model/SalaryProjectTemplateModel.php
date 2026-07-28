@@ -10,9 +10,9 @@ class SalaryProjectTemplateModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("salary_project_templates");
+		$this->setSource($this->getTableName("salary_project_templates"));
 	}
 
 	/**

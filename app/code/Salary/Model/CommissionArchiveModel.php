@@ -10,9 +10,9 @@ class CommissionArchiveModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName('salary_commission_archives');
+		$this->setSource($this->getTableName('salary_commission_archives'));
 	}
 
 	public static function factory()

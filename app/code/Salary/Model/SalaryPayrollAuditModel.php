@@ -12,9 +12,9 @@ class SalaryPayrollAuditModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("salary_payroll_audit_record");
+		$this->setSource($this->getTableName("salary_payroll_audit_record"));
 	}
 
 	public function getRoleTable()
@@ -141,7 +141,7 @@ class SalaryPayrollAuditModel extends BaseModel
 		}
 
 		$now = time();
-		$record->save(array(
+		$record->saveData(array(
 			'status' => $status,
 			'opinion' => addslashes($opinion),
 			'reviewed_at' => $now,

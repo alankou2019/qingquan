@@ -89,7 +89,7 @@ class UserController  extends ApiBaseController
 			$this->sendErrorResult('手机号码已经存在!');
 		}
 		$user = UserModel::factory();
-		$result = $user->save(array(
+		$result = $user->saveData(array(
 				'user_name' => $postData->phone,
 				'phone'     => $postData->phone,
 				'password'  => $postData->password,
@@ -163,7 +163,7 @@ class UserController  extends ApiBaseController
 			$this->sendErrorResult('验证码错误!');
 		}
 		//修改密码
-		$result = $user->save(array(
+		$result = $user->saveData(array(
 			'password' => $postData->password
 		));
 		if($result)
@@ -199,7 +199,7 @@ class UserController  extends ApiBaseController
 		{
 			$this->sendErrorResult('密码不匹配!',2001);
 		}
-		$result = $user->save(array(
+		$result = $user->saveData(array(
 			'password' => $postData->new_password
 		));
 		if($result)
@@ -239,7 +239,7 @@ class UserController  extends ApiBaseController
 		{
 			$this->sendErrorResult('用户信息修改失败!');
 		}
-		$user->save($updateData);
+		$user->saveData($updateData);
 		$this->sendSuccessResult();
 	}
 	
@@ -281,7 +281,7 @@ class UserController  extends ApiBaseController
 		
 		if($announcementLog->status!=1)
 		{
-			$announcementLog->save(array(
+			$announcementLog->saveData(array(
 					'status' => 1
 			));
 		}

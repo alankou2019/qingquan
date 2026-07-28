@@ -10,9 +10,9 @@ class ModuleModel extends BaseModel
 {
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("module");
+		$this->setSource($this->getTableName("module"));
 	}
 	
 	/**

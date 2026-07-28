@@ -14,9 +14,9 @@ class  PointCheckModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("point_check");
+		$this->setSource($this->getTableName("point_check"));
 	}
 	
 	

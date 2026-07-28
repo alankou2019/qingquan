@@ -15,9 +15,9 @@ class SalaryPayrollImportModel extends BaseModel
 	protected $_lastErrors = array();
 	protected $_previewProjects = array();
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("payroll_periods");
+		$this->setSource($this->getTableName("payroll_periods"));
 	}
 
 	public static function factory()
@@ -637,7 +637,7 @@ class SalaryPayrollImportModel extends BaseModel
 		}
 		try {
 			FactoryDefault::getDefault()->get('phpexcel');
-			$objPHPExcel = \PHPExcel_IOFactory::load($filePath);
+			$objPHPExcel = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
 			$sheet = $objPHPExcel->getSheet(0);
 		} catch (\Exception $e) {
 			$this->_lastErrors[] = array('row' => 0, 'name' => '', 'mobile' => '', 'reason' => '读取Excel失败：' . $e->getMessage());
@@ -645,14 +645,14 @@ class SalaryPayrollImportModel extends BaseModel
 		}
 
 		$highestColumn = $sheet->getHighestColumn();
-		$highestColumnIndex = \PHPExcel_Cell::columnIndexFromString($highestColumn);
+		$highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
 		$highestRow = intval($sheet->getHighestRow());
 		$columns = array();
 		$nameColumn = -1;
 		$mobileColumn = -1;
 		$projectHeaders = array();
 		for ($col = 0; $col < $highestColumnIndex; $col++) {
-			$value = $this->cellString($sheet->getCellByColumnAndRow($col, 1)->getValue());
+			$value = $this->cellString($sheet->getCell(array(($col) + 1, 1))->getValue());
 			$name = trim($value);
 			if ($name == '') {
 				continue;
@@ -680,12 +680,12 @@ class SalaryPayrollImportModel extends BaseModel
 
 		$rows = array();
 		for ($row = 2; $row <= $highestRow; $row++) {
-			$name = trim($this->cellString($sheet->getCellByColumnAndRow($nameColumn, $row)->getValue()));
-			$mobile = $this->normalizeMobile($this->cellString($sheet->getCellByColumnAndRow($mobileColumn, $row)->getValue()));
+			$name = trim($this->cellString($sheet->getCell(array(($nameColumn) + 1, $row))->getValue()));
+			$mobile = $this->normalizeMobile($this->cellString($sheet->getCell(array(($mobileColumn) + 1, $row))->getValue()));
 			$hasProjectValue = false;
 			$values = array();
 			foreach ($projectHeaders as $header) {
-				$raw = $this->cellString($sheet->getCellByColumnAndRow($header['column'], $row)->getCalculatedValue());
+				$raw = $this->cellString($sheet->getCell(array(($header['column']) + 1, $row))->getCalculatedValue());
 				if (trim($raw) !== '') {
 					$hasProjectValue = true;
 				}

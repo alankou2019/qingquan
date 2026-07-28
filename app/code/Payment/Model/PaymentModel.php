@@ -11,9 +11,9 @@ class PaymentModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("payment");
+		$this->setSource($this->getTableName("payment"));
 	}
 
 	/**

@@ -12,9 +12,9 @@ class  PointReportUserModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("point_report_user");
+		$this->setSource($this->getTableName("point_report_user"));
 	}
 	
 	

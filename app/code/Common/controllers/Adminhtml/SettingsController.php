@@ -42,7 +42,7 @@ class SettingsController extends AdminBaseController
 			{
 				$configModel = ConfigModel::findFirst("code='{$key}'");
 				if($configModel){
-					$configModel->save(array('value'=>$value));
+					$configModel->saveData(array('value'=>$value));
 				}
 			}
 			$keyName = Constants::CACHE_SYSTEM_CONFIG;

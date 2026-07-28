@@ -12,9 +12,9 @@ class  ReportTplItemModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("report_tpl_item");
+		$this->setSource($this->getTableName("report_tpl_item"));
 	}
 	
 	

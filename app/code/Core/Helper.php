@@ -409,9 +409,12 @@ class Helper
 				array( "22" => "射手座"),
 				array( "22" => "摩羯座")
 		);
-		list($sign_start, $sign_name) = each($signs[(int)$month-1]);
+		$currentSign = $signs[(int)$month - 1];
+		$sign_start = key($currentSign);
+		$sign_name = current($currentSign);
 		if ($day < $sign_start){
-			list($sign_start, $sign_name) = each($signs[($month -2 < 0) ? $month = 11: $month -= 2]);
+			$previousSign = $signs[((int)$month + 10) % 12];
+			$sign_name = current($previousSign);
 		}
 		return $sign_name;
 	}

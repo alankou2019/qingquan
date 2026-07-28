@@ -11,9 +11,9 @@ class CompanyDepartModel extends BaseModel
 
 	protected static  $_instance=null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("company_department");
+		$this->setSource($this->getTableName("company_department"));
 	}
 
 

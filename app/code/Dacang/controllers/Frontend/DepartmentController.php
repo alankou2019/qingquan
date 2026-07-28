@@ -285,7 +285,7 @@ class DepartmentController extends FrontendBaseController
         );
         if (empty($rootDepartment)) {
             $rootDepartment = new CompanyDepartModel();
-            $rootDepartment->save([
+			$rootDepartment->saveData([
                 'name'        => $this->companyName,
                 'company_id'  => $this->companyId,
                 'dingding_id' => 1,
@@ -386,17 +386,17 @@ class DepartmentController extends FrontendBaseController
             $isExists = $companyUserModel->findFirst($where);
             if (!$isExists) {
                 $companyUserModel = new CompanyUserModel();
-                $companyUserModel->save($data);
+				$companyUserModel->saveData($data);
 
                 if (isset($columns['dingding_user_id'])) {
-                    $companyUserModel->save([
+					$companyUserModel->saveData([
                         'dingding_user_id' => $companyUserModel->id,
                     ]);
                 }
             } else {
                 // Re-importing the roster must refresh the employee's current
                 // name and department instead of leaving a stale department id.
-                $isExists->save([
+				$isExists->saveData([
                     'name'          => $user['username'],
                     'department_id' => $departID,
                 ]);
@@ -441,11 +441,11 @@ class DepartmentController extends FrontendBaseController
             ];
 
             $companyDepartModel = new CompanyDepartModel();
-            $companyDepartModel->save($data);
+			$companyDepartModel->saveData($data);
 
 
             $parentDepartInfo = (new CompanyDepartModel())->findFirst("company_id=" . $this->companyId . " and name='{$parentDepartName}'");
-            $companyDepartModel->save([
+			$companyDepartModel->saveData([
                 'dingding_id'        => $companyDepartModel->id,
                 'dingding_parent_id' => isset($parentDepartInfo->id) ? $parentDepartInfo->id : 1,
             ]);

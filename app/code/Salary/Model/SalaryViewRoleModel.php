@@ -10,9 +10,9 @@ class SalaryViewRoleModel extends BaseModel
 {
 	protected static $_instance = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("salary_view_role");
+		$this->setSource($this->getTableName("salary_view_role"));
 	}
 
 	public static function factory()
@@ -95,7 +95,7 @@ class SalaryViewRoleModel extends BaseModel
 			}
 			$saved[$targetId] = 1;
 			$item = new SalaryViewRoleModel();
-			$item->save(array(
+			$item->saveData(array(
 				'company_id' => $companyId,
 				'user_id' => $userId,
 				'scope_type' => $scopeType,

@@ -13,9 +13,9 @@ class SalaryEmployeeDepartmentModel extends BaseModel
 	protected static $_tableColumnMap = array();
 	protected static $_tableMap = null;
 
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("company_user");
+		$this->setSource($this->getTableName("company_user"));
 	}
 
 	public static function factory()

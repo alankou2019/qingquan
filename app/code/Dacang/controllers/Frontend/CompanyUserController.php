@@ -47,7 +47,7 @@ class CompanyUserController extends FrontendBaseController
 
 
             if ($data) {
-                $userModel->save($data);
+				$userModel->saveData($data);
             }
             Utils::showMsg('操作成功!', $backUrl);
 

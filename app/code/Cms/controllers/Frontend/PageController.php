@@ -26,7 +26,7 @@ class PageController extends FrontendBaseController
 			$this->redirect('/');
 		}
 		//修改预览次数
-		$pageItem->save(array(
+		$pageItem->saveData(array(
 				'click' => $pageItem->click+1
 		));
 		$pageItem->created = $this->getHelper()->getTime()->localDate('Y-m-d',$pageItem->created);

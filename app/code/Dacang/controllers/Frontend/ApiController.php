@@ -85,12 +85,12 @@ class  ApiController  extends FrontendBaseController
 	    		$configModel = ConfigModel::findFirst("code='suite_ticket'");
 	    		if($configModel)
 	    		{
-	    			$configModel->save(array('value'=>$suiteTicket));
+				$configModel->saveData(array('value'=>$suiteTicket));
 	    		}
 	    		$configModel = ConfigModel::findFirst("code='suite_ticket_time'");
 	    		if($configModel)
 	    		{
-	    			$configModel->save(array('value'=>$suiteTicketTime));
+				$configModel->saveData(array('value'=>$suiteTicketTime));
 	    		}
 	    		
 	    		//清楚缓存

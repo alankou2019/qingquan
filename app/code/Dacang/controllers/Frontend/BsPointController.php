@@ -574,7 +574,7 @@ class  BsPointController  extends FrontendBaseController
 			//补充完整参数
 			$data['status']=0;
 			$data['created_at']=Helper::factory()->getTime()->gmtime();
-			$res=QuotaApplyModel::factory()->save($data);
+			$res=QuotaApplyModel::factory()->saveData($data);
 			if ($res)
 			{
 				$this->sendSuccessResult('Success');
@@ -651,7 +651,7 @@ class  BsPointController  extends FrontendBaseController
 					'status'   =>0,
 					'created_at'=>Helper::factory()->getTime()->gmtime(),
 			);
-			$res=PointReportItemDetailModel::factory()->save($detailData);
+			$res=PointReportItemDetailModel::factory()->saveData($detailData);
 			if ($res)
 			{
 				$this->sendSuccessResult('Success');

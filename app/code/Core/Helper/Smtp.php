@@ -296,7 +296,7 @@ class Smtp
 
 		if (is_resource($this->connection))
 		{
-			while (strpos($return, CRLF) === false OR $line{3} !== ' ')
+			while (strpos($return, CRLF) === false OR !isset($line[3]) OR $line[3] !== ' ')
 			{
 				$line    = fgets($this->connection, 512);
 				$return .= $line;

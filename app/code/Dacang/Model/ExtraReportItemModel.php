@@ -14,9 +14,9 @@ class  ExtraReportItemModel extends BaseModel
 {
 	protected static  $_instance=null;
 	
-	public function getSource()
+	public function initialize()
 	{
-		return $this->getTableName("extra_report_item");
+		$this->setSource($this->getTableName("extra_report_item"));
 	}
 	
 	
@@ -61,7 +61,7 @@ class  ExtraReportItemModel extends BaseModel
 					'report_user_id' => $user
 			) ;	
 			
-			self::factory()->save($data) ;
+			self::factory()->saveData($data) ;
 			
 			
 			self::delFactory() ;

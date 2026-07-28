@@ -95,7 +95,7 @@ class  ArticlecategoryController extends AdminBaseController
 			}
 			if(empty($postData['id'])){
 
-				$result = ArticlecategoryModel::factory()->save($postData);
+				$result = ArticlecategoryModel::factory()->saveData($postData);
 
 			}else{
 
@@ -104,7 +104,7 @@ class  ArticlecategoryController extends AdminBaseController
 				{
 					Utils::showMsg('修改的记录不存在!',$backUrl);
 				}
-				$result =$item->save($postData);
+				$result =$item->saveData($postData);
 			}
 			if($result){
 				Utils::showMsg('操作成功!',$backUrl);
@@ -146,14 +146,14 @@ class  ArticlecategoryController extends AdminBaseController
 			$value = trim($_REQUEST['value']) ? trim($_REQUEST['value']) : '';
 			if($value){
 				$item = ArticlecategoryModel::factory()->findFirst('id='.$id);
-				$item->save(array('name'=>$value));
+				$item->saveData(array('name'=>$value));
 			}else{
 				$this->sendErrorResult();
 			}
 		}elseif($field == 'sort'){
 			$value = trim($_REQUEST['value']) ? intval(trim($_REQUEST['value'])) : 0;
 			$item = ArticlecategoryModel::factory()->findFirst('id='.$id);
-			$item->save(array('sort'=>$value));
+			$item->saveData(array('sort'=>$value));
 		}else{
 			$this->sendErrorResult('暂不支持此字段');
 		}
@@ -193,7 +193,7 @@ class  ArticlecategoryController extends AdminBaseController
 		$offset = ($page-1)*$pagesize;
 		$items = ArticlecategoryModel::query()
 		->where($where)
-		->order('sort asc')
+		->orderBy('sort asc')
 		->limit($pagesize,$offset)
 		->execute()->toArray();
 

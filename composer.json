@@ -1,0 +1,15 @@
+{
+    "name": "dacang/wecom-kpi",
+    "description": "WeCom KPI and salary management system",
+    "type": "project",
+    "require": {
+        "php": "^8.4",
+        "phpoffice/phpspreadsheet": "5.7.0"
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.22"
+        },
+        "sort-packages": true
+    }
+}

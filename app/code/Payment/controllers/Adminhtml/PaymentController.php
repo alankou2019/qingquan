@@ -105,14 +105,14 @@ class PaymentController extends AdminBaseController
     		if(empty($postData['id'])){
 
     			unset($postData['id']);
-    			$result = PaymentModel::factory()->save($postData);
+				$result = PaymentModel::factory()->saveData($postData);
     		}else{
     			$paymentModel = PaymentModel::factory()->findFirst('id='.intval($postData['id']));
     			if(empty($paymentModel))
     			{
     				Utils::showMsg('修改的记录不存在!',$backUrl);
     			}
-    			$result =$paymentModel->save($postData);
+				$result =$paymentModel->saveData($postData);
     		}
     		if($result){
     			Utils::showMsg('操作成功!',$backUrl);
