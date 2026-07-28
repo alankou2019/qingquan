@@ -15,8 +15,14 @@ test "${actual_signature}" = "${expected_signature}"
 
 "${php_prefix}/bin/php" "${installer}" \
     --install-dir="${php_prefix}/bin" \
-    --filename=composer \
+    --filename=composer.phar \
     --2
 rm -f "${installer}"
+
+printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'exec /opt/php84/bin/php /opt/php84/bin/composer.phar "$@"' \
+    > "${php_prefix}/bin/composer"
+chmod 0755 "${php_prefix}/bin/composer"
 
 "${php_prefix}/bin/composer" --version
