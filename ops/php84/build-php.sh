@@ -19,6 +19,18 @@ if [[ ! -d "php-${version}" ]]; then
 fi
 
 cd "php-${version}"
+
+if [[ -f Makefile ]]; then
+    make clean
+fi
+
+compiler_major="$("${CC:-cc}" -dumpversion | cut -d. -f1)"
+if [[ "${compiler_major}" -lt 5 ]]; then
+    # GCC 4.x exposes immintrin.h but lacks the SHA-NI intrinsics used by PHP 8.4.
+    # Disable only that optional hardware path; PHP keeps its portable SHA implementation.
+    export ac_cv_header_immintrin_h=no
+fi
+
 export PKG_CONFIG_PATH="${dependency_prefix}/lib/pkgconfig:${dependency_prefix}/lib64/pkgconfig"
 export CPPFLAGS="-I${dependency_prefix}/include"
 export LDFLAGS="-L${dependency_prefix}/lib -L${dependency_prefix}/lib64 -Wl,-rpath,${dependency_prefix}/lib -Wl,-rpath,${dependency_prefix}/lib64"
