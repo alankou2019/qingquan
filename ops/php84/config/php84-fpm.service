@@ -1,0 +1,14 @@
+[Unit]
+Description=Isolated PHP 8.4 FastCGI Process Manager for WeCom staging
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/php84/sbin/php-fpm --nodaemonize --fpm-config /opt/php84/etc/php-fpm.conf
+ExecReload=/bin/kill -USR2 $MAINPID
+PrivateTmp=true
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
