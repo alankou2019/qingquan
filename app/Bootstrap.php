@@ -413,11 +413,16 @@ class  Bootstrap
 				"dispatch:beforeException",
 				function($event, $dispatcher, $exception)
 				{
-					switch ($exception->getCode()) {
-						case Dispatcher::EXCEPTION_HANDLER_NOT_FOUND:
-						case Dispatcher::EXCEPTION_ACTION_NOT_FOUND:
-							 //exit('404');
-							return false;
+					$dispatcherExceptionClass = class_exists('\Phalcon\Dispatcher\Exception')
+						? '\Phalcon\Dispatcher\Exception'
+						: '\Phalcon\Mvc\Dispatcher';
+					$notFoundCodes = array(
+						constant($dispatcherExceptionClass . '::EXCEPTION_HANDLER_NOT_FOUND'),
+						constant($dispatcherExceptionClass . '::EXCEPTION_ACTION_NOT_FOUND'),
+					);
+					if (in_array($exception->getCode(), $notFoundCodes, true)) {
+						 //exit('404');
+						return false;
 					}
 				}
 		);

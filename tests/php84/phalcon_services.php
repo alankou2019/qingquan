@@ -76,4 +76,14 @@ if (method_exists($loader, 'setNamespaces')) {
 }
 $loader->register();
 
-fwrite(STDOUT, "PASS: Phalcon cache, session, and loader services\n");
+$dispatcherExceptionClass = class_exists('\Phalcon\Dispatcher\Exception')
+    ? '\Phalcon\Dispatcher\Exception'
+    : '\Phalcon\Mvc\Dispatcher';
+foreach (array('EXCEPTION_HANDLER_NOT_FOUND', 'EXCEPTION_ACTION_NOT_FOUND') as $constantName) {
+    if (!defined($dispatcherExceptionClass . '::' . $constantName)) {
+        fwrite(STDERR, "FAIL: Phalcon dispatcher exception constant is unavailable\n");
+        exit(1);
+    }
+}
+
+fwrite(STDOUT, "PASS: Phalcon cache, session, loader, and dispatcher services\n");
