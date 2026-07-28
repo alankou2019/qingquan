@@ -18,6 +18,10 @@ cd "${source_dir}"
 test "$(git rev-parse HEAD)" = "${commit}"
 
 cd build/phalcon
+if [[ -f Makefile ]]; then
+    make clean
+fi
+export CFLAGS="-O0 -g0"
 "${php_prefix}/bin/phpize"
 ./configure --with-php-config="${php_prefix}/bin/php-config"
 make -j1
