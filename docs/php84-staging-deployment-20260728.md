@@ -51,6 +51,18 @@ not modified.
   the write regression fixes
 - No new PHP 8.4 error-log entries during the final write and deletion-scope
   regression runs
+- Full future-month payroll lifecycle regression for `2099-12`: generated and
+  saved a 9-employee payroll with 108 item values, submitted it for review,
+  verified that pre-approval archiving was blocked, approved it as the logged-in
+  reviewer, archived it, published 9 payslips, and opened the archive, payslip
+  confirmation, list, and detail pages
+- The payroll lifecycle test temporarily replaced the staging fixture reviewer
+  with the regression account and restored the original reviewer afterward;
+  payroll periods, rows, values, audit records, archives, payslips, operation
+  logs, and the temporary session were removed, leaving zero `2099-12` residue
+- Payslip publication only wrote the isolated staging payroll tables; the tested
+  controller/model path did not invoke WeCom, Feishu, SMS, or other external
+  notification services
 - Nginx rewrite, static assets, protected-path 404, TLS staging response, and
   PHP 8.4 runtime response header
 - Production login redirect remained healthy after each Nginx reload
@@ -65,6 +77,13 @@ not modified.
 - Completed KPI and points-based performance deletion by removing the report
   master row after its child rows, and restricted deletion to the logged-in
   company.
+
+- Bound payroll approval to the reviewer identity in the authenticated session
+  instead of trusting a posted `reviewer_id`, preventing approval impersonation.
+- Added the missing submit-review and reviewer approve/reject controls to the
+  payroll page, with audit progress shown for the current payroll.
+- Restricted payroll archiving to the `approved` state so draft, calculated,
+  rejected, and submitted payrolls cannot bypass the review workflow.
 
 The staging database contains a copied test dataset plus empty legacy
 performance table structures. No production business rows were copied into

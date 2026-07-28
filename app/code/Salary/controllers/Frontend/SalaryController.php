@@ -992,9 +992,20 @@ class SalaryController extends FrontendBaseController
 		if ($period) {
 			$projects = PayrollEmployeeRowModel::factory()->getPayrollProjectSnapshots($this->companyId, intval($period['id']));
 			$rows = PayrollEmployeeRowModel::factory()->getPayrollMatrix($this->companyId, intval($period['id']));
+			$auditMap = SalaryPayrollAuditModel::factory()->getPeriodAuditMap($this->companyId, array(intval($period['id'])));
+			$audit = isset($auditMap[intval($period['id'])]) ? $auditMap[intval($period['id'])] : array('items' => array(), 'pending' => 0, 'approved' => 0, 'rejected' => 0, 'total' => 0);
+			$currentAudit = SalaryPayrollAuditModel::factory()->findFirst(
+				'company_id=' . intval($this->companyId) .
+				' and payroll_period_id=' . intval($period['id']) .
+				' and reviewer_id=' . $this->getOperatorId() .
+				' and status="pending"'
+			);
 			$period['status_name'] = PayrollPeriodModel::getStatusName($period['status']);
 			$period['can_edit'] = PayrollPeriodModel::canEdit($period['status']) ? 1 : 0;
+			$period['can_submit_audit'] = PayrollPeriodModel::canSubmitAudit($period['status']) ? 1 : 0;
 			$period['can_archive'] = PayrollPeriodModel::canArchive($period['status']) ? 1 : 0;
+			$period['audit_text'] = $this->formatAuditText($audit);
+			$period['can_current_review'] = $currentAudit ? 1 : 0;
 		}
 		$displayProjects = EmployeeSalaryStructureModel::factory()->buildSalaryTableDisplayProjects($projects);
 		$departments = array();
@@ -1437,7 +1448,7 @@ class SalaryController extends FrontendBaseController
 			Utils::showMsg('不支持的请求方式', $backUrl);
 		}
 		$periodId = intval($this->request->get('id'));
-		$reviewerId = intval($this->request->get('reviewer_id'));
+		$reviewerId = $this->getOperatorId();
 		$status = $this->request->get('status');
 		$opinion = trim($this->request->get('opinion'));
 		$period = PayrollPeriodModel::factory()->getCompanyPeriod($this->companyId, $periodId);

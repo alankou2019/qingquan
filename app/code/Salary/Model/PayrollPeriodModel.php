@@ -502,7 +502,7 @@ class PayrollPeriodModel extends BaseModel
 
 	public static function canArchive($status)
 	{
-		return self::canEdit($status) || in_array($status, array('submitted', 'approved'));
+		return $status == 'approved';
 	}
 
 	public static function canEdit($status)
