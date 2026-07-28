@@ -61,4 +61,19 @@ if ($session->get('smoke_key') !== 'ok') {
 $session->remove('smoke_key');
 $session->destroy();
 
-fwrite(STDOUT, "PASS: Phalcon cache and session services\n");
+$loaderClass = class_exists('\Phalcon\Autoload\Loader')
+    ? '\Phalcon\Autoload\Loader'
+    : '\Phalcon\Loader';
+$loader = new $loaderClass();
+$smokeNamespaces = array('Smoke\\' => $temporaryRoot . '/');
+if (method_exists($loader, 'setNamespaces')) {
+    $loader->setNamespaces($smokeNamespaces);
+} elseif (method_exists($loader, 'registerNamespaces')) {
+    $loader->registerNamespaces($smokeNamespaces);
+} else {
+    fwrite(STDERR, "FAIL: Phalcon namespace loader API is unavailable\n");
+    exit(1);
+}
+$loader->register();
+
+fwrite(STDOUT, "PASS: Phalcon cache, session, and loader services\n");

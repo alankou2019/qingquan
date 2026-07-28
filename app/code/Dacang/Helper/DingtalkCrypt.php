@@ -52,7 +52,7 @@ class DingtalkCrypt
 		));
 		return ErrorCode::$OK;
 	}
-	public function DecryptMsg($signature, $timeStamp = null, $nonce, $encrypt, &$decryptMsg)
+	public function DecryptMsg($signature, $timeStamp, $nonce, $encrypt, &$decryptMsg)
 	{
 		if (strlen($this->m_encodingAesKey) != 43) {
 			return ErrorCode::$IllegalAesKey;

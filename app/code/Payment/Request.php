@@ -7,7 +7,7 @@ abstract class Request
 
     protected $options = array();
 
-    public function __construct(array $options = null, array $params = null)
+    public function __construct(array $options = array(), array $params = array())
     {
         $this->options = $options;
         $this->params = $params;

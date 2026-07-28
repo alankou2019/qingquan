@@ -144,7 +144,7 @@ class  Bootstrap
 		$di = $this->di;
 		$this->di->set('db', function()use ($di){
 			 $config = $di->get('config');
-			 return new \Phalcon\Db\Adapter\Pdo\Mysql([
+			 $options = [
 					"host"     => $config->database->host,
 					"username" => $config->database->username,
 					"password" => $config->database->password,
@@ -152,7 +152,13 @@ class  Bootstrap
 					"charset"  => $config->database->charset,
 			 		"port"     => $config->database->port,
 			 		"prefix"   => $config->database->prefix,
-			]);
+			];
+
+			if (method_exists('\Phalcon\Db\Column', 'getGenerationExpression')) {
+				$options["dialectClass"] = '\ScshuxCms\Core\Db\Mysql56Dialect';
+			}
+
+			return new \Phalcon\Db\Adapter\Pdo\Mysql($options);
 
 		});
 	}
@@ -290,7 +296,11 @@ class  Bootstrap
 		//注册加载
 		$loaderClass = class_exists('\Phalcon\Autoload\Loader') ? '\Phalcon\Autoload\Loader' : '\Phalcon\Loader';
 		$loader = new $loaderClass();
-	 	$loader->registerNamespaces($autoLoadNameSpaces);
+		if (method_exists($loader, 'setNamespaces')) {
+			$loader->setNamespaces($autoLoadNameSpaces);
+		} else {
+			$loader->registerNamespaces($autoLoadNameSpaces);
+		}
 	 	$loader->register();
 
 	}

@@ -23,6 +23,7 @@ done < <(
 cd "${project_root}"
 "${php_bin}" tests/php84/crypto_compat.php
 "${php_bin}" tests/php84/phalcon_services.php
+"${php_bin}" tests/php84/mysql56_dialect.php
 "${php_bin}" tests/php84/phpspreadsheet_roundtrip.php
 
 printf '%s\n' "PASS: PHP 8.4 smoke test suite"
