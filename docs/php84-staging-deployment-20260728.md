@@ -20,6 +20,10 @@ not modified.
 
 - Database source backup:
   `/root/php84-upgrade/db-backups/wecom_kpi_staging-20260728_191300.sql.gz`
+- Clean pre-write staging database backup:
+  `/root/php84-upgrade/db-backups/wecom_kpi_php84_staging-pre-write-clean-20260728_203722.sql.gz`
+  (SHA-256:
+  `daa9f79d6085a2dfab17dfad07c0eb2bd8990b984a0b302b4c35808dd31aadc5`)
 - Previous staging Nginx virtual host:
   `/root/php84-upgrade/nginx-backups/wecom-kpi.dacangcons.cn.before-php84-20260728-202155.conf`
 
@@ -35,9 +39,32 @@ not modified.
 - Twenty GET routes covering organization, employees, performance, salary,
   payroll, payroll archive, payslips, reports, commission, and
   performance-linked salary
+- Synthetic write regression for KPI reports, points-based performance,
+  custom salary projects, and commission projects: create, update, read,
+  delete, and database verification
+- Performance deletion scope regression: records belonging to the logged-in
+  company were deleted completely, while a synthetic foreign-company ID was
+  rejected
+- Every synthetic write used a unique `PHP84REG-*` or `PHP84DEL-*` marker and
+  was removed after verification; post-test marker counts were zero
+- PHP 5.6, PHP 7.3, and PHP 8.4 syntax checks for all controllers changed by
+  the write regression fixes
+- No new PHP 8.4 error-log entries during the final write and deletion-scope
+  regression runs
 - Nginx rewrite, static assets, protected-path 404, TLS staging response, and
   PHP 8.4 runtime response header
 - Production login redirect remained healthy after each Nginx reload
+
+## Issues fixed by write regression
+
+- Replaced legacy empty-string numeric accumulators in KPI and points-based
+  performance validation with numeric zero for PHP 8.4 compatibility.
+- Recovered the newly-created salary project ID before building the AJAX
+  response, so creation now returns the saved project instead of a false
+  read-back error.
+- Completed KPI and points-based performance deletion by removing the report
+  master row after its child rows, and restricted deletion to the logged-in
+  company.
 
 The staging database contains a copied test dataset plus empty legacy
 performance table structures. No production business rows were copied into

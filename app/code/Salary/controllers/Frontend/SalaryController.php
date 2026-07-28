@@ -779,6 +779,18 @@ class SalaryController extends FrontendBaseController
 		}
 		$projectId = intval(isset($_POST['id']) ? $_POST['id'] : 0);
 		$templateId = intval(isset($_POST['template_id']) ? $_POST['template_id'] : 0);
+		if ($projectId <= 0 && $templateId <= 0) {
+			$projectName = isset($_POST['name']) ? trim($_POST['name']) : '';
+			if ($projectName != '') {
+				$savedProject = $model->findFirst(
+					'company_id=' . intval($this->companyId) .
+					' and name="' . addslashes($projectName) . '" and deleted_at=0'
+				);
+				if ($savedProject) {
+					$projectId = intval($savedProject->id);
+				}
+			}
+		}
 		$editorData = $this->getSalaryProjectEditorData($projectId, $templateId);
 		$recalculatedPeriodCount = 0;
 		if ($editorData && !empty($editorData['project']['is_formula_project']) && !empty($editorData['project']['id'])) {

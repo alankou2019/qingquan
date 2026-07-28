@@ -1174,7 +1174,7 @@ class ReportController extends FrontendBaseController
 			}
 		}
 		
-		$point = '' ;
+		$point = 0.0 ;
 		foreach ($quotaval as $val)
 		{
 			$point += floatval($val) ;
@@ -1597,22 +1597,38 @@ class ReportController extends FrontendBaseController
 	 * 删除报表数据
 	 * @param  $ids
 	 */
-	protected  function  _remove($ids)
+	protected function _remove($ids)
 	{
-		if($ids){
-			//删除报表对应指标
-			$reportitems = ReportItemModel::factory()->find('report_id in('.$ids.')') ;
-			foreach ($reportitems as $item)
-			{
-				$item->delete();
-			}
+		$ids = array_unique(array_filter(array_map('intval', explode(',', (string)$ids))));
+		if (!$ids) {
+			return;
+		}
 
-			//删除报表对应用户
-			$reportusers = ReportUserModel::factory()->find('report_id in('.$ids.')') ;
-			foreach ($reportusers as $item)
-			{
-				$item->delete();
-			}
+		$idList = implode(',', $ids);
+		$reports = ReportModel::find('id in(' . $idList . ') and company_id=' . intval($this->companyId));
+		$reportIds = array();
+		$reportsToDelete = array();
+		foreach ($reports as $report) {
+			$reportIds[] = intval($report->id);
+			$reportsToDelete[] = $report;
+		}
+		if (!$reportIds) {
+			return;
+		}
+
+		$idList = implode(',', $reportIds);
+		$reportitems = ReportItemModel::factory()->find('report_id in(' . $idList . ')');
+		foreach ($reportitems as $item) {
+			$item->delete();
+		}
+
+		$reportusers = ReportUserModel::factory()->find('report_id in(' . $idList . ')');
+		foreach ($reportusers as $item) {
+			$item->delete();
+		}
+
+		foreach ($reportsToDelete as $report) {
+			$report->delete();
 		}
 	}
 

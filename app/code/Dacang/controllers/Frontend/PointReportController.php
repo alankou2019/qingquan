@@ -1203,13 +1203,32 @@ class PointReportController extends FrontendBaseController
 	 * 删除积分考评表数据
 	 * @param  $ids
 	 */
-	protected  function  _pointremove($ids)
+	protected function _pointremove($ids)
 	{
-		if($ids){
-			$where=is_numeric($ids)?'report_id='.$ids:'report_id in('.$ids.')';
-			PointReportItemModel::deleteAll($where);					//删除报表对应指标
-			PointReportItemDetailModel::factory()->deleteBySql($where);	//删除积分考评表具体打分详情
-			PointReportUserModel::factory()->deleteBySql($where);		//删除报表对应用户
+		$ids = array_unique(array_filter(array_map('intval', explode(',', (string)$ids))));
+		if (!$ids) {
+			return;
+		}
+
+		$idList = implode(',', $ids);
+		$reports = PointReportModel::find('id in(' . $idList . ') and company_id=' . intval($this->companyId));
+		$reportIds = array();
+		$reportsToDelete = array();
+		foreach ($reports as $report) {
+			$reportIds[] = intval($report->id);
+			$reportsToDelete[] = $report;
+		}
+		if (!$reportIds) {
+			return;
+		}
+
+		$where = 'report_id in(' . implode(',', $reportIds) . ')';
+		PointReportItemModel::deleteAll($where);
+		PointReportItemDetailModel::factory()->deleteBySql($where);
+		PointReportUserModel::factory()->deleteBySql($where);
+
+		foreach ($reportsToDelete as $report) {
+			$report->delete();
 		}
 	}
 
@@ -1409,7 +1428,7 @@ class PointReportController extends FrontendBaseController
 			}
 		}
 		
-		$point = '' ;
+		$point = 0.0 ;
 		foreach ($quotaval as $val)
 		{
 			$point += floatval($val) ;
