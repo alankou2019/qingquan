@@ -5,13 +5,14 @@
         <meta name="author" content="大仓考评——让考核如此简单" />
         <meta name="copyright" content="wwww.scshux.com" />
         <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
-        <title>大仓考评——让考核如此简单</title>
+        <title>大仓考评｜企业管理后台</title>
         
         <!--页面样式 star-->
         <link rel="stylesheet" href="/skin/adminhtml/default/fonts/iconfont.css" />
         <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/ljk.min.css"/>
         <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/color.css"/>
 		<link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/salary-table-hover.css?v=20260725"/>
+        <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/consulting-blue.css?v=20260730-2"/>
         
         <!--页面样式 end-->
         
@@ -34,7 +35,7 @@
         </style>
 
     </head>
-    <body>
+    <body class="consulting-content">
         {{ content() }}
     </body>
 </html>

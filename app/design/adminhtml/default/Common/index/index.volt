@@ -20,7 +20,7 @@
         <div class="main open" id="main">
             <div class="index_header posi_t clear">
                 <div class="fl logo_box">
-                    <span style="color:#fff;font-size:28px;font-weight:700;letter-spacing:4px;line-height:60px;">运营后台</span>
+                    <div class="operation-brand"><span class="operation-brand-mark">DC</span><span class="operation-brand-copy"><strong>运营后台</strong><small>DA CANG CONSULTING</small></span></div>
                 </div>
                 <div class="fr">
                     <ul class="top_list">

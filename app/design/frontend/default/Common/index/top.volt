@@ -1,10 +1,11 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>后台页面头部</title>
+<title>大仓考评｜企业管理后台</title>
 <link href="/skin/newadminhtml/css/css.css" type="text/css" rel="stylesheet" />
+<link href="/skin/adminhtml/default/css/consulting-blue.css?v=20260730-2" type="text/css" rel="stylesheet" />
 </head>
-<body onselectstart="return false" oncontextmenu=return(false) style="overflow-x:hidden;">
+<body class="consulting-top-shell" onselectstart="return false" oncontextmenu=return(false) style="overflow-x:hidden;">
 <!--禁止网页另存为-->
 <noscript><iframe scr="*.htm"></iframe></noscript>
 <!--禁止网页另存为-->
@@ -14,9 +15,9 @@
     <td align="left" valign="bottom">
     <table width="100%" border="0" cellspacing="0" cellpadding="0">
       <tr>
-        <td align="left" valign="bottom" id="header-name">大仓考评</td>
+        <td align="left" valign="bottom" id="header-name">大仓考评<small>DA CANG CONSULTING</small></td>
         <td align="right" valign="top" id="header-right">
-        	<a href="javascript:logout();"  class="admin-out">注销</a>
+            <a href="javascript:logout();"  class="admin-out">安全退出</a>
             <span>
 <!-- 日历 -->
   <SCRIPT type="text/javascript" src="/skin/newadminhtml/js/clock.js"></SCRIPT>
@@ -30,7 +31,7 @@
     <td align="left" valign="bottom">
 	<table width="100%" border="0" cellspacing="0" cellpadding="0">
       <tr>
-        <td align="left" valign="top" id="header-admin">后台管理系统</td>
+        <td align="left" valign="top" id="header-admin">企业管理后台</td>
         <td align="left" valign="bottom" id="header-menu">
         <a href="{{helper.createUrl(['p':'index/index','bigClass':'3'])}}" onFocus="this.blur()" target="_top"
         {% if bigClass==3 %} id="menuon" {% endif %}>人员信息</a>

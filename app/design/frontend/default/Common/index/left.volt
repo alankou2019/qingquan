@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>左侧导航menu</title>
 <link href="/skin/newadminhtml/css/css.css" type="text/css" rel="stylesheet" />
+<link href="/skin/adminhtml/default/css/consulting-blue.css?v=20260730-2" type="text/css" rel="stylesheet" />
 <script type="text/javascript" src="/skin/newadminhtml/js/sdmenu.js"></script>
 <script type="text/javascript">
 	// <![CDATA[
@@ -11,15 +12,19 @@
 	window.onload = function() {
 		myMenu = new SDMenu("my_menu");
 		myMenu.init();
+	var menuLinks = document.getElementById('my_menu').getElementsByTagName('a');
+	for (var i = 0; i < menuLinks.length; i++) {
+		menuLinks[i].onclick = function () {
+			for (var j = 0; j < menuLinks.length; j++) menuLinks[j].className = menuLinks[j].className.replace(/\bcurrent\b/g, '');
+			this.className += ' current';
+		};
+	}
 	};
 	// ]]>
 </script>
-<style type=text/css>
-html{ SCROLLBAR-FACE-COLOR: #538ec6; SCROLLBAR-HIGHLIGHT-COLOR: #dce5f0; SCROLLBAR-SHADOW-COLOR: #2c6daa; SCROLLBAR-3DLIGHT-COLOR: #dce5f0; SCROLLBAR-ARROW-COLOR: #2c6daa;  SCROLLBAR-TRACK-COLOR: #dce5f0;  SCROLLBAR-DARKSHADOW-COLOR: #dce5f0; overflow-x:hidden;}
-body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg) left top repeat-y #f2f0f5; width:194px;}
-</style>
+<style type="text/css">html,body{overflow-x:hidden;}</style>
 </head>
-<body onselectstart="return false;" ondragstart="return false;" oncontextmenu="return false;">
+<body class="consulting-left-shell" onselectstart="return false;" ondragstart="return false;" oncontextmenu="return false;">
 <div id="left-top">
 	<div><img src="/skin/newadminhtml/images/main/member.gif" width="44" height="44" /></div>
     <span>用户：{{_user.user_name}}<br>角色：{% if _user.is_admin==1 %}超级管理员{% else %}子管理员{% endif %}</span>

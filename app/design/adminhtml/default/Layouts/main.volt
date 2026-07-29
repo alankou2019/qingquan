@@ -5,12 +5,13 @@
         <meta name="author" content="成都大仓企业管理有限公司绩效管理系统" />
         <meta name="copyright" content="wwww.scshux.com" />
         <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
-        <title>成都大仓企业管理有限公司绩效管理系统</title>
+        <title>大仓咨询｜运营后台</title>
         
         <!--页面样式 star-->
         <link rel="stylesheet" href="/skin/adminhtml/default/fonts/iconfont.css" />
         <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/ljk.min.css"/>
         <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/color.css"/>
+        <link rel="stylesheet" type="text/css" href="/skin/adminhtml/default/css/consulting-blue.css?v=20260730-2"/>
         <!--页面样式 end-->
         
         <!--公共 js star-->
@@ -23,7 +24,7 @@
         <script src="/skin/adminhtml/default/js/utils.js" type="text/javascript" charset="utf-8"></script>
 
     </head>
-    <body>
+    <body class="consulting-content">
         {{ content() }}
     </body>
 </html>
