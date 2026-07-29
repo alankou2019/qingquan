@@ -69,10 +69,9 @@ class  CompanyController extends AdminBaseController
 	{
 	    $itemId  = isset($_REQUEST['id'])?intval($_REQUEST['id']):'';
 	    $platform = isset($_REQUEST['platform'])?trim($_REQUEST['platform']):'dingding';
-	    if(!in_array($platform, array('dingding', 'wecom', 'feishu'))){
+	    if(!in_array($platform, array('dingding', 'wecom', 'feishu', 'manual'))){
 	        $platform = 'dingding';
 	    }
-	    $this->view->setVar('platform', $platform);
 	    $backUrl = $this->getHelper()->createUrl(array('p'=>'company/index'));
 	    if($itemId>0){
 	        $item = CompanyModel::factory()->findFirst('id='.$itemId);
@@ -81,10 +80,14 @@ class  CompanyController extends AdminBaseController
 	        {
 	            Utils::showMsg('修改的记录不存在!',$backUrl);
 	        }
+	        if(!empty($item->app_platform) && in_array($item->app_platform, array('dingding', 'wecom', 'feishu', 'manual'))){
+	            $platform = $item->app_platform;
+	        }
 	        $item->expire_time = $item->expire_time!=-1?$this->getHelper()->getTime()->localDate('Y-m-d H:i:s',$item->expire_time):'';
 
 	        $this->view->setVar('item', $item);
 	    }
+	    $this->view->setVar('platform', $platform);
 	    
 	}
 	/**
@@ -100,7 +103,7 @@ class  CompanyController extends AdminBaseController
 	    {
 	        $postData = $_POST;
 	        $platform = isset($postData['platform'])?trim($postData['platform']):'dingding';
-	        if(!in_array($platform, array('dingding', 'wecom', 'feishu'))){
+	        if(!in_array($platform, array('dingding', 'wecom', 'feishu', 'manual'))){
 	            $platform = 'dingding';
 	        }
 	        if(empty($postData['name']))
@@ -139,6 +142,7 @@ class  CompanyController extends AdminBaseController
 	            'status'  => intval($postData['status']),
 	            'expire_time'=>  $postData['expire_time'],
 	        	'industry' => $postData['industry'],
+	            'app_platform' => $platform,
 	        	'user_id' => $postData['user_id'],
 	        	'corpsecret' => trim($postData['corpsecret']),
 	        	'corpid' => $postData['corpid'],
@@ -276,7 +280,7 @@ class  CompanyController extends AdminBaseController
 	    /*加载数据*/
 	    $offset = ($page-1)*$pagesize;    
 	    
-	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum,max(pi.platform) as platform';
+	    $columns = 'c.id,c.name,c.contact,c.phone,c.industry,c.app_platform,c.hash_key,c.status,c.expire_time,c.remark,sum(u.login_num) as loginnum,max(pi.platform) as platform';
 	    $items = $this->modelsManager->createBuilder()
 									    ->columns($columns)
 									    ->addFrom('ScshuxCms\Dacang\Model\CompanyModel','c')
@@ -298,6 +302,9 @@ class  CompanyController extends AdminBaseController
 	            '2' => '正常'
 	        );
 	        foreach($items as $key=>$item){
+	            if(empty($item['platform'])){
+	                $item['platform'] = !empty($item['app_platform']) ? $item['app_platform'] : 'dingding';
+	            }
 	            $item['expire_time'] = $item['expire_time'] > -1 ? $this->getHelper()->formatDateTime($item['expire_time']) : '永不过期';
 	            $item['status']      = $statusarr[$item['status']];
 	            $items[$key] = $item;

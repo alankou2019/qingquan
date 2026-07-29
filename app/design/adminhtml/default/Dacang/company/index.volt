@@ -28,6 +28,11 @@
     border-color: #d9d3f4;
     background: #f7f5ff;
 }
+.company-platform-label.manual {
+    color: #a05a12;
+    border-color: #f0d3ad;
+    background: #fff9f0;
+}
 </style>
 <!--滚动条-->
 <script src="/skin/adminhtml/default/libs/nicescroll/jquery.nicescroll.js"></script>
@@ -73,6 +78,7 @@
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'dingding'])}}';"><i class="iconfont icon-tianjia"></i>添加钉钉公司</button>
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'wecom'])}}';"><i class="iconfont icon-tianjia"></i>添加企业微信公司</button>
         <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'feishu'])}}';"><i class="iconfont icon-tianjia"></i>添加飞书公司</button>
+        <button class="operate company-platform-button" onclick="window.location='{{helper.createUrl(['p':'company/new','platform':'manual'])}}';"><i class="iconfont icon-tianjia"></i>添加服务号企业</button>
         <!--右侧配置-->
         <div class="search_right">
             <span class="num">共<span id="recordCount"></span>条记录</span>
@@ -112,6 +118,9 @@
                     {% elseif item.platform == 'feishu' %}
                     <span class="company-platform-label feishu">飞书</span>
                     <button class="btn" onclick="window.location='{{helper.createUrl(['p':'feishu/index','company_id':item.id])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
+                    {% elseif item.platform == 'manual' %}
+                    <span class="company-platform-label manual">服务号</span>
+                    <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id,'platform':'manual'])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>
                     {% else %}
                     <span class="company-platform-label">钉钉</span>
                     <button class="btn" onclick="window.location='{{helper.createUrl(['p':'company/edit','id':item.id,'platform':'dingding'])}}';"><i class="iconfont icon-caozuo"></i>编辑</button>

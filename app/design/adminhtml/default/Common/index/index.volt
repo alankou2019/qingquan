@@ -20,7 +20,7 @@
         <div class="main open" id="main">
             <div class="index_header posi_t clear">
                 <div class="fl logo_box">
-                    <img src="/skin/adminhtml/default/images/logo.png"/>
+                    <span style="color:#fff;font-size:28px;font-weight:700;letter-spacing:4px;line-height:60px;">运营后台</span>
                 </div>
                 <div class="fr">
                     <ul class="top_list">

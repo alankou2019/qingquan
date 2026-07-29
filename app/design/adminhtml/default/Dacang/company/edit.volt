@@ -8,7 +8,7 @@
 
 		<span style="float: right; cursor: pointer;"
 			onclick="window.location=window.location;"><i
-			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% elseif platform == 'feishu' %}新增飞书公司{% else %}新增钉钉公司{% endif %}</span> <a
+			class="iconfont icon-shuaxin"></i></span> <span class="name">{% if platform == 'manual' %}{% if item %}编辑服务号企业{% else %}新增服务号企业{% endif %}{% elseif item %}编辑公司{% elseif platform == 'wecom' %}新增企业微信公司{% elseif platform == 'feishu' %}新增飞书公司{% else %}新增钉钉公司{% endif %}</span> <a
 			class="go_back" onclick="window.location='{{helper.createUrl(['p':'company/index'])}}';"> <i
 			class="iconfont icon-fanhui"></i> <span>返回公司列表</span>
 		</a>
@@ -51,7 +51,9 @@
                             <div class="input_clear">
                                 {{helper.createUrl(['p':'bs/newindex','m':'front','_f':'1'])}}/{{item.hash_key}}
                                 <br />
+                                {% if platform == 'dingding' %}
                                 <small style="" class="help-block prompt_box"><i class="fa fa-times-circle-o"></i>钉钉设置中的首页地址！</small>
+                                {% endif %}
                             </div>
                         </div>
                     </li>
@@ -64,7 +66,9 @@
                             <div class="input_clear">
                                 {{helper.createUrl(['p':'login/index','m':'front','_f':'1'])}}/{{item.hash_key}}
                                 <br />
+                                {% if platform == 'dingding' %}
                                 <small style="" class="help-block prompt_box"><i class="fa fa-times-circle-o"></i>钉钉设置中的后台地址！</small>
+                                {% endif %}
                             </div>
                         </div>
                     </li>
@@ -79,6 +83,16 @@
                         </div>
                     </li>
 
+				{% if platform == 'manual' %}
+				<li class="posi_lm">
+					<div class="left posi_l">人员导入方式:</div>
+					<div class="right posi_m">
+						<div style="padding:12px 16px;border:1px solid #f0d3ad;background:#fff9f0;color:#7a4a16;line-height:24px;">
+							服务号企业无需配置自建应用。企业管理员登录企业后台后，使用统一 Excel 模板导入部门和员工，导入的数据供 KPI、积分考核和薪酬管理共同使用。
+						</div>
+					</div>
+				</li>
+				{% endif %}
 				{% if platform == 'wecom' and not item %}
 				<li class="posi_lm"><div class="left posi_l"></div><div class="right posi_m"><strong style="font-size:18px;">企业微信自建应用参数</strong></div></li>
 				<li class="posi_lm"><div class="left posi_l must">CorpID:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="wecom_corp_id" datatype="*" maxlength="128" autocomplete="off"/><small class="help-block prompt_box">企业微信管理后台 → 我的企业 → 企业ID</small></div></div></li>
@@ -95,7 +109,7 @@
 				<li class="posi_lm"><div class="left posi_l">Encrypt Key:</div><div class="right posi_m"><div class="input_clear"><input type="text" name="feishu_encrypt_key" maxlength="255" autocomplete="off"/></div></div></li>
 				{% endif %}
                     
-				{% if platform == 'dingding' or item %}
+				{% if platform == 'dingding' %}
                  <li class="posi_lm">
 					<div class="left posi_l ">appKey:</div>
 					<div class="right posi_m">
