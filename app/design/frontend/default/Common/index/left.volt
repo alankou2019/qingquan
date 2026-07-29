@@ -72,7 +72,6 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
 <!--薪酬管理 -->
 		   <div>
               <span>薪酬管理</span>
-              <a href="{{helper.createUrl(['p':'salary/index'])}}" target="mainFrame" onFocus="this.blur()">薪酬首页</a>
               <a href="{{helper.createUrl(['p':'salary/employeesync'])}}" target="mainFrame" onFocus="this.blur()">员工同步/导入</a>
               <a href="{{helper.createUrl(['p':'salary/auth'])}}" target="mainFrame" onFocus="this.blur()">薪酬管理授权</a>
               <a href="{{helper.createUrl(['p':'salary/project'])}}" target="mainFrame" onFocus="this.blur()">工资项目设置</a>
