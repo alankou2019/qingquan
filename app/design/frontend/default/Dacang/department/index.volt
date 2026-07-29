@@ -13,19 +13,18 @@
 <script src="/skin/adminhtml/default/libs/layer/layer.js" type="text/javascript" charset="utf-8"></script>
     <div class="full_box">
     <!--头部TAB切换 -->
-    <div class="head_tab clear">
-        <ul>
-            <li class="on"><a href="#">部门列表</a></li>
-        </ul>
-    </div>
+    {{ partial('personnel_primary_navigation') }}
+    <div class="salary_secondary_navigation"><a class="on" href="#">部门管理</a></div>
     <!--头部TAB切换-->
     
     <!--搜索-->
     <div class="search_box">
 
 
+            {% if canManagePersonnel %}
             <button class="optionbutton" type="button" onclick="importexcel()">导入excel</button>
             <button class="optionbutton" type="button" onclick="reportexcel()">excel模板下载</button>
+            {% endif %}
     
     	
         <!--右侧配置-->
@@ -79,8 +78,9 @@
 
     <!--上传excel  form-->
           <div style="display: none;">
-          		<form method="post" action="{{helper.createUrl(['p':'department/uploadexcel'])}}" enctype="multipart/form-data" id='uploadexccelfrom'>
-                <input  type="file" name="exceltpl" id='uploadexcelinput' onchange="fileChange(this);" accept="application/vnd.ms-excel"/>
+                <form method="post" action="{{helper.createUrl(['p':'department/uploadexcel','from':'personnel'])}}" enctype="multipart/form-data" id='uploadexccelfrom'>
+                <input  type="file" name="exceltpl" id='uploadexcelinput' onchange="fileChange(this);" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+                <input type="hidden" name="from" value="personnel" />
                 <input type="submit"  value="导入" />
        		</form>
           </div>

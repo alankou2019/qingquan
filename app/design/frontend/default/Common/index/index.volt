@@ -15,7 +15,7 @@
         {% elseif bigClass==2 %}
             src="{{helper.createUrl(['p':'firm/pointreportlist'])}}"
         {% elseif bigClass==3 %}
-            src="{{helper.createUrl(['p':'index/kong'])}}"
+            src="{{helper.createUrl(['p':'personnel/index'])}}"
         {% elseif bigClass==4 %}
             src="{{helper.createUrl(['p':'salary/index'])}}"
         {% else %}

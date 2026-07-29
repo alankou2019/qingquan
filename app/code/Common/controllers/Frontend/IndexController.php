@@ -98,7 +98,7 @@ class  IndexController  extends FrontendBaseController
 			return 1;
 		}
 
-		if (!in_array($bigClass, array(1, 2, 4, 5, 6))) {
+		if (!in_array($bigClass, array(1, 2, 3, 4, 5, 6))) {
 			return 1;
 		}
 

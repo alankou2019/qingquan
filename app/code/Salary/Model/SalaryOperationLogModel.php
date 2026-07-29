@@ -166,6 +166,9 @@ class SalaryOperationLogModel extends BaseModel
 			'payroll_restore' => '恢复归档工资表',
 			'salary_auth_audit_reviewer_save' => '保存工资表审核人',
 			'salary_auth_scope_save' => '保存薪酬查询授权',
+			'personnel_employee_save' => '编辑统一人员信息',
+			'personnel_employee_delete' => '删除统一人员',
+			'personnel_platform_sync' => '同步统一通讯录',
 		);
 	}
 }

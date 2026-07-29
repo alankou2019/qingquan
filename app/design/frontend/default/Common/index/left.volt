@@ -30,9 +30,7 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
 	        {% if _user.is_admin==1 %}  
 		      <div class="collapsed">
 		        <span>考核设置</span>
-		        <a href="{{helper.createUrl(['p':'department/index'])}}" target="mainFrame" onFocus="this.blur()">部门管理</a>
-		        <a href="{{helper.createUrl(['p':'firm/staff'])}}" target="mainFrame" onFocus="this.blur()">人员管理</a>
-		        <a href="{{helper.createUrl(['p':'department/async'])}}" target="mainFrame" onFocus="this.blur()">同步钉钉</a>
+		        <a href="{{helper.createUrl(['p':'firm/staff'])}}" target="mainFrame" onFocus="this.blur()">考核人员权限</a>
 		      </div>
 		    {% endif %}
 		      <div>
@@ -64,15 +62,16 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
               <a href="{{helper.createUrl(['p':'group/groupuser'])}}" target="mainFrame" onFocus="this.blur()">审核组人员</a
             </div>
 		{% elseif bigClass==3 %}
-<!--人事档案管理 -->		
-		
-		
-		
+<!--统一人员信息 -->
+		   <div>
+              <span>人员信息</span>
+              <a href="{{helper.createUrl(['p':'personnel/index'])}}" target="mainFrame" onFocus="this.blur()">员工管理与同步</a>
+              <a href="{{helper.createUrl(['p':'department/index','from':'personnel'])}}" target="mainFrame" onFocus="this.blur()">部门管理</a>
+            </div>
 		{% elseif bigClass==4 %}
 <!--薪酬管理 -->
 		   <div>
               <span>薪酬管理</span>
-              <a href="{{helper.createUrl(['p':'salary/employeesync'])}}" target="mainFrame" onFocus="this.blur()">员工同步/导入</a>
               <a href="{{helper.createUrl(['p':'salary/auth'])}}" target="mainFrame" onFocus="this.blur()">薪酬管理授权</a>
               <a href="{{helper.createUrl(['p':'salary/project'])}}" target="mainFrame" onFocus="this.blur()">工资项目设置</a>
               {% if salaryFeatures['payroll'] %}

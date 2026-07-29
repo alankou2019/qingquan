@@ -29,6 +29,8 @@ class DepartmentController extends FrontendBaseController
     public function indexAction()
     {
         $act    = isset($_REQUEST['act']) ? $_REQUEST['act'] : '';
+        $user = Helper::factory()->getSession()->get('_user');
+        $this->view->setVar('canManagePersonnel', !empty($user->is_admin) ? 1 : 0);
         $isAjax = isset($_REQUEST['is_ajax']) ? $_REQUEST['is_ajax'] : false;
         if ($act == 'remove') {
             $this->_remove($_REQUEST['id']);
@@ -56,15 +58,24 @@ class DepartmentController extends FrontendBaseController
      */
     public function asyncAction()
     {
-        $fromSalary = isset($_REQUEST['from']) && $_REQUEST['from'] == 'salary';
-        $backUrl = $fromSalary
-            ? $this->getHelper()->createUrl(['p' => 'salary/employeesync'])
-            : $this->getHelper()->createUrl(['p' => 'firm/staff']);
+        $source = isset($_REQUEST['from']) ? trim($_REQUEST['from']) : '';
+        $fromPersonnel = $source == 'personnel';
+        $fromSalary = $source == 'salary';
+        if ($fromPersonnel) {
+            $backUrl = $this->getHelper()->createUrl(['p' => 'personnel/index']);
+        } else if ($fromSalary) {
+            $backUrl = $this->getHelper()->createUrl(['p' => 'salary/employeesync']);
+        } else {
+            $backUrl = $this->getHelper()->createUrl(['p' => 'firm/staff']);
+        }
+        if (!$this->isPersonnelManager()) {
+            Utils::showMsg('只有企业管理员可以同步通讯录', $backUrl);
+        }
         $type    = !empty($_REQUEST['type']) ? $_REQUEST['type'] : 'department';
         if ($type == 'department') {
             $nextParams = ['p' => 'department/async', 'type' => 'user'];
-            if ($fromSalary) {
-                $nextParams['from'] = 'salary';
+            if ($fromPersonnel || $fromSalary) {
+                $nextParams['from'] = $source;
             }
             $backUrl = $this->getHelper()->createUrl($nextParams);
             DingdingOapi::factory()->asyncDepartment($this->companyId);
@@ -78,10 +89,17 @@ class DepartmentController extends FrontendBaseController
 
     public function UploadExcelAction()
     {
-        $fromSalary = isset($_REQUEST['from']) && $_REQUEST['from'] == 'salary';
-        $gourl = $fromSalary
-            ? Helper::factory()->createUrl(['p' => 'salary/employeesync'])
-            : Helper::factory()->createUrl(['p' => 'department/index']);
+        $source = isset($_REQUEST['from']) ? trim($_REQUEST['from']) : '';
+        if ($source == 'personnel') {
+            $gourl = Helper::factory()->createUrl(['p' => 'personnel/index']);
+        } else if ($source == 'salary') {
+            $gourl = Helper::factory()->createUrl(['p' => 'salary/employeesync']);
+        } else {
+            $gourl = Helper::factory()->createUrl(['p' => 'department/index']);
+        }
+        if (!$this->isPersonnelManager()) {
+            Utils::showMsg('只有企业管理员可以导入人员信息', $gourl);
+        }
         $ispost = $this->request->isPost();
         if ($ispost) {
             //判断文件类型
@@ -422,6 +440,12 @@ class DepartmentController extends FrontendBaseController
             $columns[$item['Field']] = 1;
         }
         return $columns;
+    }
+
+    protected function isPersonnelManager()
+    {
+        $user = Helper::factory()->getSession()->get('_user');
+        return !empty($user->is_admin);
     }
 
     private function tableHasColumn($tableName, $column)

@@ -34,11 +34,11 @@
 .salary_empty{padding:18px;color:#94a3b8;text-align:center;}
 </style>
 <div class="full_box">
-	{{ partial('salary_primary_navigation') }}
-	<div class="salary_secondary_navigation"><a class="on" href="#">员工同步/导入</a></div>
+	{{ partial('personnel_primary_navigation') }}
+	<div class="salary_secondary_navigation"><a class="on" href="#">统一人员信息</a></div>
 	<div class="salary_panel">
 		<div class="salary_notice">
-			当前企业通讯平台：{{platformName}}
+			当前企业通讯平台：{{platformName}}。这里是全系统唯一的人员信息库，KPI考核、积分考核和薪酬管理共用同一套部门与员工资料。
 		</div>
 		<div class="salary_grid">
 			{% for code,item in syncItems %}
@@ -46,6 +46,7 @@
 				<h3>{{item['name']}}</h3>
 				<span class="salary_tag">{{item['status']}}</span>
 				<p>{{item['desc']}}</p>
+				{% if canManagePersonnel is defined and canManagePersonnel %}
 				{% if code=='manual' %}
 				<div class="salary_sync_actions">
 					<button class="salary_btn" type="button" onclick="selectEmployeeExcel();">导入Excel</button>
@@ -53,12 +54,17 @@
 				</div>
 				<form method="post" action="{{item['upload_url']}}" enctype="multipart/form-data" id="salary_employee_excel_form">
 					<input class="salary_file_input" type="file" name="exceltpl" id="salary_employee_excel_input" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="submitEmployeeExcel(this);" />
-					<input type="hidden" name="from" value="salary" />
+					<input type="hidden" name="from" value="personnel" />
 				</form>
+				{% elseif item['sync_url'] is defined and item['sync_url'] %}
+				<button class="salary_btn" type="button" onclick="syncPersonnelPlatform('{{code}}','{{item['sync_url']}}',this);">{{item['action']}}</button>
 				{% elseif item['url'] %}
 				<a class="salary_btn" href="{{item['url']}}">{{item['action']}}</a>
 				{% else %}
-				<span class="salary_tag">暂未开放</span>
+				<span class="salary_tag">请联系运营后台配置</span>
+				{% endif %}
+				{% else %}
+				<span class="salary_tag">只读权限</span>
 				{% endif %}
 			</div>
 			{% endfor %}
@@ -110,6 +116,7 @@
 							<td class="name"><span class="txt">{% if item['is_admin'] %}是{% else %}否{% endif %}</span></td>
 							<td class="name"><span class="txt">{% if item['is_leader'] %}是{% else %}否{% endif %}</span></td>
 							<td class="name">
+								{% if canManagePersonnel is defined and canManagePersonnel %}
 								<span class="salary_employee_default_actions">
 									<button class="salary_employee_action" type="button" onclick="editSalaryEmployee({{item['id']}});">编辑</button>
 									{% if item['is_admin'] %}
@@ -122,6 +129,9 @@
 									<button class="salary_employee_action" type="button" onclick="saveSalaryEmployee({{item['id']}},this);">保存</button>
 									　<button class="salary_employee_action" type="button" onclick="cancelSalaryEmployee({{item['id']}});">取消</button>
 								</span>
+								{% else %}
+								<span>只读</span>
+								{% endif %}
 								<span class="salary_employee_status" id="salary_employee_status_{{item['id']}}"></span>
 							</td>
 						</tr>
@@ -234,6 +244,26 @@ function salaryEmployeePost(url, data, callback)
 	request.send(values.join('&'));
 }
 
+function syncPersonnelPlatform(platform, url, button)
+{
+	if (!url || !button) {
+		return;
+	}
+	button.disabled = true;
+	var originalText = button.textContent;
+	button.textContent = '同步中...';
+	salaryEmployeePost(url, {platform:platform}, function(success, result) {
+		button.disabled = false;
+		button.textContent = originalText;
+		if (!success) {
+			alert(result);
+			return;
+		}
+		alert(result.message || '通讯录同步完成');
+		window.location.reload();
+	});
+}
+
 function saveSalaryEmployee(employeeId, button)
 {
 	var row = getSalaryEmployeeRow(employeeId);
@@ -247,7 +277,7 @@ function saveSalaryEmployee(employeeId, button)
 	}
 	button.disabled = true;
 	setSalaryEmployeeStatus(employeeId, '保存中...', false);
-	salaryEmployeePost('{{helper.createUrl(['p':'salary/employeesave'])}}', data, function(success, result) {
+	salaryEmployeePost('{{helper.createUrl(['p':'personnel/save'])}}', data, function(success, result) {
 		button.disabled = false;
 		if (!success) {
 			setSalaryEmployeeStatus(employeeId, result, true);
@@ -279,11 +309,11 @@ function saveSalaryEmployee(employeeId, button)
 
 function deleteSalaryEmployee(employeeId)
 {
-	if (!confirm('删除后员工会从企业人员名单移除，历史薪酬记录仍然保留；来自钉钉或企业微信的员工下次同步可能重新出现。确认删除吗？')) {
+	if (!confirm('删除后员工会从全系统人员名单移除，历史考核及薪酬记录仍然保留；来自钉钉、企业微信或飞书的员工下次同步可能重新出现。确认删除吗？')) {
 		return;
 	}
 	setSalaryEmployeeStatus(employeeId, '删除中...', false);
-	salaryEmployeePost('{{helper.createUrl(['p':'salary/employeedelete'])}}', {employee_id:employeeId}, function(success, result) {
+	salaryEmployeePost('{{helper.createUrl(['p':'personnel/delete'])}}', {employee_id:employeeId}, function(success, result) {
 		if (!success) {
 			setSalaryEmployeeStatus(employeeId, result, true);
 			return;

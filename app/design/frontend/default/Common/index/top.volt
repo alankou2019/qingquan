@@ -32,6 +32,9 @@
       <tr>
         <td align="left" valign="top" id="header-admin">后台管理系统</td>
         <td align="left" valign="bottom" id="header-menu">
+        <a href="{{helper.createUrl(['p':'index/index','bigClass':'3'])}}" onFocus="this.blur()" target="_top"
+        {% if bigClass==3 %} id="menuon" {% endif %}>人员信息</a>
+
         <a href="{{helper.createUrl(['p':'index/index','bigClass':'1'])}}" onFocus="this.blur()" target="_top" 
         {% if bigClass==1 %} id="menuon" {% endif %}>KPI考核</a>
         
@@ -54,10 +57,6 @@
         {% endif %}
         
         
-<!--         <a href="{{helper.createUrl(['p':'index/index','bigClass':'3'])}}" onFocus="this.blur()" target="_top" -->
-<!--         {% if bigClass==3 %} id="menuon" {% endif %} >人事档案管理</a> -->
-<!--         <a href="{{helper.createUrl(['p':'index/index','bigClass':'4'])}}" onFocus="this.blur()" target="_top" -->
-<!--         {% if bigClass==4 %} id="menuon" {% endif %}>工资管理</a>    -->
         </td>
       </tr>
     </table></td>

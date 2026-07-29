@@ -16,7 +16,6 @@
 </style>
 <div class="head_tab clear salary_primary_navigation">
 	<ul>
-		<li><a href="{{helper.createUrl(['p':'salary/employeesync'])}}">员工同步</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/project'])}}">工资项目设置</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/payroll'])}}">工资表核算</a></li>
 		<li><a href="{{helper.createUrl(['p':'salary/archive'])}}">工资表归档</a></li>
