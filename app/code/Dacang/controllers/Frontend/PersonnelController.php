@@ -47,7 +47,7 @@ class PersonnelController extends FrontendBaseController
 			'manual' => array(
 				'name' => 'Excel导入',
 				'status' => '成熟可用',
-				'desc' => '复用原部门管理的Excel模板和导入逻辑，导入后供KPI、积分和薪酬共同使用。',
+				'desc' => '使用统一Excel模板导入部门和员工，导入后供KPI、积分和薪酬共同使用。',
 				'url' => '',
 				'action' => '',
 				'sync_url' => '',

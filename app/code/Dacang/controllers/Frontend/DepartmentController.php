@@ -28,6 +28,10 @@ class DepartmentController extends FrontendBaseController
      */
     public function indexAction()
     {
+        return $this->response->redirect(
+            Helper::factory()->createUrl(['p' => 'personnel/index'])
+        );
+
         $act    = isset($_REQUEST['act']) ? $_REQUEST['act'] : '';
         $user = Helper::factory()->getSession()->get('_user');
         $this->view->setVar('canManagePersonnel', !empty($user->is_admin) ? 1 : 0);
@@ -102,19 +106,21 @@ class DepartmentController extends FrontendBaseController
         }
         $ispost = $this->request->isPost();
         if ($ispost) {
-            //判断文件类型
-            if ($_FILES['exceltpl']['name']) {
-                $extname = array_pop(explode('.', $_FILES['exceltpl']['name']));
-                if (!in_array($extname, ['xls', 'xlsx'])) {
-                    Utils::showMsg('请上传excel文件', $gourl);
-                }
-            } else {
+            if (
+                !isset($_FILES['exceltpl']) ||
+                empty($_FILES['exceltpl']['name']) ||
+                intval($_FILES['exceltpl']['error']) !== UPLOAD_ERR_OK
+            ) {
                 Utils::showMsg('请上传文件', $gourl);
             }
+            $extname = strtolower(pathinfo($_FILES['exceltpl']['name'], PATHINFO_EXTENSION));
+            if (!in_array($extname, ['xls', 'xlsx'])) {
+                Utils::showMsg('请上传Excel文件（xls或xlsx）', $gourl);
+            }
 
-            $file = Utils::uploadFile('exceltpl', 'excel', 'xls');
+            $file = Utils::uploadFile('exceltpl', 'excel');
             if (!$file) {
-                Utils::showMsg('文件不存在，请从新上传', $gourl);
+                Utils::showMsg('文件上传失败，请使用系统模板并重新上传', $gourl);
             }
 
             //构建字段 => 位置 数组
@@ -130,7 +136,12 @@ class DepartmentController extends FrontendBaseController
 
 
             //调用phpexcel类   读取excel 文件
-            $data = Utils::readExcel(WEBROOT . $file, $array);
+            try {
+                $data = Utils::readExcel(WEBROOT . $file, $array);
+            } catch (\Throwable $exception) {
+                error_log('Personnel Excel import failed: ' . $exception->getMessage());
+                Utils::showMsg('Excel读取失败，请确认使用系统模板且文件未损坏', $gourl);
+            }
             if (!$data) {
                 Utils::showMsg('读取excel错误', $gourl);
             }

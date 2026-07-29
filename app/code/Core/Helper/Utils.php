@@ -322,6 +322,17 @@ class Utils
             $extname = strtolower(substr($filename, strrpos($filename, '.') + 1));
         }
 
+        if (is_array($limit_ext_types)) {
+            $allowedTypes = [];
+            foreach ($limit_ext_types as $allowedType) {
+                $allowedType = strtolower(trim($allowedType));
+                if ($allowedType !== '') {
+                    $allowedTypes[] = $allowedType;
+                }
+            }
+            $limit_ext_types = '|' . implode('|', array_unique($allowedTypes)) . '|';
+        }
+
         if ($limit_ext_types && stristr($limit_ext_types, '|' . $extname . '|') === false) {
             return '';
         }
@@ -423,7 +434,8 @@ class Utils
             mkdir($dir, 0777, true);
         }
         $tempName = $_FILES[$fileName]['tmp_name'];
-        $ext      = self::checkFileType($tempName, '', $limit_ext_types);
+        $realName = isset($_FILES[$fileName]['name']) ? $_FILES[$fileName]['name'] : '';
+        $ext      = self::checkFileType($tempName, $realName, $limit_ext_types);
         if ($ext) {
             $newFile = $dir . md5(microtime(true)) . '.' . ($fix ? $fix : $ext);
             if (move_uploaded_file($tempName, $newFile)) {

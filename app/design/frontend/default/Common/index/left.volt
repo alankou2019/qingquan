@@ -66,7 +66,6 @@ body{overflow-x:hidden; background:url(/skin/newadminhtml/images/main/leftbg.jpg
 		   <div>
               <span>人员信息</span>
               <a href="{{helper.createUrl(['p':'personnel/index'])}}" target="mainFrame" onFocus="this.blur()">员工管理与同步</a>
-              <a href="{{helper.createUrl(['p':'department/index','from':'personnel'])}}" target="mainFrame" onFocus="this.blur()">部门管理</a>
             </div>
 		{% elseif bigClass==4 %}
 <!--薪酬管理 -->
