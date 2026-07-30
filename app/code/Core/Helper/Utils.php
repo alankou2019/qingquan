@@ -754,13 +754,14 @@ class Utils
         $objPHPExcel  = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
         $currentSheet = $objPHPExcel->getSheet(0);
         $allColumn    = $currentSheet->getHighestColumn();
-        $allRow       = $currentSheet->getHighestRow();
+        $allRow       = $currentSheet->getHighestDataRow();
 
         //循环每一行数据  添加到array
         for ($currentRow = 2; $currentRow <= $allRow; $currentRow++) {
             $arr = [];
             foreach ($array as $field => $position) {
-                $arr[$field] = htmlspecialchars($currentSheet->getCell($position . $currentRow)->getValue());
+                $value = $currentSheet->getCell($position . $currentRow)->getValue();
+                $arr[$field] = htmlspecialchars($value === null ? '' : (string)$value);
             }
             $return[] = $arr;
         }

@@ -130,8 +130,9 @@ class DepartmentController extends FrontendBaseController
                 'departname3' => 'C',
                 'departname4' => 'D',
                 'departname5' => 'E',
-                'username'    => 'F',
-                'mobile'      => 'G',
+                'username'      => 'F',
+                'mobile'        => 'G',
+                'position_name' => 'H',
             ];
 
 
@@ -145,10 +146,14 @@ class DepartmentController extends FrontendBaseController
             if (!$data) {
                 Utils::showMsg('读取excel错误', $gourl);
             }
+            $validationError = $this->validatePersonnelImportRows($data);
+            if ($validationError != '') {
+                Utils::showMsg($validationError, $gourl);
+            }
 
             //根据获取的data数据  添加到mysql
             if ($this->createUser($data)) {
-                Utils::showMsg('保存成功', $gourl);
+                Utils::showMsg('人员信息导入成功', $gourl);
             } else {
                 Utils::showMsg('保存失败', $gourl);
             }
@@ -161,14 +166,13 @@ class DepartmentController extends FrontendBaseController
     public function exportExcelTplAction()
     {
         ob_clean();
-        $filename = WEBROOT . '/data/usertpl.xls';
-        $name     = '用户模版';
+        $filename = WEBROOT . '/data/usertpl.xlsx';
+        $name     = '人员信息导入模板.xlsx';
         if (file_exists($filename)) {
-            $content = file_get_contents($filename);
-            header("Content-type:application/vnd.ms-excel");
-            header("Content-Disposition:filename=" . $name . '.xls');
-
-            echo $content;
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment; filename="personnel-import-template.xlsx"; filename*=UTF-8\'\'' . rawurlencode($name));
+            header('Content-Length: ' . filesize($filename));
+            readfile($filename);
         }
         exit();
 
@@ -257,53 +261,43 @@ class DepartmentController extends FrontendBaseController
 
 
             //部门名称
-            $departname1 = $value['departname1'];
-            $departname2 = $value['departname2'];
-            $departname3 = $value['departname3'];
-            $departname4 = $value['departname4'];
-            $departname5 = $value['departname5'];
+            $departname1 = trim($value['departname1']);
+            $departname2 = trim($value['departname2']);
+            $departname3 = trim($value['departname3']);
+            $departname4 = trim($value['departname4']);
+            $departname5 = trim($value['departname5']);
+            $employee = [
+                'username'      => trim($value['username']),
+                'mobile'        => trim($value['mobile']),
+                'position_name' => isset($value['position_name']) ? trim($value['position_name']) : '',
+            ];
 
-            if (empty($value['departname1']) || empty($value['username']) || empty($value['mobile'])) {
+            if ($departname1 === '' || $employee['username'] === '' || $employee['mobile'] === '') {
                 continue;
             }
 
             if ($departname5) {
-                $departArr[$departname1][$departname2][$departname3][$departname4][$departname5]['user-list'][] = [
-                    'username' => $value['username'],
-                    'mobile'   => $value['mobile'],
-                ];
+                $departArr[$departname1][$departname2][$departname3][$departname4][$departname5]['user-list'][] = $employee;
                 continue;
             }
 
             if ($departname4) {
-                $departArr[$departname1][$departname2][$departname3][$departname4]['user-list'][] = [
-                    'username' => $value['username'],
-                    'mobile'   => $value['mobile'],
-                ];
+                $departArr[$departname1][$departname2][$departname3][$departname4]['user-list'][] = $employee;
                 continue;
             }
 
             if ($departname3) {
-                $departArr[$departname1][$departname2][$departname3]['user-list'][] = [
-                    'username' => $value['username'],
-                    'mobile'   => $value['mobile'],
-                ];
+                $departArr[$departname1][$departname2][$departname3]['user-list'][] = $employee;
                 continue;
             }
 
             if ($departname2) {
-                $departArr[$departname1][$departname2]['user-list'][] = [
-                    'username' => $value['username'],
-                    'mobile'   => $value['mobile'],
-                ];
+                $departArr[$departname1][$departname2]['user-list'][] = $employee;
                 continue;
             }
 
             if ($departname1) {
-                $departArr[$departname1]['user-list'][] = [
-                    'username' => $value['username'],
-                    'mobile'   => $value['mobile'],
-                ];
+                $departArr[$departname1]['user-list'][] = $employee;
             }
         }
 
@@ -379,6 +373,7 @@ class DepartmentController extends FrontendBaseController
         $userTable = $companyUserModel->getSource();
         $columns = $this->getTableColumns($userTable);
         $mobileColumn = $this->getCompanyUserMobileColumn($userTable);
+        $positionColumn = $this->getCompanyUserPositionColumn($userTable);
 
         foreach ($userArr as $user) {
             $data = [
@@ -388,6 +383,9 @@ class DepartmentController extends FrontendBaseController
             ];
             if ($mobileColumn != '') {
                 $data[$mobileColumn] = $user['mobile'];
+            }
+            if ($positionColumn != '') {
+                $data[$positionColumn] = $user['position_name'];
             }
             $optional = [
                 'created'   => Helper::factory()->getTime()->gmtime(),
@@ -424,18 +422,102 @@ class DepartmentController extends FrontendBaseController
                 }
             } else {
                 // Re-importing the roster must refresh the employee's current
-                // name and department instead of leaving a stale department id.
-				$isExists->saveData([
+                // name, department and position instead of leaving stale data.
+                $updateData = [
                     'name'          => $user['username'],
                     'department_id' => $departID,
-                ]);
+                ];
+                if ($positionColumn != '') {
+                    $updateData[$positionColumn] = $user['position_name'];
+                }
+				$isExists->saveData($updateData);
             }
         }
+    }
+
+    private function validatePersonnelImportRows(&$data)
+    {
+        $validRows = [];
+        $identifierMap = [];
+        foreach ($data as $index => $row) {
+            foreach ([
+                'departname1',
+                'departname2',
+                'departname3',
+                'departname4',
+                'departname5',
+                'username',
+                'mobile',
+                'position_name',
+            ] as $field) {
+                $row[$field] = isset($row[$field]) && is_scalar($row[$field])
+                    ? trim((string)$row[$field])
+                    : '';
+            }
+
+            $hasValue = false;
+            foreach ($row as $value) {
+                if ($value !== '') {
+                    $hasValue = true;
+                    break;
+                }
+            }
+            if (!$hasValue) {
+                continue;
+            }
+
+            $excelRow = $index + 2;
+            if ($row['departname1'] === '' || $row['username'] === '' || $row['mobile'] === '') {
+                return 'Excel第' . $excelRow . '行不完整：一级部门、员工姓名、人员编号为必填项';
+            }
+            if (!$this->isValidPersonnelIdentifier($row['mobile'])) {
+                return 'Excel第' . $excelRow . '行人员编号格式错误：最多20个字符，不能包含空格';
+            }
+            if ($this->textLength($row['position_name']) > 100) {
+                return 'Excel第' . $excelRow . '行岗位不能超过100个字符';
+            }
+
+            $identifierKey = strtolower($row['mobile']);
+            if (isset($identifierMap[$identifierKey])) {
+                return 'Excel第' . $excelRow . '行人员编号与第' . $identifierMap[$identifierKey] . '行重复';
+            }
+            $identifierMap[$identifierKey] = $excelRow;
+            $validRows[] = $row;
+        }
+
+        if (empty($validRows)) {
+            return '模板中没有可导入的人员信息';
+        }
+        $data = $validRows;
+        return '';
+    }
+
+    private function isValidPersonnelIdentifier($identifier)
+    {
+        return $identifier !== '' &&
+            $this->textLength($identifier) <= 20 &&
+            !preg_match('/\s/u', $identifier) &&
+            !preg_match('/[\x00-\x1F\x7F]/', $identifier);
+    }
+
+    private function textLength($value)
+    {
+        return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
     }
 
     private function getCompanyUserMobileColumn($userTable)
     {
         foreach (['jobnumber', 'mobile', 'phone'] as $column) {
+            if ($this->tableHasColumn($userTable, $column)) {
+                return $column;
+            }
+        }
+        return '';
+    }
+
+    private function getCompanyUserPositionColumn($userTable)
+    {
+        foreach (['position_name', 'position', 'job_title', 'title', 'post'] as $column) {
             if ($this->tableHasColumn($userTable, $column)) {
                 return $column;
             }

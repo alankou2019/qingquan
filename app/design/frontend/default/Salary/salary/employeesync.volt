@@ -81,7 +81,7 @@
 							<th class="check_box"><label class="radio_check ck_all"><input type="checkbox" id="salary_employee_check_all" onclick="toggleSalaryEmployees(this);" /></label></th>
 							<th style="width:70px;"><span>ID</span></th>
 							<th style="width:150px;"><span>姓名</span></th>
-							<th style="width:160px;"><span>手机号</span></th>
+							<th style="width:180px;"><span>人员编号</span></th>
 							<th style="width:220px;"><span>部门</span></th>
 							<th style="width:160px;"><span>岗位</span></th>
 							<th style="width:90px;"><span>管理员</span></th>
@@ -98,7 +98,7 @@
 							</td>
 							<td class="name">
 								<span class="txt salary_employee_display" data-field-display="mobile">{{item['mobile']}}</span>
-								<input class="salary_employee_edit" type="text" data-field="mobile" data-original="{{item['mobile']}}" value="{{item['mobile']}}" maxlength="20" />
+								<input class="salary_employee_edit" type="text" data-field="mobile" data-original="{{item['mobile']}}" value="{{item['mobile']}}" maxlength="20" title="可填写手机号、身份证号或工号，企业内不可重复" />
 							</td>
 							<td class="name">
 								<span class="txt salary_employee_display" data-field-display="department_name">{% if item['departmentname'] %}{{item['departmentname']}}{% else %}-{% endif %}</span>

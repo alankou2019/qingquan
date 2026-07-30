@@ -47,7 +47,7 @@ class PersonnelController extends FrontendBaseController
 			'manual' => array(
 				'name' => 'Excel导入',
 				'status' => '成熟可用',
-				'desc' => '使用统一Excel模板导入部门和员工，导入后供KPI、积分和薪酬共同使用。',
+				'desc' => '使用统一Excel模板导入部门、姓名、人员编号和岗位，导入后供KPI、积分和薪酬共同使用。',
 				'url' => '',
 				'action' => '',
 				'sync_url' => '',
@@ -101,8 +101,8 @@ class PersonnelController extends FrontendBaseController
 		if (function_exists('mb_strlen') && mb_strlen($name, 'UTF-8') > 80) {
 			$this->sendErrorResult('员工姓名不能超过80个字符');
 		}
-		if ($mobile != '' && !preg_match('/^\d{6,20}$/', $mobile)) {
-			$this->sendErrorResult('手机号应为6至20位数字');
+		if ($mobile != '' && !$this->isValidPersonnelIdentifier($mobile)) {
+			$this->sendErrorResult('人员编号最多20个字符，不能包含空格');
 		}
 		if (function_exists('mb_strlen') && mb_strlen($positionName, 'UTF-8') > 100) {
 			$this->sendErrorResult('岗位不能超过100个字符');
@@ -124,7 +124,7 @@ class PersonnelController extends FrontendBaseController
 				' and `' . $mobileColumn . '`="' . addslashes($mobile) . '" limit 1'
 			)->fetch();
 			if ($duplicate) {
-				$this->sendErrorResult('该手机号已被其他员工使用');
+				$this->sendErrorResult('该人员编号已被其他员工使用');
 			}
 		}
 
@@ -162,6 +162,17 @@ class PersonnelController extends FrontendBaseController
 				'position_name' => $positionName,
 			),
 		));
+	}
+
+	private function isValidPersonnelIdentifier($identifier)
+	{
+		$length = function_exists('mb_strlen')
+			? mb_strlen($identifier, 'UTF-8')
+			: strlen($identifier);
+		return $identifier !== '' &&
+			$length <= 20 &&
+			!preg_match('/\s/u', $identifier) &&
+			!preg_match('/[\x00-\x1F\x7F]/', $identifier);
 	}
 
 	public function deleteAction()
