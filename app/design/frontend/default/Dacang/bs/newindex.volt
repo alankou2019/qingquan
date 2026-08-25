@@ -8,6 +8,8 @@
 		.mobile_module_panel .module_copy .title{font-size:0.72rem;color:#111827;line-height:1.05rem;}
 		.mobile_module_panel .module_copy .txt{font-size:0.55rem;color:#8a94a6;line-height:0.82rem;margin-top:0.08rem;}
 		.mobile_module_panel .module_arrow{font-size:0.78rem;color:#b7bfcc;padding-left:0.25rem;}
+		.wp_logout_link{position:absolute;right:0.65rem;top:0.65rem;z-index:2;padding:0.25rem 0.48rem;border:1px solid rgba(255,255,255,0.75);border-radius:0.18rem;color:#fff;font-size:0.55rem;line-height:0.8rem;background:rgba(0,0,0,0.12);}
+		.wp_logout_link:active{color:#fff;background:rgba(0,0,0,0.25);}
 	</style>
     {% if pointmofule %}
         <div class="menu_box">
@@ -30,8 +32,11 @@
 	    </div>
     {% endif %}
     
-  	<div class="mui-content">
+	<div class="mui-content">
 		<div class="evaluation_top">
+			{% if showWpLogout %}
+			<a class="wp_logout_link" href="{{helper.createUrl(['p':'wp/logout?do_action=logout'])}}" onclick="return window.confirm('确定退出当前账号吗？');">退出登录</a>
+			{% endif %}
 			<div class="header_box">
 				<img src="{{userinfo.avatar}}" class="header_img" alt=""  onerror="this.src='/favicon.ico'"/>
 				<div class="name">

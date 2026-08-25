@@ -89,7 +89,12 @@ class  BsController extends FrontendBaseController
         $this->view->setVar('userinfo', $userinfo);
         $this->view->setVar('pointmofule', UserModel::checkPointModule());
         $this->view->setVar('controller_name', $this->getDI()->get('router')->getControllerName());
-        $this->view->setVar('bro', $this->checkBrowser());
+        $browser = $this->checkBrowser();
+        $this->view->setVar('bro', $browser);
+        $this->view->setVar(
+            'showWpLogout',
+            $browser != 'dding' && $this->session->get('login_platform') != 'wecom'
+        );
         $this->view->setVar('hasSalaryMobile', $this->hasSalaryMobile());
     }
 

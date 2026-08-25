@@ -102,6 +102,7 @@ class  WpController extends FrontendBaseController
 
         $this->session->set('user_id', $userInfo->id);
         $this->session->set('company_id', $userInfo->company_id);
+        $this->session->set('login_platform', 'wp');
 
 
         $goUrl = $this->getHelper()->createUrl(['p' => 'bs/newindex']);
@@ -145,10 +146,11 @@ class  WpController extends FrontendBaseController
     {
         $this->session->remove('user_id');
         $this->session->remove('company_id');
-        setcookie("__scsxsid", "");
+        $this->session->remove('login_platform');
+        setcookie("__scsxsid", "", time() - 3600, "/");
 
 
-        $goUrl = $this->getHelper()->createUrl(['p' => 'bs/newindex']);
+        $goUrl = $this->getHelper()->createUrl(['p' => 'wp/loginpage']);
         Utils::showFrontMsg('退出成功', $goUrl);
 
 
